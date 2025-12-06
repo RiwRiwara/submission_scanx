@@ -1,0 +1,549 @@
+"""
+Phase 0: PDF to OCR Extraction using Azure Document Intelligence
+
+This module handles:
+1. Reading PDF files from training or test directories
+2. Using Azure Document Intelligence to extract text and layout
+3. Saving raw JSON output for further processing
+"""
+
+import os
+import json
+import time
+import argparse
+from pathlib import Path
+from typing import Optional, Dict, List, Any
+from dotenv import load_dotenv
+
+# Load environment variables
+env_path = Path(__file__).parent / ".env"
+load_dotenv(env_path)
+
+
+def get_azure_client():
+    """Initialize Azure Document Intelligence client."""
+    from azure.ai.documentintelligence import DocumentIntelligenceClient
+    from azure.core.credentials import AzureKeyCredential
+
+    endpoint = os.getenv("AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT")
+    api_key = os.getenv("AZURE_DOCUMENT_INTELLIGENCE_API_KEY")
+
+    if not endpoint or not api_key:
+        raise ValueError(
+            "Missing Azure Document Intelligence credentials. "
+            "Please set AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT and "
+            "AZURE_DOCUMENT_INTELLIGENCE_API_KEY in .env file."
+        )
+
+    return DocumentIntelligenceClient(
+        endpoint=endpoint,
+        credential=AzureKeyCredential(api_key)
+    )
+
+
+def extract_pdf_to_json(
+    pdf_path: Path,
+    client,
+    model_id: str = "prebuilt-read"
+) -> Dict[str, Any]:
+    """
+    Extract text and layout from a PDF using Azure Document Intelligence.
+
+    Args:
+        pdf_path: Path to the PDF file
+        client: Azure Document Intelligence client
+        model_id: Model to use for analysis (default: prebuilt-read)
+
+    Returns:
+        Dict containing extracted content with pages and lines
+    """
+    # Read PDF as bytes
+    with open(pdf_path, "rb") as f:
+        pdf_bytes = f.read()
+
+    # Call Azure Document Intelligence API
+    poller = client.begin_analyze_document(
+        model_id,
+        body=pdf_bytes,
+        content_type="application/pdf"
+    )
+
+    result = poller.result()
+
+    # Convert to our JSON format
+    output = {
+        "file_name": pdf_path.name,
+        "content": result.content,
+        "pages": []
+    }
+
+    if result.pages:
+        for page in result.pages:
+            page_data = {
+                "page_number": page.page_number,
+                "width": page.width,
+                "height": page.height,
+                "unit": page.unit,
+                "lines": []
+            }
+
+            if page.lines:
+                for line in page.lines:
+                    line_data = {
+                        "content": line.content,
+                        "polygon": line.polygon if line.polygon else None
+                    }
+                    page_data["lines"].append(line_data)
+
+            output["pages"].append(page_data)
+
+    # Add paragraphs if available
+    if result.paragraphs:
+        output["paragraphs"] = [
+            {
+                "content": p.content,
+                "role": p.role if hasattr(p, 'role') else None
+            }
+            for p in result.paragraphs
+        ]
+
+    # Add tables if available
+    if result.tables:
+        output["tables"] = []
+        for table in result.tables:
+            table_data = {
+                "row_count": table.row_count,
+                "column_count": table.column_count,
+                "cells": [
+                    {
+                        "row_index": cell.row_index,
+                        "column_index": cell.column_index,
+                        "content": cell.content,
+                        "row_span": cell.row_span if hasattr(cell, 'row_span') else 1,
+                        "column_span": cell.column_span if hasattr(cell, 'column_span') else 1
+                    }
+                    for cell in table.cells
+                ]
+            }
+            output["tables"].append(table_data)
+
+    return output
+
+
+def get_pdf_list(input_dir: Path, doc_info_csv: Path) -> List[Dict[str, str]]:
+    """
+    Get list of PDFs to process from doc_info.csv.
+
+    Args:
+        input_dir: Directory containing input files
+        doc_info_csv: Path to doc_info CSV file
+
+    Returns:
+        List of dicts with doc_id and pdf_filename
+    """
+    import csv
+
+    pdf_list = []
+
+    with open(doc_info_csv, 'r', encoding='utf-8-sig') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            pdf_list.append({
+                "doc_id": row.get("doc_id", ""),
+                "pdf_filename": row.get("doc_location_url", ""),
+                "nacc_id": row.get("nacc_id", "")
+            })
+
+    return pdf_list
+
+
+def process_pdfs(
+    input_dir: Path,
+    output_dir: Path,
+    is_final: bool = False,
+    limit: Optional[int] = None,
+    skip_existing: bool = True
+) -> Dict[str, Any]:
+    """
+    Process all PDFs in the input directory.
+
+    Args:
+        input_dir: Base input directory (train input or test final input)
+        output_dir: Directory to save extracted JSON files
+        is_final: If True, process test final data
+        limit: Maximum number of files to process (for testing)
+        skip_existing: Skip files that already have output
+
+    Returns:
+        Dict with processing statistics
+    """
+    # Determine paths based on mode
+    if is_final:
+        doc_info_csv = input_dir / "Test final_doc_info.csv"
+        pdf_dir = input_dir / "Test final_pdf"
+    else:
+        doc_info_csv = input_dir / "Train_doc_info.csv"
+        pdf_dir = input_dir / "Train_pdf" / "pdf"
+
+    if not doc_info_csv.exists():
+        raise FileNotFoundError(f"Doc info CSV not found: {doc_info_csv}")
+
+    if not pdf_dir.exists():
+        raise FileNotFoundError(f"PDF directory not found: {pdf_dir}")
+
+    # Create output directory
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Get PDF list
+    pdf_list = get_pdf_list(input_dir, doc_info_csv)
+
+    if limit:
+        pdf_list = pdf_list[:limit]
+
+    # Initialize Azure client
+    client = get_azure_client()
+
+    stats = {
+        "total": len(pdf_list),
+        "processed": 0,
+        "skipped": 0,
+        "errors": []
+    }
+
+    print(f"{'='*60}")
+    print(f"Phase 0: PDF to OCR Extraction")
+    print(f"{'='*60}")
+    print(f"Mode: {'Test Final' if is_final else 'Training'}")
+    print(f"Input: {pdf_dir}")
+    print(f"Output: {output_dir}")
+    print(f"Total PDFs: {len(pdf_list)}")
+    print(f"{'='*60}")
+
+    for i, pdf_info in enumerate(pdf_list, 1):
+        pdf_filename = pdf_info["pdf_filename"]
+        pdf_path = pdf_dir / pdf_filename
+
+        # Output filename (same as PDF but with .json extension)
+        output_filename = Path(pdf_filename).stem + ".json"
+        output_path = output_dir / output_filename
+
+        # Skip if already exists
+        if skip_existing and output_path.exists():
+            print(f"[{i}/{len(pdf_list)}] SKIP (exists): {pdf_filename[:50]}...")
+            stats["skipped"] += 1
+            continue
+
+        if not pdf_path.exists():
+            error_msg = f"PDF not found: {pdf_path}"
+            print(f"[{i}/{len(pdf_list)}] ERROR: {error_msg}")
+            stats["errors"].append((pdf_filename, error_msg))
+            continue
+
+        try:
+            print(f"[{i}/{len(pdf_list)}] Processing: {pdf_filename[:50]}...", end=" ", flush=True)
+
+            # Extract content
+            result = extract_pdf_to_json(pdf_path, client)
+
+            # Add metadata
+            result["_metadata"] = {
+                "doc_id": pdf_info["doc_id"],
+                "nacc_id": pdf_info["nacc_id"],
+                "source_pdf": str(pdf_path),
+                "phase": "phase0_ocr"
+            }
+
+            # Save JSON
+            with open(output_path, 'w', encoding='utf-8') as f:
+                json.dump(result, f, ensure_ascii=False, indent=2)
+
+            print(f"OK ({len(result['pages'])} pages)")
+            stats["processed"] += 1
+
+            # Rate limiting
+            time.sleep(0.5)
+
+        except Exception as e:
+            error_msg = str(e)
+            print(f"ERROR: {error_msg[:50]}")
+            stats["errors"].append((pdf_filename, error_msg))
+
+    print(f"\n{'='*60}")
+    print("Summary")
+    print(f"{'='*60}")
+    print(f"Processed: {stats['processed']}/{stats['total']}")
+    print(f"Skipped: {stats['skipped']}")
+    print(f"Errors: {len(stats['errors'])}")
+
+    if stats["errors"]:
+        print("\nErrors:")
+        for fname, err in stats["errors"][:5]:
+            print(f"  - {fname[:40]}: {err[:50]}")
+        if len(stats["errors"]) > 5:
+            print(f"  ... and {len(stats['errors']) - 5} more")
+
+    print(f"{'='*60}")
+
+    return stats
+
+
+def process_single_pdf(
+    pdf_path: Path,
+    output_dir: Path,
+    skip_existing: bool = True
+) -> Dict[str, Any]:
+    """
+    Process a single PDF file.
+
+    Args:
+        pdf_path: Path to the PDF file
+        output_dir: Directory to save output JSON
+        skip_existing: Skip if output already exists
+
+    Returns:
+        Dict with processing result
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    output_filename = pdf_path.stem + ".json"
+    output_path = output_dir / output_filename
+
+    if skip_existing and output_path.exists():
+        print(f"SKIP (exists): {pdf_path.name}")
+        return {'status': 'skipped', 'file': pdf_path.name}
+
+    if not pdf_path.exists():
+        print(f"ERROR: PDF not found: {pdf_path}")
+        return {'status': 'error', 'file': pdf_path.name, 'error': 'PDF not found'}
+
+    try:
+        print(f"Processing: {pdf_path.name}...", end=" ", flush=True)
+
+        client = get_azure_client()
+        result = extract_pdf_to_json(pdf_path, client)
+
+        # Add metadata
+        result["_metadata"] = {
+            "source_pdf": str(pdf_path),
+            "phase": "phase0_ocr"
+        }
+
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)
+
+        print(f"OK ({len(result['pages'])} pages)")
+        return {'status': 'success', 'file': pdf_path.name, 'pages': len(result['pages'])}
+
+    except Exception as e:
+        print(f"ERROR: {str(e)[:50]}")
+        return {'status': 'error', 'file': pdf_path.name, 'error': str(e)}
+
+
+def fix_errors(
+    input_dir: Path,
+    output_dir: Path,
+    is_final: bool = False
+) -> Dict[str, Any]:
+    """
+    Retry processing only files that failed or are missing.
+
+    Args:
+        input_dir: Base input directory
+        output_dir: Directory with output JSON files
+        is_final: If True, process test final data
+
+    Returns:
+        Dict with processing statistics
+    """
+    # Determine PDF directory
+    if is_final:
+        doc_info_csv = input_dir / "Test final_doc_info.csv"
+        pdf_dir = input_dir / "Test final_pdf"
+    else:
+        doc_info_csv = input_dir / "Train_doc_info.csv"
+        pdf_dir = input_dir / "Train_pdf" / "pdf"
+
+    if not doc_info_csv.exists():
+        raise FileNotFoundError(f"Doc info CSV not found: {doc_info_csv}")
+
+    # Get PDF list
+    pdf_list = get_pdf_list(input_dir, doc_info_csv)
+
+    # Find files that need processing (missing output or PDF not found errors)
+    files_to_process = []
+    for pdf_info in pdf_list:
+        pdf_filename = pdf_info["pdf_filename"]
+        pdf_path = pdf_dir / pdf_filename
+        output_filename = Path(pdf_filename).stem + ".json"
+        output_path = output_dir / output_filename
+
+        # Check if output exists
+        if not output_path.exists():
+            # Check if PDF exists
+            if pdf_path.exists():
+                files_to_process.append(pdf_info)
+            else:
+                print(f"WARN: PDF still not found: {pdf_filename}")
+
+    if not files_to_process:
+        print("No files to fix. All PDFs processed successfully!")
+        return {'total': 0, 'processed': 0, 'errors': []}
+
+    print(f"{'='*60}")
+    print(f"Phase 0: Fix Errors (Retry Failed Files)")
+    print(f"{'='*60}")
+    print(f"Mode: {'Test Final' if is_final else 'Training'}")
+    print(f"Files to retry: {len(files_to_process)}")
+    print(f"{'='*60}")
+
+    client = get_azure_client()
+
+    stats = {
+        'total': len(files_to_process),
+        'processed': 0,
+        'errors': []
+    }
+
+    for i, pdf_info in enumerate(files_to_process, 1):
+        pdf_filename = pdf_info["pdf_filename"]
+        pdf_path = pdf_dir / pdf_filename
+        output_filename = Path(pdf_filename).stem + ".json"
+        output_path = output_dir / output_filename
+
+        try:
+            print(f"[{i}/{len(files_to_process)}] Retrying: {pdf_filename[:50]}...", end=" ", flush=True)
+
+            result = extract_pdf_to_json(pdf_path, client)
+
+            result["_metadata"] = {
+                "doc_id": pdf_info["doc_id"],
+                "nacc_id": pdf_info["nacc_id"],
+                "source_pdf": str(pdf_path),
+                "phase": "phase0_ocr"
+            }
+
+            with open(output_path, 'w', encoding='utf-8') as f:
+                json.dump(result, f, ensure_ascii=False, indent=2)
+
+            print(f"OK ({len(result['pages'])} pages)")
+            stats['processed'] += 1
+
+            time.sleep(0.5)
+
+        except Exception as e:
+            error_msg = str(e)
+            print(f"ERROR: {error_msg[:50]}")
+            stats['errors'].append((pdf_filename, error_msg))
+
+    print(f"\n{'='*60}")
+    print("Fix Summary")
+    print(f"{'='*60}")
+    print(f"Retried: {stats['processed']}/{stats['total']}")
+    print(f"Errors: {len(stats['errors'])}")
+    print(f"{'='*60}")
+
+    return stats
+
+
+def main():
+    """Main entry point for Phase 0."""
+    parser = argparse.ArgumentParser(
+        description="Phase 0: Extract text from PDFs using Azure Document Intelligence"
+    )
+    parser.add_argument(
+        "--final",
+        action="store_true",
+        help="Process test final data instead of training data"
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Maximum number of PDFs to process (for testing)"
+    )
+    parser.add_argument(
+        "--no-skip",
+        action="store_true",
+        help="Don't skip existing files, reprocess all"
+    )
+    parser.add_argument(
+        "--fix",
+        action="store_true",
+        help="Retry only failed/missing files"
+    )
+    parser.add_argument(
+        "--file",
+        type=str,
+        default=None,
+        help="Process a single PDF file (path to PDF)"
+    )
+    parser.add_argument(
+        "--input-dir",
+        type=str,
+        default=None,
+        help="Override input directory"
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default=None,
+        help="Override output directory"
+    )
+
+    args = parser.parse_args()
+
+    # Determine base paths
+    src_dir = Path(__file__).parent.parent
+
+    # Single file mode
+    if args.file:
+        pdf_path = Path(args.file)
+        if not pdf_path.is_absolute():
+            pdf_path = Path.cwd() / pdf_path
+
+        if args.output_dir:
+            output_dir = Path(args.output_dir)
+        elif args.final:
+            output_dir = src_dir / "result" / "final" / "processing_input" / "extract_raw"
+        else:
+            output_dir = src_dir / "result" / "from_train" / "processing_input" / "extract_raw"
+
+        process_single_pdf(pdf_path, output_dir, skip_existing=not args.no_skip)
+        return
+
+    # Determine input/output directories
+    if args.input_dir:
+        input_dir = Path(args.input_dir)
+    elif args.final:
+        input_dir = src_dir / "test final" / "test final input"
+    else:
+        input_dir = src_dir / "training" / "train input"
+
+    if args.output_dir:
+        output_dir = Path(args.output_dir)
+    elif args.final:
+        output_dir = src_dir / "result" / "final" / "processing_input" / "extract_raw"
+    else:
+        output_dir = src_dir / "result" / "from_train" / "processing_input" / "extract_raw"
+
+    # Fix mode - retry only errors
+    if args.fix:
+        fix_errors(
+            input_dir=input_dir,
+            output_dir=output_dir,
+            is_final=args.final
+        )
+        return
+
+    # Normal processing
+    process_pdfs(
+        input_dir=input_dir,
+        output_dir=output_dir,
+        is_final=args.final,
+        limit=args.limit,
+        skip_existing=not args.no_skip
+    )
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,31 @@
+[project]
+name = "submission-scanx"
+version = "0.1.0"
+description = "Thai Government Financial Disclosure Document Extraction System"
+authors = [
+    {name = "Riwara",email = "awirut2629@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "python-dotenv>=1.0.0",
+    "azure-ai-documentintelligence>=1.0.0",
+    "azure-core>=1.29.0",
+    "numpy>=1.24.0",
+    "scipy>=1.11.0",
+    "openai>=1.0.0",
+]
+
+[tool.poetry]
+packages = [{include = "submission_scanx", from = "src"}]
+
+[tool.poetry.scripts]
+scanx = "submission_scanx.pipeline:main"
+scanx-ocr = "submission_scanx.phase0_ocr:main"
+scanx-process = "submission_scanx.phase1_process:main"
+scanx-text = "submission_scanx.phase1c_text_extract:main"
+scanx-meta = "submission_scanx.phase1d_metadata:main"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
