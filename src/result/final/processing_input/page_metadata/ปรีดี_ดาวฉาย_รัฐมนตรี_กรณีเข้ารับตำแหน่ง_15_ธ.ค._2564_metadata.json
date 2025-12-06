@@ -30,8 +30,8 @@
         13
       ],
       "page_types": [
-        "siblings",
-        "children"
+        "children",
+        "siblings"
       ],
       "confidence": 1.0
     },
@@ -50,9 +50,9 @@
         25
       ],
       "page_types": [
-        "income_expense",
+        "assets_summary",
         "tax_info",
-        "assets_summary"
+        "income_expense"
       ],
       "confidence": 1.0
     },
@@ -82,13 +82,13 @@
         25
       ],
       "page_types": [
-        "other_assets",
         "concessions",
-        "loans_given",
-        "land",
+        "vehicles",
         "bank_loans",
+        "other_assets",
         "investments",
-        "vehicles"
+        "loans_given",
+        "land"
       ],
       "confidence": 1.0
     },

@@ -738,6 +738,14 @@ def extract_asset_liability_summary(pages: List[Dict]) -> Tuple[List[Dict], Dict
             if 'รวมหนี้สิน' in content and 'ทั้งสิ้น' not in content:
                 liability_totals = extract_values_from_row(sorted_lines, cy, 0.2)
 
+        # Swap submitter and spouse for asset/liability totals
+        # The asset/liability summary page (หน้า 7) has a different column layout
+        # where the physical left column contains spouse values, not submitter values
+        if asset_totals['submitter'] or asset_totals['spouse']:
+            asset_totals['submitter'], asset_totals['spouse'] = asset_totals['spouse'], asset_totals['submitter']
+        if liability_totals['submitter'] or liability_totals['spouse']:
+            liability_totals['submitter'], liability_totals['spouse'] = liability_totals['spouse'], liability_totals['submitter']
+
         # If we found data, return it
         if asset_totals['submitter'] or asset_totals['spouse'] or liability_totals['submitter'] or liability_totals['spouse']:
             return asset_details, asset_totals, liability_totals

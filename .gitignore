@@ -1,3 +1,9 @@
 .env
 src/submission_scanx/__pycache__
 */__pycache__
+
+src/result/final/processing_input/page_metadata
+src/result/final/processing_input/text_each_page
+
+src/result/from_train/processing_input/page_metadata
+src/result/from_train/processing_input/text_each_page

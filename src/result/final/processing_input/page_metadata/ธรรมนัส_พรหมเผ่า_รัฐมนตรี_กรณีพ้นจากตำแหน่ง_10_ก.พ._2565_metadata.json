@@ -100,10 +100,10 @@
         12
       ],
       "page_types": [
-        "siblings",
         "personal_info",
-        "spouse_info",
-        "children"
+        "children",
+        "siblings",
+        "spouse_info"
       ],
       "confidence": 1.0
     },
@@ -125,9 +125,9 @@
         61
       ],
       "page_types": [
+        "assets_summary",
         "income_expense",
-        "tax_info",
-        "assets_summary"
+        "tax_info"
       ],
       "confidence": 1.0
     },
@@ -181,18 +181,18 @@
         61
       ],
       "page_types": [
+        "concessions",
+        "vehicles",
+        "bank_loans",
         "other_assets",
         "written_debts",
-        "concessions",
+        "investments",
         "loans_given",
-        "land",
         "buildings",
-        "deposits",
         "cash",
         "overdraft",
-        "bank_loans",
-        "investments",
-        "vehicles"
+        "land",
+        "deposits"
       ],
       "confidence": 1.0
     },
