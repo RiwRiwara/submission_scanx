@@ -281,10 +281,16 @@ class PipelineDataLoader:
     def page_metadata(self) -> Dict:
         """Get page metadata index (lazy loaded and cached)."""
         if self._page_metadata is None:
-            metadata_path = os.path.join(self.input_dir, 'page_metadata', 'index.json')
-            if os.path.exists(metadata_path):
-                with open(metadata_path, 'r', encoding='utf-8') as f:
-                    self._page_metadata = json.load(f)
+            # Try multiple possible locations for page_metadata
+            possible_paths = [
+                os.path.join(self.input_dir, 'processing_input', 'page_metadata', 'index.json'),
+                os.path.join(self.input_dir, 'page_metadata', 'index.json'),
+            ]
+            for metadata_path in possible_paths:
+                if os.path.exists(metadata_path):
+                    with open(metadata_path, 'r', encoding='utf-8') as f:
+                        self._page_metadata = json.load(f)
+                    break
             else:
                 self._page_metadata = {'documents': []}
         return self._page_metadata
