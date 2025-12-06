@@ -1,0 +1,36 @@
+{
+  "timestamp": "20251206_231811",
+  "input_files": {
+    "statement_csv": "/Users/riwara/work/hackaton/submission_scanx/src/result/from_train/mapping_output/statement.csv",
+    "statement_detail_csv": "/Users/riwara/work/hackaton/submission_scanx/src/result/from_train/mapping_output/statement_detail.csv"
+  },
+  "statistics": {
+    "statement": {
+      "total": 214,
+      "changed": 0,
+      "errors": 4
+    },
+    "statement_detail": {
+      "total": 779,
+      "changed": 1,
+      "errors": 1
+    }
+  },
+  "changes": [
+    {
+      "csv_file": "statement_detail.csv",
+      "row_index": 261,
+      "nacc_id": "571",
+      "changes": {
+        "valuation_submitter": {
+          "original": "360000",
+          "corrected": "360000.00"
+        },
+        "valuation_spouse": {
+          "original": "120000",
+          "corrected": "120000.00"
+        }
+      }
+    }
+  ]
+}

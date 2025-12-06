@@ -223,9 +223,10 @@ def run_phase2a(
     is_final: bool = False,
     input_csv: Optional[Path] = None,
     output_csv: Optional[Path] = None,
-    batch_size: int = 10
+    batch_size: int = 10,
+    max_workers: int = 5
 ):
-    """Run Phase 2a: LLM-based position data correction."""
+    """Run Phase 2a: LLM-based position data correction with concurrency."""
     from .phase2_subtask.phase2a_position_fix import run_phase2a as run_phase2a_fix
 
     paths = get_paths(is_final)
@@ -243,21 +244,24 @@ def run_phase2a(
     print("=" * 60)
     print(f"Input: {input_csv}")
     print(f"Output: {output_csv}")
-    print(f"Report: {report_dir}\n")
+    print(f"Report: {report_dir}")
+    print(f"Workers: {max_workers}\n")
 
     return run_phase2a_fix(
         input_csv=input_csv,
         output_csv=output_csv,
         report_dir=report_dir,
-        batch_size=batch_size
+        batch_size=batch_size,
+        max_workers=max_workers
     )
 
 
 def run_phase2b(
     is_final: bool = False,
-    batch_size: int = 5
+    batch_size: int = 5,
+    max_workers: int = 5
 ):
-    """Run Phase 2b: LLM-based statement data correction."""
+    """Run Phase 2b: LLM-based statement data correction with concurrency."""
     from .phase2_subtask.phase2b_statement_fix import run_phase2b as run_phase2b_fix
 
     paths = get_paths(is_final)
@@ -282,7 +286,8 @@ def run_phase2b(
     print(f"Statement Detail: {statement_detail_csv}")
     print(f"Text Dir: {text_dir}")
     print(f"Metadata Dir: {metadata_dir}")
-    print(f"Report: {report_dir}\n")
+    print(f"Report: {report_dir}")
+    print(f"Workers: {max_workers}\n")
 
     return run_phase2b_fix(
         statement_csv=statement_csv,
@@ -291,7 +296,8 @@ def run_phase2b(
         metadata_dir=metadata_dir,
         csv_dir=csv_dir,
         report_dir=report_dir,
-        batch_size=batch_size
+        batch_size=batch_size,
+        max_workers=max_workers
     )
 
 
@@ -343,19 +349,21 @@ def run_pipeline(
     skip_existing: bool = False,
     run_all: bool = False,
     include_1d: bool = False,
-    batch_size: int = 10
+    batch_size: int = 10,
+    max_workers: int = 5
 ):
     """
     Run the complete pipeline or selected phases.
 
     Args:
-        phases: Which phases to run ("0", "1", "1c", "1d", "1e", "2a", "all")
+        phases: Which phases to run ("0", "1", "1c", "1d", "1e", "2a", "2b", "all")
         is_final: Process test final data instead of training
         limit: Maximum number of PDFs to process (Phase 0)
         skip_existing: Skip already processed files
         run_all: Run complete Phase 1 (1a-1e) with clean
         include_1d: Also run Phase 1d when running phase 1
         batch_size: Batch size for Phase 2 LLM processing
+        max_workers: Number of concurrent workers for Phase 2 LLM
     """
     print("="*70)
     print("Submission ScanX - Document Extraction Pipeline")
@@ -401,11 +409,11 @@ def run_pipeline(
 
     # Phase 2a: LLM position fix
     elif phases == "2a":
-        results['phase2a'] = run_phase2a(is_final=is_final, batch_size=batch_size)
+        results['phase2a'] = run_phase2a(is_final=is_final, batch_size=batch_size, max_workers=max_workers)
 
     # Phase 2b: LLM statement fix
     elif phases == "2b":
-        results['phase2b'] = run_phase2b(is_final=is_final, batch_size=batch_size)
+        results['phase2b'] = run_phase2b(is_final=is_final, batch_size=batch_size, max_workers=max_workers)
 
     # "all" phases (0 + 1 complete)
     elif phases == "all":
@@ -500,6 +508,12 @@ Examples:
         default=10,
         help="Batch size for Phase 2 LLM processing (default: 10)"
     )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=5,
+        help="Number of concurrent workers for Phase 2 LLM processing (default: 5)"
+    )
 
     args = parser.parse_args()
 
@@ -510,7 +524,8 @@ Examples:
         skip_existing=args.skip,
         run_all=args.run_all,
         include_1d=args.include_1d,
-        batch_size=args.batch_size
+        batch_size=args.batch_size,
+        max_workers=args.workers
     )
 
 

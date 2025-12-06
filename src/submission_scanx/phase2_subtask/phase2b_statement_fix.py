@@ -14,10 +14,16 @@ import csv
 import json
 import time
 import re
+import threading
 from pathlib import Path
 from datetime import datetime
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, TYPE_CHECKING
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
+
+# Pricing per 1K tokens (USD)
+PRICE_INPUT_PER_1K = 0.05
+PRICE_OUTPUT_PER_1K = 0.4
 
 # Load environment variables
 load_dotenv(Path(__file__).parent.parent / ".env")
@@ -49,6 +55,72 @@ def get_llm_client():
         return None
 
 
+class TokenTracker:
+    """Track token usage for cost calculation (thread-safe)."""
+    
+    def __init__(self):
+        self.records = []
+        self.total_prompt_tokens = 0
+        self.total_completion_tokens = 0
+        self.total_tokens = 0
+        self._lock = threading.Lock()
+    
+    def add_usage(self, response, phase: str, row_index: int, csv_file: str = "", 
+                  submitter_id: str = "", nacc_id: str = ""):
+        """Add token usage from a response (thread-safe)."""
+        usage = getattr(response, 'usage', None)
+        if usage:
+            prompt_tokens = getattr(usage, 'prompt_tokens', 0)
+            completion_tokens = getattr(usage, 'completion_tokens', 0)
+            total = prompt_tokens + completion_tokens
+            
+            with self._lock:
+                self.total_prompt_tokens += prompt_tokens
+                self.total_completion_tokens += completion_tokens
+                self.total_tokens += total
+                
+                self.records.append({
+                    'phase': phase,
+                    'csv_file': csv_file,
+                    'row_index': row_index,
+                    'submitter_id': submitter_id,
+                    'nacc_id': nacc_id,
+                    'prompt_tokens': prompt_tokens,
+                    'completion_tokens': completion_tokens,
+                    'total_tokens': total,
+                    'timestamp': datetime.now().isoformat()
+                })
+    
+    def save_to_csv(self, output_path: Path):
+        """Save token usage records to CSV."""
+        if not self.records:
+            return
+        
+        fieldnames = ['phase', 'csv_file', 'row_index', 'submitter_id', 'nacc_id', 
+                      'prompt_tokens', 'completion_tokens', 'total_tokens', 'timestamp']
+        
+        with open(output_path, 'w', encoding='utf-8', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(self.records)
+    
+    def get_summary(self) -> dict:
+        """Get token usage summary with cost calculation."""
+        input_cost = (self.total_prompt_tokens / 1000) * PRICE_INPUT_PER_1K
+        output_cost = (self.total_completion_tokens / 1000) * PRICE_OUTPUT_PER_1K
+        total_cost = input_cost + output_cost
+        
+        return {
+            'total_calls': len(self.records),
+            'total_prompt_tokens': self.total_prompt_tokens,
+            'total_completion_tokens': self.total_completion_tokens,
+            'total_tokens': self.total_tokens,
+            'input_cost_usd': round(input_cost, 6),
+            'output_cost_usd': round(output_cost, 6),
+            'total_cost_usd': round(total_cost, 6)
+        }
+
+
 def load_text_each_page(text_dir: Path, doc_name: str) -> Dict[int, str]:
     """Load raw text for each page of a document."""
     page_texts = {}
@@ -73,17 +145,20 @@ def load_page_metadata(metadata_dir: Path, doc_name: str) -> Dict[str, List[int]
     """Load page metadata to find which pages contain statement data."""
     step_pages = {}
 
-    metadata_file = metadata_dir / f"{doc_name}_metadata.json"
-    if metadata_file.exists():
+    # Load from index.json which has all documents' step mappings
+    index_file = metadata_dir / "index.json"
+    if index_file.exists():
         try:
-            with open(metadata_file, 'r', encoding='utf-8') as f:
+            with open(index_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                for step_mapping in data.get('step_mappings', []):
-                    step_name = step_mapping.get('step_name', '')
-                    page_numbers = step_mapping.get('page_numbers', [])
-                    step_pages[step_name] = page_numbers
+                for doc in data.get('documents', []):
+                    if doc.get('doc_name') == doc_name:
+                        steps = doc.get('steps', {})
+                        for step_name, page_numbers in steps.items():
+                            step_pages[step_name] = page_numbers
+                        break
         except Exception as e:
-            print(f"    Warning: Could not load {metadata_file}: {e}")
+            print(f"    Warning: Could not load {index_file}: {e}")
 
     return step_pages
 
@@ -115,20 +190,36 @@ def get_statement_context(
     if not doc_name:
         return ""
 
-    # Load page metadata
-    step_pages = load_page_metadata(metadata_dir, doc_name)
-
-    # Get pages for step_5 (statement data)
-    statement_pages = step_pages.get('step_5', [])
-
-    # Load page texts
-    page_texts = load_text_each_page(text_dir, doc_name)
-
-    # Combine relevant page texts
+    # Load text file directly - it has page_type info
+    json_file = text_dir / f"{doc_name}.json"
+    if not json_file.exists():
+        return ""
+    
+    try:
+        with open(json_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    except Exception:
+        return ""
+    
+    pages = data.get('pages', [])
+    
+    # Get pages relevant to statement data (summary, first pages with financial info)
+    # Include summary page and a few content pages
     context_parts = []
-    for page_num in statement_pages[:5]:  # Limit to first 5 pages to save tokens
-        if page_num in page_texts:
-            context_parts.append(f"[Page {page_num}]\n{page_texts[page_num][:2000]}")
+    page_count = 0
+    
+    for page in pages:
+        page_num = page.get('page_number', 0)
+        page_type = page.get('page_type', '')
+        content = page.get('content', '')
+        
+        # Include summary, first few pages, or pages with financial content
+        if page_type in ('summary', 'personal_info', 'tax_info') or page_num <= 3:
+            if content:
+                context_parts.append(f"[Page {page_num} - {page_type}]\n{content[:1500]}")
+                page_count += 1
+                if page_count >= 4:  # Limit context size
+                    break
 
     return "\n\n".join(context_parts)
 
@@ -138,7 +229,8 @@ def fix_statement_row(
     row: dict,
     context: str,
     row_index: int,
-    csv_type: str
+    csv_type: str,
+    token_tracker: Optional['TokenTracker'] = None
 ) -> tuple[dict, dict]:
     """
     Use LLM to fix OCR errors in a statement row.
@@ -211,6 +303,17 @@ Example output format:
             max_completion_tokens=500
         )
 
+        # Track token usage
+        if token_tracker:
+            token_tracker.add_usage(
+                response,
+                phase="phase2b_statement",
+                row_index=row_index,
+                csv_file=f"{csv_type}.csv",
+                submitter_id=row.get("submitter_id", ""),
+                nacc_id=row.get("nacc_id", "")
+            )
+
         result_text = response.choices[0].message.content
         if result_text is None:
             return row, {}
@@ -255,23 +358,56 @@ Example output format:
         return row, {"error": str(e)}
 
 
-def build_doc_info_map(csv_dir: Path) -> Dict[str, str]:
-    """Build a mapping from nacc_id to doc_name."""
+def build_doc_info_map(mapping_output_dir: Path, text_dir: Path) -> Dict[str, str]:
+    """
+    Build a mapping from nacc_id to doc_name.
+    
+    Uses summary.csv (name info) and text_each_page/index.json (doc names)
+    to match records to documents for text context loading.
+    """
     doc_map = {}
-
-    doc_info_file = list(csv_dir.glob("*doc_info.csv"))
-    if doc_info_file:
+    
+    # Load summary.csv to get submitter names per nacc_id
+    summary_csv = mapping_output_dir / "summary.csv"
+    nacc_names = {}  # nacc_id -> (first_name, last_name)
+    
+    if summary_csv.exists():
         try:
-            with open(doc_info_file[0], 'r', encoding='utf-8') as f:
+            with open(summary_csv, 'r', encoding='utf-8') as f:
                 reader = csv.DictReader(f)
                 for row in reader:
-                    nacc_id = row.get('nacc_id', '')
-                    doc_name = row.get('doc_name', '')
-                    if nacc_id and doc_name:
-                        doc_map[nacc_id] = doc_name
+                    nacc_id = row.get('id', '')
+                    first_name = row.get('submitter_first_name', '')
+                    last_name = row.get('submitter_last_name', '')
+                    if nacc_id and first_name:
+                        nacc_names[nacc_id] = (first_name, last_name)
         except Exception as e:
-            print(f"  Warning: Could not load doc_info.csv: {e}")
-
+            print(f"  Warning: Could not load summary.csv: {e}")
+    
+    # Load text_each_page/index.json to get doc names (matches text files)
+    index_file = text_dir / "index.json"
+    doc_names = []
+    
+    if index_file.exists():
+        try:
+            with open(index_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                for doc in data.get('documents', []):
+                    # Use 'name' field from text_each_page index
+                    doc_name = doc.get('name', '') or doc.get('doc_name', '')
+                    if doc_name:
+                        doc_names.append(doc_name)
+        except Exception as e:
+            print(f"  Warning: Could not load index.json: {e}")
+    
+    # Match nacc_id to doc_name by name matching
+    for nacc_id, (first_name, last_name) in nacc_names.items():
+        for doc_name in doc_names:
+            # Check if both first and last name appear in doc_name
+            if first_name in doc_name and last_name in doc_name:
+                doc_map[nacc_id] = doc_name
+                break
+    
     return doc_map
 
 
@@ -283,10 +419,11 @@ def run_phase2b(
     csv_dir: Path,
     report_dir: Path,
     batch_size: int = 5,
-    delay_between_batches: float = 1.0
+    delay_between_batches: float = 1.0,
+    max_workers: int = 5
 ) -> dict:
     """
-    Run Phase 2b: Fix statement CSVs using LLM with page context.
+    Run Phase 2b: Fix statement CSVs using LLM with page context and concurrency.
 
     Args:
         statement_csv: Path to statement.csv
@@ -297,6 +434,7 @@ def run_phase2b(
         report_dir: Directory to save reports
         batch_size: Rows per batch
         delay_between_batches: Delay between API calls
+        max_workers: Maximum concurrent threads for LLM calls
 
     Returns:
         Statistics dictionary
@@ -323,10 +461,14 @@ def run_phase2b(
         return {"error": "LLM client initialization failed"}
     print("  Connected successfully")
 
-    # Build doc_info map
+    # Build doc_info map (mapping nacc_id to doc_name for text loading)
     print("\n[Init] Loading document info...")
-    doc_info_map = build_doc_info_map(csv_dir)
+    mapping_output_dir = statement_csv.parent  # e.g., mapping_output/
+    doc_info_map = build_doc_info_map(mapping_output_dir, text_dir)
     print(f"  Loaded {len(doc_info_map)} document mappings")
+
+    # Initialize token tracker
+    token_tracker = TokenTracker()
 
     all_changes = []
     total_stats = {
@@ -336,7 +478,7 @@ def run_phase2b(
 
     # Process statement.csv
     if statement_csv.exists():
-        print(f"\n[Process] Processing statement.csv...")
+        print(f"\n[Process] Processing statement.csv (workers={max_workers})...")
         rows = []
         with open(statement_csv, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
@@ -347,17 +489,32 @@ def run_phase2b(
         total_stats["statement"]["total"] = len(rows)
         print(f"  Loaded {len(rows)} rows")
 
-        fixed_rows = []
-        for i, row in enumerate(rows):
-            if (i + 1) % 10 == 0 or i == 0:
-                print(f"  Processing row {i + 1}/{len(rows)}...")
+        # Concurrent processing
+        results = [None] * len(rows)
+        completed = 0
+        completed_lock = threading.Lock()
 
+        def process_statement_row(idx: int, row: dict):
             nacc_id = row.get('nacc_id', '')
             context = get_statement_context(nacc_id, doc_info_map, text_dir, metadata_dir)
+            return idx, fix_statement_row(client, row, context, idx + 1, "statement", token_tracker), nacc_id
 
-            fixed_row, changes = fix_statement_row(client, row, context, i + 1, "statement")
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {executor.submit(process_statement_row, i, row): i for i, row in enumerate(rows)}
+            
+            for future in as_completed(futures):
+                idx, (fixed_row, changes), nacc_id = future.result()
+                results[idx] = (fixed_row, changes, nacc_id)
+                
+                with completed_lock:
+                    completed += 1
+                    if completed % 20 == 0 or completed == len(rows):
+                        print(f"  Completed {completed}/{len(rows)} rows...")
+
+        # Collect results
+        fixed_rows = []
+        for i, (fixed_row, changes, nacc_id) in enumerate(results):
             fixed_rows.append(fixed_row)
-
             if changes:
                 if "error" in changes:
                     total_stats["statement"]["errors"] += 1
@@ -370,9 +527,6 @@ def run_phase2b(
                         "changes": changes
                     })
 
-            if (i + 1) % batch_size == 0:
-                time.sleep(delay_between_batches)
-
         # Write back
         with open(statement_csv, 'w', encoding='utf-8', newline='') as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -382,7 +536,7 @@ def run_phase2b(
 
     # Process statement_detail.csv
     if statement_detail_csv.exists():
-        print(f"\n[Process] Processing statement_detail.csv...")
+        print(f"\n[Process] Processing statement_detail.csv (workers={max_workers})...")
         rows = []
         with open(statement_detail_csv, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
@@ -393,17 +547,32 @@ def run_phase2b(
         total_stats["statement_detail"]["total"] = len(rows)
         print(f"  Loaded {len(rows)} rows")
 
-        fixed_rows = []
-        for i, row in enumerate(rows):
-            if (i + 1) % 20 == 0 or i == 0:
-                print(f"  Processing row {i + 1}/{len(rows)}...")
+        # Concurrent processing
+        results = [None] * len(rows)
+        completed = 0
+        completed_lock = threading.Lock()
 
+        def process_detail_row(idx: int, row: dict):
             nacc_id = row.get('nacc_id', '')
             context = get_statement_context(nacc_id, doc_info_map, text_dir, metadata_dir)
+            return idx, fix_statement_row(client, row, context, idx + 1, "statement_detail", token_tracker), nacc_id
 
-            fixed_row, changes = fix_statement_row(client, row, context, i + 1, "statement_detail")
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {executor.submit(process_detail_row, i, row): i for i, row in enumerate(rows)}
+            
+            for future in as_completed(futures):
+                idx, (fixed_row, changes), nacc_id = future.result()
+                results[idx] = (fixed_row, changes, nacc_id)
+                
+                with completed_lock:
+                    completed += 1
+                    if completed % 50 == 0 or completed == len(rows):
+                        print(f"  Completed {completed}/{len(rows)} rows...")
+
+        # Collect results
+        fixed_rows = []
+        for i, (fixed_row, changes, nacc_id) in enumerate(results):
             fixed_rows.append(fixed_row)
-
             if changes:
                 if "error" in changes:
                     total_stats["statement_detail"]["errors"] += 1
@@ -416,9 +585,6 @@ def run_phase2b(
                         "changes": changes
                     })
 
-            if (i + 1) % batch_size == 0:
-                time.sleep(delay_between_batches)
-
         # Write back
         with open(statement_detail_csv, 'w', encoding='utf-8', newline='') as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -429,6 +595,10 @@ def run_phase2b(
     # Write report
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     report_file = report_dir / f"phase2b_statement_report_{timestamp}.json"
+    token_csv_file = report_dir / f"phase2b_token_usage_{timestamp}.csv"
+
+    # Get token usage summary
+    token_summary = token_tracker.get_summary()
 
     report = {
         "timestamp": timestamp,
@@ -437,6 +607,7 @@ def run_phase2b(
             "statement_detail_csv": str(statement_detail_csv)
         },
         "statistics": total_stats,
+        "token_usage": token_summary,
         "changes": all_changes
     }
 
@@ -445,19 +616,30 @@ def run_phase2b(
         json.dump(report, f, ensure_ascii=False, indent=2)
     print(f"  Saved to: {report_file}")
 
+    # Save token usage CSV
+    print("\n[Token Usage] Saving token usage CSV...")
+    token_tracker.save_to_csv(token_csv_file)
+    print(f"  Saved to: {token_csv_file}")
+    print(f"  Total tokens used: {token_summary['total_tokens']:,}")
+    print(f"  Estimated cost: ${token_summary['total_cost_usd']:.4f} USD")
+
     elapsed = time.time() - start_time
 
     print("\n" + "=" * 60)
     print("Phase 2b Complete!")
     print(f"  Statement: {total_stats['statement']['total']} rows, {total_stats['statement']['changed']} corrected, {total_stats['statement']['errors']} errors")
     print(f"  Statement Detail: {total_stats['statement_detail']['total']} rows, {total_stats['statement_detail']['changed']} corrected, {total_stats['statement_detail']['errors']} errors")
+    print(f"  Total tokens: {token_summary['total_tokens']:,}")
+    print(f"  Cost: ${token_summary['total_cost_usd']:.4f} USD (input: ${token_summary['input_cost_usd']:.4f}, output: ${token_summary['output_cost_usd']:.4f})")
     print(f"  Time elapsed: {elapsed:.2f} seconds")
     print("=" * 60)
 
     return {
         "statistics": total_stats,
         "elapsed_time": elapsed,
-        "report_file": str(report_file)
+        "report_file": str(report_file),
+        "token_csv_file": str(token_csv_file),
+        "token_usage": token_summary
     }
 
 

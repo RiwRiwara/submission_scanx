@@ -13,10 +13,17 @@ import os
 import csv
 import json
 import time
+import re
 from pathlib import Path
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List, Tuple
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
 from dotenv import load_dotenv
+
+# Pricing per 1K tokens (USD)
+PRICE_INPUT_PER_1K = 0.05
+PRICE_OUTPUT_PER_1K = 0.4
 
 # Load environment variables
 load_dotenv(Path(__file__).parent.parent / ".env")
@@ -48,7 +55,71 @@ def get_llm_client():
         return None
 
 
-def fix_position_row(client, row: dict, row_index: int) -> tuple[dict, dict]:
+class TokenTracker:
+    """Track token usage for cost calculation (thread-safe)."""
+    
+    def __init__(self):
+        self.records = []
+        self.total_prompt_tokens = 0
+        self.total_completion_tokens = 0
+        self.total_tokens = 0
+        self._lock = threading.Lock()
+    
+    def add_usage(self, response, phase: str, row_index: int, submitter_id: str = "", nacc_id: str = ""):
+        """Add token usage from a response (thread-safe)."""
+        usage = getattr(response, 'usage', None)
+        if usage:
+            prompt_tokens = getattr(usage, 'prompt_tokens', 0)
+            completion_tokens = getattr(usage, 'completion_tokens', 0)
+            total = prompt_tokens + completion_tokens
+            
+            with self._lock:
+                self.total_prompt_tokens += prompt_tokens
+                self.total_completion_tokens += completion_tokens
+                self.total_tokens += total
+                
+                self.records.append({
+                    'phase': phase,
+                    'row_index': row_index,
+                    'submitter_id': submitter_id,
+                    'nacc_id': nacc_id,
+                    'prompt_tokens': prompt_tokens,
+                    'completion_tokens': completion_tokens,
+                    'total_tokens': total,
+                    'timestamp': datetime.now().isoformat()
+                })
+    
+    def save_to_csv(self, output_path: Path):
+        """Save token usage records to CSV."""
+        if not self.records:
+            return
+        
+        fieldnames = ['phase', 'row_index', 'submitter_id', 'nacc_id', 
+                      'prompt_tokens', 'completion_tokens', 'total_tokens', 'timestamp']
+        
+        with open(output_path, 'w', encoding='utf-8', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(self.records)
+    
+    def get_summary(self) -> dict:
+        """Get token usage summary with cost calculation."""
+        input_cost = (self.total_prompt_tokens / 1000) * PRICE_INPUT_PER_1K
+        output_cost = (self.total_completion_tokens / 1000) * PRICE_OUTPUT_PER_1K
+        total_cost = input_cost + output_cost
+        
+        return {
+            'total_calls': len(self.records),
+            'total_prompt_tokens': self.total_prompt_tokens,
+            'total_completion_tokens': self.total_completion_tokens,
+            'total_tokens': self.total_tokens,
+            'input_cost_usd': round(input_cost, 6),
+            'output_cost_usd': round(output_cost, 6),
+            'total_cost_usd': round(total_cost, 6)
+        }
+
+
+def fix_position_row(client, row: dict, row_index: int, token_tracker: Optional['TokenTracker'] = None) -> tuple[dict, dict]:
     """
     Use LLM to fix OCR errors in a position row.
 
@@ -97,6 +168,16 @@ Example output format:
             ],
             max_completion_tokens=500
         )
+
+        # Track token usage
+        if token_tracker:
+            token_tracker.add_usage(
+                response, 
+                phase="phase2a_position",
+                row_index=row_index,
+                submitter_id=row.get("submitter_id", ""),
+                nacc_id=row.get("nacc_id", "")
+            )
 
         result_text = response.choices[0].message.content
         if result_text is None:
@@ -148,10 +229,11 @@ def run_phase2a(
     output_csv: Path,
     report_dir: Path,
     batch_size: int = 10,
-    delay_between_batches: float = 1.0
+    delay_between_batches: float = 1.0,
+    max_workers: int = 5
 ) -> dict:
     """
-    Run Phase 2a: Fix submitter_position.csv using LLM.
+    Run Phase 2a: Fix submitter_position.csv using LLM with concurrent processing.
 
     Args:
         input_csv: Path to input submitter_position.csv
@@ -159,6 +241,7 @@ def run_phase2a(
         report_dir: Directory to save LLM correction reports
         batch_size: Number of rows to process before saving progress
         delay_between_batches: Delay in seconds between API calls
+        max_workers: Maximum concurrent threads for LLM calls
 
     Returns:
         Statistics dictionary
@@ -200,21 +283,38 @@ def run_phase2a(
     total_rows = len(rows)
     print(f"  Loaded {total_rows} rows")
 
-    # Process rows
-    print("\n[Process] Correcting OCR errors...")
-    fixed_rows = []
+    # Initialize token tracker
+    token_tracker = TokenTracker()
+
+    # Process rows concurrently
+    print(f"\n[Process] Correcting OCR errors (workers={max_workers})...")
+    results = [None] * total_rows  # Pre-allocate for ordered results
     all_changes = []
     rows_changed = 0
     rows_with_errors = 0
+    completed = 0
+    completed_lock = threading.Lock()
 
-    for i, row in enumerate(rows):
-        # Progress indicator
-        if (i + 1) % 10 == 0 or i == 0:
-            print(f"  Processing row {i + 1}/{total_rows}...")
+    def process_row(idx: int, row: dict):
+        """Process single row in thread."""
+        return idx, fix_position_row(client, row, idx + 1, token_tracker)
 
-        fixed_row, changes = fix_position_row(client, row, i + 1)
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(process_row, i, row): i for i, row in enumerate(rows)}
+        
+        for future in as_completed(futures):
+            idx, (fixed_row, changes) = future.result()
+            results[idx] = (fixed_row, changes)
+            
+            with completed_lock:
+                completed += 1
+                if completed % 20 == 0 or completed == total_rows:
+                    print(f"  Completed {completed}/{total_rows} rows...")
+
+    # Collect results in order
+    fixed_rows = []
+    for i, (fixed_row, changes) in enumerate(results):
         fixed_rows.append(fixed_row)
-
         if changes:
             if "error" in changes:
                 rows_with_errors += 1
@@ -222,14 +322,10 @@ def run_phase2a(
                 rows_changed += 1
                 all_changes.append({
                     "row_index": i + 1,
-                    "submitter_id": row.get("submitter_id", ""),
-                    "nacc_id": row.get("nacc_id", ""),
+                    "submitter_id": rows[i].get("submitter_id", ""),
+                    "nacc_id": rows[i].get("nacc_id", ""),
                     "changes": changes
                 })
-
-        # Rate limiting
-        if (i + 1) % batch_size == 0:
-            time.sleep(delay_between_batches)
 
     # Write output CSV
     print("\n[Write] Saving corrected CSV...")
@@ -242,6 +338,10 @@ def run_phase2a(
     # Write report
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     report_file = report_dir / f"phase2a_position_report_{timestamp}.json"
+    token_csv_file = report_dir / f"phase2a_token_usage_{timestamp}.csv"
+
+    # Get token usage summary
+    token_summary = token_tracker.get_summary()
 
     report = {
         "timestamp": timestamp,
@@ -253,6 +353,7 @@ def run_phase2a(
             "rows_with_errors": rows_with_errors,
             "rows_unchanged": total_rows - rows_changed - rows_with_errors
         },
+        "token_usage": token_summary,
         "changes": all_changes
     }
 
@@ -261,6 +362,13 @@ def run_phase2a(
         json.dump(report, f, ensure_ascii=False, indent=2)
     print(f"  Saved to: {report_file}")
 
+    # Save token usage CSV
+    print("\n[Token Usage] Saving token usage CSV...")
+    token_tracker.save_to_csv(token_csv_file)
+    print(f"  Saved to: {token_csv_file}")
+    print(f"  Total tokens used: {token_summary['total_tokens']:,}")
+    print(f"  Estimated cost: ${token_summary['total_cost_usd']:.4f} USD")
+
     elapsed = time.time() - start_time
 
     print("\n" + "=" * 60)
@@ -268,6 +376,8 @@ def run_phase2a(
     print(f"  Total rows: {total_rows}")
     print(f"  Rows corrected: {rows_changed}")
     print(f"  Rows with errors: {rows_with_errors}")
+    print(f"  Total tokens: {token_summary['total_tokens']:,}")
+    print(f"  Cost: ${token_summary['total_cost_usd']:.4f} USD (input: ${token_summary['input_cost_usd']:.4f}, output: ${token_summary['output_cost_usd']:.4f})")
     print(f"  Time elapsed: {elapsed:.2f} seconds")
     print("=" * 60)
 
@@ -276,7 +386,9 @@ def run_phase2a(
         "rows_changed": rows_changed,
         "rows_with_errors": rows_with_errors,
         "elapsed_time": elapsed,
-        "report_file": str(report_file)
+        "report_file": str(report_file),
+        "token_csv_file": str(token_csv_file),
+        "token_usage": token_summary
     }
 
 

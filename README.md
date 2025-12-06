@@ -318,6 +318,28 @@ The system identifies the following page types:
 - Missing values are marked as "NONE" or empty strings
 - Page type detection handles OCR variations (missing tone marks)
 
+## Development Tools
+
+A web-based development tool is available for viewing PDFs, JSON data, and pipeline results.
+
+```bash
+# Run dev tools server
+cd submission_scanx/src/dev_tools
+poetry run python main.py
+```
+
+Server runs at http://localhost:8888
+
+### Features
+
+- **PDF/JSON Viewer** (`/viewer`) - View PDFs with polygon overlay
+- **Content Browser** (`/content`) - Browse extracted text by page
+- **Dashboard** (`/dashboard`) - Run pipeline and view accuracy metrics
+- **Search** (`/search`) - Search data by submitter_id
+- **Pages Viewer** (`/pages`) - View page metadata and step mappings
+
+See [dev_tools README](src/dev_tools/README.md) for full documentation.
+
 ## Author
 
 Riwara (awirut2629@gmail.com)

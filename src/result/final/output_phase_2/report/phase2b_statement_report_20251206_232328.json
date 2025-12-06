@@ -1,0 +1,41 @@
+{
+  "timestamp": "20251206_232328",
+  "input_files": {
+    "statement_csv": "/Users/riwara/work/hackaton/submission_scanx/src/result/final/mapping_output/statement.csv",
+    "statement_detail_csv": "/Users/riwara/work/hackaton/submission_scanx/src/result/final/mapping_output/statement_detail.csv"
+  },
+  "statistics": {
+    "statement": {
+      "total": 92,
+      "changed": 0,
+      "errors": 0
+    },
+    "statement_detail": {
+      "total": 415,
+      "changed": 1,
+      "errors": 0
+    }
+  },
+  "token_usage": {
+    "total_calls": 507,
+    "total_prompt_tokens": 757927,
+    "total_completion_tokens": 253347,
+    "total_tokens": 1011274,
+    "input_cost_usd": 37.89635,
+    "output_cost_usd": 101.3388,
+    "total_cost_usd": 139.23515
+  },
+  "changes": [
+    {
+      "csv_file": "statement_detail.csv",
+      "row_index": 415,
+      "nacc_id": "2448",
+      "changes": {
+        "valuation_spouse": {
+          "original": "2830290.5",
+          "corrected": "2830290.50"
+        }
+      }
+    }
+  ]
+}
