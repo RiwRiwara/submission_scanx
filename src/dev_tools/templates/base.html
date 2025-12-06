@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Pipeline Dev Tools{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: #1e293b; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex items-center justify-between h-14">
+                <div class="flex items-center gap-6">
+                    <a href="/" class="text-xl font-bold text-cyan-400">Pipeline Dev Tools</a>
+                    <div class="flex gap-1">
+                        <a href="/" class="px-3 py-2 rounded-lg text-sm hover:bg-slate-700 {% block nav_home %}{% endblock %}">Home</a>
+                        <a href="/viewer" class="px-3 py-2 rounded-lg text-sm hover:bg-slate-700 {% block nav_viewer %}{% endblock %}">Viewer</a>
+                        <a href="/pages" class="px-3 py-2 rounded-lg text-sm hover:bg-slate-700 {% block nav_pages %}{% endblock %}">Pages</a>
+                        <a href="/content" class="px-3 py-2 rounded-lg text-sm hover:bg-slate-700 {% block nav_content %}{% endblock %}">Content</a>
+                        <a href="/search" class="px-3 py-2 rounded-lg text-sm hover:bg-slate-700 {% block nav_search %}{% endblock %}">Search</a>
+                        <a href="/dashboard" class="px-3 py-2 rounded-lg text-sm hover:bg-slate-700 {% block nav_dashboard %}{% endblock %}">Dashboard</a>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <select id="modeSelect" class="bg-slate-700 border border-slate-600 rounded px-3 py-1 text-sm">
+                        <option value="training">Training Data</option>
+                        <option value="final">Final Test</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class=" mx-auto px-4 py-6">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        // Global mode management
+        const modeSelect = document.getElementById('modeSelect');
+        const savedMode = localStorage.getItem('pipelineMode') || 'training';
+        modeSelect.value = savedMode;
+        
+        modeSelect.addEventListener('change', () => {
+            localStorage.setItem('pipelineMode', modeSelect.value);
+            if (typeof onModeChange === 'function') {
+                onModeChange(modeSelect.value);
+            }
+        });
+        
+        function getMode() {
+            return modeSelect.value;
+        }
+        
+        // Utility functions
+        async function fetchApi(url) {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+        }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

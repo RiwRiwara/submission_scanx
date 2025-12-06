@@ -4,6 +4,412 @@
   "pages": [
     {
       "page_number": 1,
+      "original_page_index": 0,
+      "width": 8.2639,
+      "height": 11.6944,
+      "unit": "inch",
+      "lines": [
+        {
+          "content": "-ลับ-",
+          "polygon": [
+            3.9035,
+            0.1878,
+            4.1319,
+            0.1878,
+            4.1319,
+            0.3299,
+            3.8984,
+            0.3299
+          ]
+        },
+        {
+          "content": "สำเนา",
+          "polygon": [
+            3.7106,
+            0.3451,
+            4.3654,
+            0.3502,
+            4.3654,
+            0.6446,
+            3.7005,
+            0.6395
+          ]
+        },
+        {
+          "content": "กรณีพ้นจากตำแหน่ง",
+          "polygon": [
+            5.3553,
+            0.1573,
+            6.7614,
+            0.1624,
+            6.7614,
+            0.3959,
+            5.3553,
+            0.3908
+          ]
+        },
+        {
+          "content": "เมื่อวันที่ 20/03/2566",
+          "polygon": [
+            5.3451,
+            0.5989,
+            6.8578,
+            0.6091,
+            6.8578,
+            0.873,
+            5.3451,
+            0.8629
+          ]
+        },
+        {
+          "content": "พ้นจากตำแหน่ง",
+          "polygon": [
+            5.1319,
+            2.0151,
+            7.3502,
+            2.0201,
+            7.3502,
+            2.411,
+            5.1319,
+            2.4059
+          ]
+        },
+        {
+          "content": "สำนักตรวจสอบทรัพย์สินภาคการเมือง",
+          "polygon": [
+            5.2436,
+            2.4211,
+            7.4568,
+            2.3957,
+            7.4568,
+            2.6089,
+            5.2436,
+            2.6343
+          ]
+        },
+        {
+          "content": "รับที่ 249",
+          "polygon": [
+            5.2487,
+            2.6851,
+            6.2741,
+            2.6394,
+            6.2791,
+            2.8373,
+            5.2487,
+            2.8982
+          ]
+        },
+        {
+          "content": "วันที่ 18 พ.ค. 66",
+          "polygon": [
+            5.269,
+            2.9591,
+            6.6345,
+            2.9388,
+            6.6395,
+            3.1368,
+            5.2741,
+            3.1774
+          ]
+        },
+        {
+          "content": "เวลา",
+          "polygon": [
+            5.269,
+            3.3043,
+            5.7918,
+            3.2535,
+            5.7969,
+            3.4413,
+            5.2741,
+            3.4769
+          ]
+        },
+        {
+          "content": "15.58",
+          "polygon": [
+            5.868,
+            3.218,
+            6.5076,
+            3.218,
+            6.5126,
+            3.3906,
+            5.868,
+            3.3957
+          ]
+        },
+        {
+          "content": "บัญชีแสดงรายการทรัพย์สินและหนี้สิน",
+          "polygon": [
+            2.2842,
+            4.4971,
+            5.7005,
+            4.4616,
+            5.7005,
+            4.7915,
+            2.2842,
+            4.827
+          ]
+        },
+        {
+          "content": "(",
+          "polygon": [
+            0.269,
+            7.3395,
+            0.3604,
+            7.3293,
+            0.3706,
+            7.5577,
+            0.2741,
+            7.5628
+          ]
+        },
+        {
+          "content": "สำหรับเจ้าหน้าที่",
+          "polygon": [
+            0.8071,
+            8.0552,
+            1.7005,
+            8.0552,
+            1.7005,
+            8.2683,
+            0.8071,
+            8.2683
+          ]
+        },
+        {
+          "content": "ชื่อและชื่อสกุล นาย สวาป เผ่าประทาน",
+          "polygon": [
+            0.802,
+            8.4866,
+            2.9289,
+            8.4917,
+            2.9289,
+            8.715,
+            0.802,
+            8.7099
+          ]
+        },
+        {
+          "content": "รวมรายได้",
+          "polygon": [
+            0.802,
+            9.1363,
+            1.3858,
+            9.1363,
+            1.3858,
+            9.3342,
+            0.802,
+            9.3342
+          ]
+        },
+        {
+          "content": "บาท",
+          "polygon": [
+            1.7614,
+            9.1972,
+            2.0355,
+            9.1972,
+            2.0355,
+            9.3393,
+            1.7563,
+            9.3342
+          ]
+        },
+        {
+          "content": "รวมทรัพย์สิน",
+          "polygon": [
+            0.8071,
+            9.517,
+            1.5178,
+            9.517,
+            1.5178,
+            9.7149,
+            0.8071,
+            9.7098
+          ]
+        },
+        {
+          "content": "บาท",
+          "polygon": [
+            1.7817,
+            9.5728,
+            2.0355,
+            9.5728,
+            2.0355,
+            9.7098,
+            1.7766,
+            9.7098
+          ]
+        },
+        {
+          "content": "ตำแหน่งที่ยื่น สมาชิกสภาผู้แทนราษฎร (ส.ส.)",
+          "polygon": [
+            4.0203,
+            8.4511,
+            6.472,
+            8.4815,
+            6.4669,
+            8.6998,
+            4.0152,
+            8.6693
+          ]
+        },
+        {
+          "content": "สำนักงานเลขาธิการสภาผู้แทนราษฎร",
+          "polygon": [
+            4.8172,
+            8.8064,
+            6.7817,
+            8.8165,
+            6.7766,
+            9.0348,
+            4.8172,
+            9.0145
+          ]
+        },
+        {
+          "content": "รวมรายจ่าย",
+          "polygon": [
+            4.0101,
+            9.1566,
+            4.7309,
+            9.1566,
+            4.7309,
+            9.3647,
+            4.0101,
+            9.3596
+          ]
+        },
+        {
+          "content": "บาท",
+          "polygon": [
+            4.8223,
+            9.182,
+            5.1675,
+            9.187,
+            5.1624,
+            9.3596,
+            4.8223,
+            9.3596
+          ]
+        },
+        {
+          "content": "รวมหนี้สิน",
+          "polygon": [
+            4.0203,
+            9.5322,
+            4.6193,
+            9.5373,
+            4.6193,
+            9.7301,
+            4.0152,
+            9.7251
+          ]
+        },
+        {
+          "content": "บาท",
+          "polygon": [
+            4.7969,
+            9.5576,
+            5.1675,
+            9.5626,
+            5.1675,
+            9.7454,
+            4.7918,
+            9.7454
+          ]
+        },
+        {
+          "content": "ลงชื่อ .................................",
+          "polygon": [
+            4.071,
+            9.9027,
+            5.4314,
+            9.9484,
+            5.4213,
+            10.1565,
+            4.0609,
+            10.0956
+          ]
+        },
+        {
+          "content": "....",
+          "polygon": [
+            6.2436,
+            9.9636,
+            6.406,
+            9.9586,
+            6.406,
+            10.1311,
+            6.2436,
+            10.1362
+          ]
+        },
+        {
+          "content": "เจ้าหน้าที่",
+          "polygon": [
+            6.5583,
+            9.9078,
+            7.137,
+            9.9078,
+            7.1319,
+            10.121,
+            6.5583,
+            10.1159
+          ]
+        },
+        {
+          "content": "( .............................",
+          "polygon": [
+            4.3248,
+            10.2986,
+            5.3045,
+            10.2986,
+            5.2994,
+            10.5017,
+            4.3248,
+            10.4966
+          ]
+        },
+        {
+          "content": ")",
+          "polygon": [
+            6.5482,
+            10.3443,
+            6.6142,
+            10.3443,
+            6.6142,
+            10.4712,
+            6.5482,
+            10.4712
+          ]
+        },
+        {
+          "content": "-สับ-",
+          "polygon": [
+            3.8731,
+            10.7351,
+            4.1015,
+            10.7301,
+            4.1015,
+            10.857,
+            3.868,
+            10.8519
+          ]
+        }
+      ],
+      "_page_info": {
+        "page_type": "summary",
+        "is_continuation": false,
+        "is_extra_page": false,
+        "page_marker": null
+      }
+    },
+    {
+      "page_number": 2,
+      "original_page_index": 1,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -659,11 +1065,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.33000298891208124,
-        "original_page_number": 2
-      },
       "_page_info": {
         "page_type": "tax_info",
         "is_continuation": false,
@@ -672,7 +1073,8 @@
       }
     },
     {
-      "page_number": 2,
+      "page_number": 3,
+      "original_page_index": 2,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -1263,11 +1665,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.5752373226488524,
-        "original_page_number": 3
-      },
       "_page_info": {
         "page_type": "cover",
         "is_continuation": false,
@@ -1276,7 +1673,8 @@
       }
     },
     {
-      "page_number": 3,
+      "page_number": 4,
+      "original_page_index": 3,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -1815,11 +2213,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.6266045098218955,
-        "original_page_number": 4
-      },
       "_page_info": {
         "page_type": "tax_info",
         "is_continuation": false,
@@ -1828,7 +2221,8 @@
       }
     },
     {
-      "page_number": 4,
+      "page_number": 5,
+      "original_page_index": 4,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -2770,11 +3164,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.39716268138437716,
-        "original_page_number": 5
-      },
       "_page_info": {
         "page_type": "personal_info",
         "is_continuation": false,
@@ -2783,7 +3172,8 @@
       }
     },
     {
-      "page_number": 5,
+      "page_number": 6,
+      "original_page_index": 5,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -3634,11 +4024,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.4472395186590127,
-        "original_page_number": 6
-      },
       "_page_info": {
         "page_type": "spouse_info",
         "is_continuation": false,
@@ -3647,7 +4032,8 @@
       }
     },
     {
-      "page_number": 6,
+      "page_number": 7,
+      "original_page_index": 6,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -4498,11 +4884,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.33548416163167827,
-        "original_page_number": 7
-      },
       "_page_info": {
         "page_type": "children",
         "is_continuation": false,
@@ -4511,7 +4892,8 @@
       }
     },
     {
-      "page_number": 7,
+      "page_number": 8,
+      "original_page_index": 7,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -4985,11 +5367,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.46319807694345916,
-        "original_page_number": 8
-      },
       "_page_info": {
         "page_type": "siblings",
         "is_continuation": false,
@@ -4998,7 +5375,8 @@
       }
     },
     {
-      "page_number": 8,
+      "page_number": 9,
+      "original_page_index": 8,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -5706,11 +6084,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.4272606853929356,
-        "original_page_number": 9
-      },
       "_page_info": {
         "page_type": "income_expense",
         "is_continuation": false,
@@ -5719,7 +6092,8 @@
       }
     },
     {
-      "page_number": 9,
+      "page_number": 10,
+      "original_page_index": 9,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -6375,11 +6749,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.39866917114619216,
-        "original_page_number": 10
-      },
       "_page_info": {
         "page_type": "tax_info",
         "is_continuation": false,
@@ -6388,7 +6757,8 @@
       }
     },
     {
-      "page_number": 10,
+      "page_number": 11,
+      "original_page_index": 10,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -7044,11 +7414,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.3844686625455107,
-        "original_page_number": 11
-      },
       "_page_info": {
         "page_type": "assets_summary",
         "is_continuation": false,
@@ -7057,7 +7422,8 @@
       }
     },
     {
-      "page_number": 11,
+      "page_number": 12,
+      "original_page_index": 11,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -7115,11 +7481,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.40916844270748376,
-        "original_page_number": 12
-      },
       "_page_info": {
         "page_type": "unknown",
         "is_continuation": false,
@@ -7128,7 +7489,8 @@
       }
     },
     {
-      "page_number": 12,
+      "page_number": 13,
+      "original_page_index": 12,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -7589,11 +7951,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.5565377521120766,
-        "original_page_number": 13
-      },
       "_page_info": {
         "page_type": "attachments",
         "is_continuation": false,
@@ -7602,7 +7959,8 @@
       }
     },
     {
-      "page_number": 13,
+      "page_number": 14,
+      "original_page_index": 13,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -8167,11 +8525,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.6855811580758127,
-        "original_page_number": 14
-      },
       "_page_info": {
         "page_type": "cash",
         "is_continuation": false,
@@ -8180,7 +8533,8 @@
       }
     },
     {
-      "page_number": 14,
+      "page_number": 15,
+      "original_page_index": 14,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -8563,11 +8917,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.6534192648990165,
-        "original_page_number": 15
-      },
       "_page_info": {
         "page_type": "unknown",
         "is_continuation": false,
@@ -8576,20 +8925,777 @@
       }
     },
     {
-      "page_number": 15,
+      "page_number": 16,
+      "original_page_index": 15,
       "width": 8.2639,
-      "height": 11.6806,
+      "height": 11.6944,
       "unit": "inch",
-      "lines": [],
-      "_match_info": {
-        "matched": false,
-        "similarity": 0,
-        "original_page_number": null
-      },
-      "_page_info": {}
+      "lines": [
+        {
+          "content": "- ลับ -",
+          "polygon": [
+            4.2233,
+            0.5177,
+            4.5786,
+            0.5025,
+            4.5736,
+            0.6649,
+            4.2233,
+            0.6649
+          ]
+        },
+        {
+          "content": "หน้า 10",
+          "polygon": [
+            6.9949,
+            0.873,
+            7.4162,
+            0.8679,
+            7.4162,
+            1.0253,
+            6.9949,
+            1.0202
+          ]
+        },
+        {
+          "content": "รายละเอียดประกอบรายการเงินฝาก",
+          "polygon": [
+            3.4568,
+            1.0659,
+            5.2639,
+            1.0659,
+            5.2639,
+            1.2435,
+            3.4568,
+            1.2486
+          ]
+        },
+        {
+          "content": "ผู้ยื่นบัญชี จำนวน",
+          "polygon": [
+            1.9441,
+            1.3755,
+            2.934,
+            1.3755,
+            2.934,
+            1.5938,
+            1.9441,
+            1.5887
+          ]
+        },
+        {
+          "content": "7 . บัญชี จำนวนเงินรวม",
+          "polygon": [
+            3.0812,
+            1.3603,
+            4.4771,
+            1.3907,
+            4.472,
+            1.5988,
+            3.0761,
+            1.5735
+          ]
+        },
+        {
+          "content": "118,809.64",
+          "polygon": [
+            4.5989,
+            1.3298,
+            5.5025,
+            1.3197,
+            5.5076,
+            1.5379,
+            4.604,
+            1.543
+          ]
+        },
+        {
+          "content": "บาท (ยกไปกรอกในบัญชีฯ หน้า 7)",
+          "polygon": [
+            5.6142,
+            1.411,
+            7.2081,
+            1.411,
+            7.2081,
+            1.5887,
+            5.6142,
+            1.5887
+          ]
+        },
+        {
+          "content": "คู่สมรส จำนวน ..",
+          "polygon": [
+            2.066,
+            1.6344,
+            2.9441,
+            1.6344,
+            2.9441,
+            1.8425,
+            2.066,
+            1.8425
+          ]
+        },
+        {
+          "content": "3 .. บัญชี จำนวนเงินรวม",
+          "polygon": [
+            3.0507,
+            1.6293,
+            4.4771,
+            1.6395,
+            4.4771,
+            1.8425,
+            3.0507,
+            1.8374
+          ]
+        },
+        {
+          "content": "32,422.",
+          "polygon": [
+            4.6294,
+            1.5938,
+            5.3857,
+            1.5938,
+            5.3857,
+            1.7816,
+            4.6294,
+            1.7867
+          ]
+        },
+        {
+          "content": "บาท (ยกไปกรอกในผัดเป็น ร้อยฯ)",
+          "polygon": [
+            5.6192,
+            1.6648,
+            7.2284,
+            1.6547,
+            7.2284,
+            1.812,
+            5.6192,
+            1.8273
+          ]
+        },
+        {
+          "content": "บุตรที่ยังไม่บรรลุนิติภาวะ จำนวน",
+          "polygon": [
+            1.137,
+            1.8577,
+            2.9238,
+            1.8679,
+            2.9238,
+            2.0912,
+            1.137,
+            2.0861
+          ]
+        },
+        {
+          "content": "บัญชี จำนวนเงินรวม",
+          "polygon": [
+            3.3655,
+            1.8882,
+            4.472,
+            1.8932,
+            4.467,
+            2.0861,
+            3.3655,
+            2.081
+          ]
+        },
+        {
+          "content": "บาท (ยกไปกรอกใน",
+          "polygon": [
+            5.6142,
+            1.9034,
+            6.5989,
+            1.9034,
+            6.5989,
+            2.0861,
+            5.6142,
+            2.0861
+          ]
+        },
+        {
+          "content": "ลำดับ",
+          "polygon": [
+            0.9391,
+            2.3196,
+            1.2335,
+            2.3196,
+            1.2335,
+            2.4719,
+            0.9442,
+            2.4719
+          ]
+        },
+        {
+          "content": "ที่",
+          "polygon": [
+            1.0406,
+            2.5023,
+            1.1472,
+            2.4973,
+            1.1472,
+            2.6444,
+            1.0355,
+            2.6444
+          ]
+        },
+        {
+          "content": "สถาบันการเงิน / สาขา",
+          "polygon": [
+            2.1573,
+            2.416,
+            3.1929,
+            2.4211,
+            3.1929,
+            2.5734,
+            2.1573,
+            2.5683
+          ]
+        },
+        {
+          "content": "เลขที่บัญชี",
+          "polygon": [
+            4.6802,
+            2.3957,
+            5.203,
+            2.3907,
+            5.2081,
+            2.5835,
+            4.6751,
+            2.5937
+          ]
+        },
+        {
+          "content": "จำนวนเงิน",
+          "polygon": [
+            6.1776,
+            2.4262,
+            6.6801,
+            2.4262,
+            6.6751,
+            2.5734,
+            6.1776,
+            2.5683
+          ]
+        },
+        {
+          "content": "ผย.",
+          "polygon": [
+            7.137,
+            2.6089,
+            7.3096,
+            2.6089,
+            7.3096,
+            2.7104,
+            7.137,
+            2.7104
+          ]
+        },
+        {
+          "content": "คส.",
+          "polygon": [
+            7.4466,
+            2.6191,
+            7.5938,
+            2.6191,
+            7.5938,
+            2.7003,
+            7.4416,
+            2.7003
+          ]
+        },
+        {
+          "content": "บ.",
+          "polygon": [
+            7.7766,
+            2.6191,
+            7.8832,
+            2.6191,
+            7.8781,
+            2.7054,
+            7.7766,
+            2.7054
+          ]
+        },
+        {
+          "content": "1.",
+          "polygon": [
+            1.0152,
+            2.817,
+            1.1218,
+            2.8119,
+            1.1218,
+            2.9541,
+            1.0152,
+            2.9541
+          ]
+        },
+        {
+          "content": "นวดเกรงเตพ.",
+          "polygon": [
+            1.5025,
+            2.7815,
+            2.6193,
+            2.7815,
+            2.6193,
+            2.9591,
+            1.4974,
+            2.9541
+          ]
+        },
+        {
+          "content": "2.",
+          "polygon": [
+            0.9848,
+            3.0556,
+            1.203,
+            3.0505,
+            1.203,
+            3.1875,
+            0.9848,
+            3.1875
+          ]
+        },
+        {
+          "content": "พิมอาคารทรงเตพ.",
+          "polygon": [
+            1.5178,
+            3.02,
+            2.8578,
+            3.02,
+            2.8578,
+            3.2129,
+            1.5178,
+            3.2129
+          ]
+        },
+        {
+          "content": "4,155.14",
+          "polygon": [
+            6.2994,
+            3.015,
+            7.0152,
+            3.015,
+            7.0152,
+            3.2129,
+            6.2994,
+            3.2129
+          ]
+        },
+        {
+          "content": "3.",
+          "polygon": [
+            1.0254,
+            3.2891,
+            1.1523,
+            3.2891,
+            1.1523,
+            3.4363,
+            1.0254,
+            3.4363
+          ]
+        },
+        {
+          "content": "ธนาคารกรุงเทพ",
+          "polygon": [
+            1.5127,
+            3.2688,
+            2.6751,
+            3.2688,
+            2.6751,
+            3.4566,
+            1.5076,
+            3.4515
+          ]
+        },
+        {
+          "content": "331.36",
+          "polygon": [
+            6.4568,
+            3.2688,
+            7.0456,
+            3.2637,
+            7.0507,
+            3.4413,
+            6.4568,
+            3.4464
+          ]
+        },
+        {
+          "content": "ห .",
+          "polygon": [
+            0.9949,
+            3.5428,
+            1.137,
+            3.553,
+            1.137,
+            3.685,
+            0.9898,
+            3.685
+          ]
+        },
+        {
+          "content": "ธนาคารกรงเทพ•",
+          "polygon": [
+            1.4924,
+            3.5327,
+            2.6751,
+            3.5327,
+            2.6751,
+            3.6951,
+            1.4924,
+            3.6951
+          ]
+        },
+        {
+          "content": "22,493.89",
+          "polygon": [
+            6.1472,
+            3.5124,
+            7.0101,
+            3.5073,
+            7.0101,
+            3.7002,
+            6.1472,
+            3.7053
+          ]
+        },
+        {
+          "content": "5.",
+          "polygon": [
+            0.9848,
+            3.8017,
+            1.1827,
+            3.8017,
+            1.1777,
+            3.9489,
+            0.9746,
+            3.954
+          ]
+        },
+        {
+          "content": "ธนาคารกสิกรไทย.",
+          "polygon": [
+            1.5076,
+            3.756,
+            2.8172,
+            3.751,
+            2.8172,
+            3.954,
+            1.5076,
+            3.9591
+          ]
+        },
+        {
+          "content": "23,002.23",
+          "polygon": [
+            6.1573,
+            3.7713,
+            7.0558,
+            3.7713,
+            7.0558,
+            3.9591,
+            6.1573,
+            3.954
+          ]
+        },
+        {
+          "content": "6.",
+          "polygon": [
+            1.0051,
+            4.0504,
+            1.137,
+            4.0504,
+            1.137,
+            4.2078,
+            1.0051,
+            4.2078
+          ]
+        },
+        {
+          "content": "ธนาคารกรุงไทย.",
+          "polygon": [
+            1.5025,
+            4.0149,
+            2.6954,
+            3.9895,
+            2.7005,
+            4.2027,
+            1.5025,
+            4.2128
+          ]
+        },
+        {
+          "content": "5,109.82",
+          "polygon": [
+            6.2588,
+            4.02,
+            7.0507,
+            4.02,
+            7.0456,
+            4.2128,
+            6.2588,
+            4.2078
+          ]
+        },
+        {
+          "content": "4.",
+          "polygon": [
+            1.0203,
+            4.289,
+            1.1218,
+            4.289,
+            1.1218,
+            4.4412,
+            1.0203,
+            4.4412
+          ]
+        },
+        {
+          "content": "ธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร",
+          "polygon": [
+            1.5228,
+            4.2433,
+            4.1979,
+            4.2331,
+            4.203,
+            4.4565,
+            1.5228,
+            4.4666
+          ]
+        },
+        {
+          "content": "63, 117. 23",
+          "polygon": [
+            6.137,
+            4.2585,
+            7.0507,
+            4.2585,
+            7.0507,
+            4.4463,
+            6.137,
+            4.4463
+          ]
+        },
+        {
+          "content": "8.",
+          "polygon": [
+            1.0,
+            4.761,
+            1.1472,
+            4.7661,
+            1.1472,
+            4.9184,
+            0.9898,
+            4.9234
+          ]
+        },
+        {
+          "content": "ธนาคารกรุงเทพ.",
+          "polygon": [
+            1.5228,
+            4.7813,
+            2.7309,
+            4.7813,
+            2.7309,
+            4.959,
+            1.5228,
+            4.959
+          ]
+        },
+        {
+          "content": "807.90",
+          "polygon": [
+            6.4822,
+            4.7559,
+            7.0405,
+            4.761,
+            7.0355,
+            4.9488,
+            6.4771,
+            4.9539
+          ]
+        },
+        {
+          "content": "9.",
+          "polygon": [
+            0.9898,
+            5.0402,
+            1.1218,
+            5.0402,
+            1.1167,
+            5.1975,
+            0.9848,
+            5.1975
+          ]
+        },
+        {
+          "content": "ธนาคารเพื่อการเกษตรและสหกรณ์",
+          "polygon": [
+            1.5178,
+            4.9996,
+            4.1979,
+            4.9844,
+            4.1979,
+            5.1823,
+            1.5178,
+            5.2026
+          ]
+        },
+        {
+          "content": "31,528.88",
+          "polygon": [
+            6.1624,
+            5.03,
+            7.0253,
+            5.03,
+            7.0253,
+            5.2178,
+            6.1624,
+            5.2229
+          ]
+        },
+        {
+          "content": "10.",
+          "polygon": [
+            0.9289,
+            5.2889,
+            1.132,
+            5.294,
+            1.1269,
+            5.4513,
+            0.9238,
+            5.4513
+          ]
+        },
+        {
+          "content": "ธนาคารกสิกรไทยน.",
+          "polygon": [
+            1.4619,
+            5.228,
+            2.6853,
+            5.2077,
+            2.6853,
+            5.4615,
+            1.4619,
+            5.4665
+          ]
+        },
+        {
+          "content": "85.43",
+          "polygon": [
+            6.5329,
+            5.2686,
+            7.0101,
+            5.2787,
+            7.005,
+            5.4665,
+            6.5329,
+            5.4615
+          ]
+        },
+        {
+          "content": "-",
+          "polygon": [
+            7.9238,
+            6.8877,
+            7.9746,
+            6.8877,
+            7.9746,
+            6.9537,
+            7.9187,
+            6.9487
+          ]
+        },
+        {
+          "content": "C",
+          "polygon": [
+            0.2792,
+            7.3496,
+            0.5025,
+            7.3496,
+            0.533,
+            7.5476,
+            0.2944,
+            7.5933
+          ]
+        },
+        {
+          "content": "หมายเหตุ ผย. = ผู้ยื่นบัญชี , คส. = คู่สมรส , บ. = บุตรที่ยังไม่บรรลุนิติภาวะ",
+          "polygon": [
+            4.5482,
+            9.7504,
+            7.8578,
+            9.7454,
+            7.8578,
+            9.9332,
+            4.5482,
+            9.9382
+          ]
+        },
+        {
+          "content": "ลงชื่อ",
+          "polygon": [
+            4.1472,
+            10.6285,
+            4.6294,
+            10.6133,
+            4.6294,
+            10.7859,
+            4.1522,
+            10.8062
+          ]
+        },
+        {
+          "content": "- ลับ -",
+          "polygon": [
+            4.1624,
+            10.9331,
+            4.5431,
+            10.9331,
+            4.533,
+            11.1006,
+            4.1573,
+            11.0955
+          ]
+        },
+        {
+          "content": "ผู้ยื่นบัญชี",
+          "polygon": [
+            6.939,
+            10.6235,
+            7.4619,
+            10.6235,
+            7.4619,
+            10.8366,
+            6.9289,
+            10.8366
+          ]
+        },
+        {
+          "content": "ซอง",
+          "polygon": [
+            7.4314,
+            2.3805,
+            7.6192,
+            2.3805,
+            7.6141,
+            2.4769,
+            7.4314,
+            2.4719
+          ]
+        }
+      ],
+      "_page_info": {
+        "page_type": "deposits",
+        "is_continuation": false,
+        "is_extra_page": false,
+        "page_marker": "หน้า 10"
+      }
     },
     {
-      "page_number": 16,
+      "page_number": 17,
+      "original_page_index": 16,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -9206,11 +10312,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.6491235246674899,
-        "original_page_number": 17
-      },
       "_page_info": {
         "page_type": "unknown",
         "is_continuation": false,
@@ -9219,7 +10320,8 @@
       }
     },
     {
-      "page_number": 17,
+      "page_number": 18,
+      "original_page_index": 17,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -9563,11 +10665,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.6013894969303459,
-        "original_page_number": 18
-      },
       "_page_info": {
         "page_type": "investments",
         "is_continuation": false,
@@ -9576,7 +10673,8 @@
       }
     },
     {
-      "page_number": 18,
+      "page_number": 19,
+      "original_page_index": 18,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -9829,11 +10927,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.5983426350445504,
-        "original_page_number": 19
-      },
       "_page_info": {
         "page_type": "unknown",
         "is_continuation": false,
@@ -9842,7 +10935,8 @@
       }
     },
     {
-      "page_number": 19,
+      "page_number": 20,
+      "original_page_index": 19,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -10225,11 +11319,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.5980701089059581,
-        "original_page_number": 20
-      },
       "_page_info": {
         "page_type": "loans_given",
         "is_continuation": false,
@@ -10238,7 +11327,8 @@
       }
     },
     {
-      "page_number": 20,
+      "page_number": 21,
+      "original_page_index": 20,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -10478,11 +11568,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.561795942067449,
-        "original_page_number": 21
-      },
       "_page_info": {
         "page_type": "unknown",
         "is_continuation": false,
@@ -10491,7 +11576,8 @@
       }
     },
     {
-      "page_number": 21,
+      "page_number": 22,
+      "original_page_index": 21,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -11069,11 +12155,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.4786257056328902,
-        "original_page_number": 22
-      },
       "_page_info": {
         "page_type": "land",
         "is_continuation": false,
@@ -11082,7 +12163,8 @@
       }
     },
     {
-      "page_number": 22,
+      "page_number": 23,
+      "original_page_index": 22,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -11309,11 +12391,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.6001336835809228,
-        "original_page_number": 23
-      },
       "_page_info": {
         "page_type": "unknown",
         "is_continuation": false,
@@ -11322,7 +12399,8 @@
       }
     },
     {
-      "page_number": 23,
+      "page_number": 24,
+      "original_page_index": 23,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -11926,11 +13004,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.4670511824108411,
-        "original_page_number": 24
-      },
       "_page_info": {
         "page_type": "buildings",
         "is_continuation": false,
@@ -11939,7 +13012,8 @@
       }
     },
     {
-      "page_number": 24,
+      "page_number": 25,
+      "original_page_index": 24,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -12153,11 +13227,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.5835917771629114,
-        "original_page_number": 25
-      },
       "_page_info": {
         "page_type": "unknown",
         "is_continuation": false,
@@ -12166,7 +13235,8 @@
       }
     },
     {
-      "page_number": 25,
+      "page_number": 26,
+      "original_page_index": 25,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -12809,11 +13879,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.40525078590469976,
-        "original_page_number": 26
-      },
       "_page_info": {
         "page_type": "vehicles",
         "is_continuation": false,
@@ -12822,7 +13887,8 @@
       }
     },
     {
-      "page_number": 26,
+      "page_number": 27,
+      "original_page_index": 26,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -13179,11 +14245,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.6585008135994158,
-        "original_page_number": 27
-      },
       "_page_info": {
         "page_type": "unknown",
         "is_continuation": false,
@@ -13192,7 +14253,8 @@
       }
     },
     {
-      "page_number": 27,
+      "page_number": 28,
+      "original_page_index": 27,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -13536,11 +14598,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.5208619378566481,
-        "original_page_number": 28
-      },
       "_page_info": {
         "page_type": "concessions",
         "is_continuation": false,
@@ -13549,7 +14606,8 @@
       }
     },
     {
-      "page_number": 28,
+      "page_number": 29,
+      "original_page_index": 28,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -13841,11 +14899,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.6239198760767232,
-        "original_page_number": 29
-      },
       "_page_info": {
         "page_type": "unknown",
         "is_continuation": false,
@@ -13854,7 +14907,8 @@
       }
     },
     {
-      "page_number": 29,
+      "page_number": 30,
+      "original_page_index": 29,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -14445,11 +15499,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.32652511805275675,
-        "original_page_number": 30
-      },
       "_page_info": {
         "page_type": "other_assets",
         "is_continuation": false,
@@ -14458,7 +15507,8 @@
       }
     },
     {
-      "page_number": 30,
+      "page_number": 31,
+      "original_page_index": 30,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -14854,11 +15904,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.4976423223075721,
-        "original_page_number": 31
-      },
       "_page_info": {
         "page_type": "unknown",
         "is_continuation": false,
@@ -14867,7 +15912,8 @@
       }
     },
     {
-      "page_number": 31,
+      "page_number": 32,
+      "original_page_index": 31,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -15289,11 +16335,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.44965657542575466,
-        "original_page_number": 32
-      },
       "_page_info": {
         "page_type": "overdraft",
         "is_continuation": false,
@@ -15302,7 +16343,8 @@
       }
     },
     {
-      "page_number": 32,
+      "page_number": 33,
+      "original_page_index": 32,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -15620,11 +16662,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.542971787963862,
-        "original_page_number": 33
-      },
       "_page_info": {
         "page_type": "unknown",
         "is_continuation": false,
@@ -15633,7 +16670,8 @@
       }
     },
     {
-      "page_number": 33,
+      "page_number": 34,
+      "original_page_index": 33,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -16016,11 +17054,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.537747271949997,
-        "original_page_number": 34
-      },
       "_page_info": {
         "page_type": "bank_loans",
         "is_continuation": false,
@@ -16029,7 +17062,8 @@
       }
     },
     {
-      "page_number": 34,
+      "page_number": 35,
+      "original_page_index": 34,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -16490,11 +17524,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.5760552416328251,
-        "original_page_number": 35
-      },
       "_page_info": {
         "page_type": "unknown",
         "is_continuation": false,
@@ -16503,7 +17532,8 @@
       }
     },
     {
-      "page_number": 35,
+      "page_number": 36,
+      "original_page_index": 35,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -17146,11 +18176,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.5317481759460974,
-        "original_page_number": 36
-      },
       "_page_info": {
         "page_type": "written_debts",
         "is_continuation": false,
@@ -17159,7 +18184,8 @@
       }
     },
     {
-      "page_number": 36,
+      "page_number": 37,
+      "original_page_index": 36,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -17659,11 +18685,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.6539872086697321,
-        "original_page_number": 37
-      },
       "_page_info": {
         "page_type": "documents_list",
         "is_continuation": false,
@@ -17672,7 +18693,8 @@
       }
     },
     {
-      "page_number": 37,
+      "page_number": 38,
+      "original_page_index": 37,
       "width": 8.2639,
       "height": 11.6944,
       "unit": "inch",
@@ -17834,11 +18856,6 @@
           ]
         }
       ],
-      "_match_info": {
-        "matched": true,
-        "similarity": 0.6996649416871071,
-        "original_page_number": 38
-      },
       "_page_info": {
         "page_type": "cover",
         "is_continuation": false,
@@ -17879,15 +18896,6 @@
       "written_debts": 1,
       "documents_list": 1
     }
-  },
-  "_matching_info": {
-    "template_total_pages": 37,
-    "data_total_pages": 38,
-    "matched_pages": 36,
-    "unmatched_data_pages": [
-      1,
-      16
-    ]
   },
   "_metadata": {
     "doc_id": "720",

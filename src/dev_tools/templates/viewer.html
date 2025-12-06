@@ -1,0 +1,610 @@
+{% extends "base.html" %}
+{% block title %}Viewer - Pipeline Dev Tools{% endblock %}
+{% block nav_viewer %}bg-slate-700 text-cyan-400{% endblock %}
+
+{% block content %}
+<div class="flex gap-4 h-[calc(100vh-120px)]">
+    <!-- Sidebar - Document List -->
+    <div class="w-72 bg-slate-800 rounded-xl border border-slate-700 flex flex-col">
+        <div class="p-3 border-b border-slate-700">
+            <input type="text" id="searchInput" placeholder="Search documents..." 
+                   class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500">
+        </div>
+        <div class="flex-1 overflow-y-auto scrollbar-thin p-2" id="docList">
+            <div class="text-slate-500 text-center py-8">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Main Viewer -->
+    <div class="flex-1 flex flex-col bg-slate-800 rounded-xl border border-slate-700">
+        <!-- Toolbar -->
+        <div class="p-3 border-b border-slate-700 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <span class="text-sm text-slate-400">Page:</span>
+                <button onclick="prevPage()" class="px-3 py-1 bg-slate-700 rounded hover:bg-slate-600">←</button>
+                <span id="pageInfo" class="text-sm">- / -</span>
+                <button onclick="nextPage()" class="px-3 py-1 bg-slate-700 rounded hover:bg-slate-600">→</button>
+            </div>
+            <div class="flex items-center gap-4">
+                <label class="flex items-center gap-2 text-sm">
+                    <input type="checkbox" id="showPolygons" checked class="rounded">
+                    <span>Polygons</span>
+                </label>
+                <button onclick="toggleDrawMode()" id="drawModeBtn" class="px-3 py-1 bg-slate-700 rounded hover:bg-slate-600 text-sm">
+                    ✏️ Draw
+                </button>
+                <button onclick="clearDrawing()" class="px-3 py-1 bg-slate-700 rounded hover:bg-slate-600 text-sm">
+                    Clear
+                </button>
+                <select id="zoomLevel" class="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-sm">
+                    <option value="0.5">50%</option>
+                    <option value="0.75">75%</option>
+                    <option value="1" selected>100%</option>
+                    <option value="1.5">150%</option>
+                    <option value="2">200%</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Canvas Container -->
+        <div class="flex-1 overflow-auto p-4 flex justify-center" id="canvasContainer">
+            <div class="relative" id="viewerWrapper">
+                <canvas id="pdfCanvas" class="shadow-xl"></canvas>
+                <canvas id="overlayCanvas" class="absolute top-0 left-0 pointer-events-none"></canvas>
+                <canvas id="drawCanvas" class="absolute top-0 left-0 cursor-crosshair hidden"></canvas>
+            </div>
+            <div id="noDocMessage" class="flex items-center justify-center h-full text-slate-500">
+                Select a document from the list
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Panel - Content & Drawing -->
+    <div class="w-96 bg-slate-800 rounded-xl border border-slate-700 flex flex-col">
+        <!-- Tabs -->
+        <div class="flex border-b border-slate-700">
+            <button onclick="showTab('content')" id="tabContent" class="flex-1 p-3 text-sm font-medium border-b-2 border-cyan-500 text-cyan-400">Content</button>
+            <button onclick="showTab('drawing')" id="tabDrawing" class="flex-1 p-3 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-white">Drawing</button>
+        </div>
+        
+        <!-- Content Tab -->
+        <div id="panelContent" class="flex-1 flex flex-col overflow-hidden">
+            <!-- Content Search -->
+            <div class="p-2 border-b border-slate-700">
+                <input type="text" id="contentSearch" placeholder="Search in content..." 
+                       class="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs focus:outline-none focus:border-cyan-500">
+            </div>
+            <div class="flex-1 overflow-y-auto scrollbar-thin p-3">
+                <div id="pageContent" class="text-xs text-slate-300 whitespace-pre-wrap font-mono">Select a page to view content</div>
+            </div>
+            <div class="p-3 border-t border-slate-700">
+                <div class="text-xs text-slate-400 flex justify-between">
+                    <span>Lines: <span id="lineCount">-</span></span>
+                    <button onclick="copyPageContent()" class="text-cyan-400 hover:text-cyan-300">Copy</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Drawing Tab -->
+        <div id="panelDrawing" class="flex-1 flex flex-col overflow-hidden hidden">
+            <div class="p-3 border-b border-slate-700 text-xs text-slate-400">
+                <p>Click to add points. Double-click to finish polygon.</p>
+                <p class="mt-1">Coordinates in inches (document units).</p>
+            </div>
+            <div class="flex-1 overflow-y-auto scrollbar-thin p-3" id="drawnPolygons">
+                <div class="text-slate-500 text-center py-4 text-sm">No polygons drawn</div>
+            </div>
+            <div class="p-3 border-t border-slate-700 space-y-2">
+                <div class="text-xs text-slate-400">
+                    <div>Points: <span id="pointCount">0</span></div>
+                    <div>Mouse: <span id="mouseCoords">-</span></div>
+                </div>
+                <button onclick="copyAllDrawnPolygons()" class="w-full px-3 py-2 bg-cyan-600 hover:bg-cyan-500 rounded text-sm font-medium">
+                    Copy All Polygons JSON
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// State variables
+let documents = [];
+let currentDoc = null;
+let currentPage = 1;
+let totalPages = 0;
+let pdfDoc = null;
+let jsonData = null;
+let currentPageContent = '';
+
+const pdfCanvas = document.getElementById('pdfCanvas');
+const overlayCanvas = document.getElementById('overlayCanvas');
+const pdfCtx = pdfCanvas.getContext('2d');
+const overlayCtx = overlayCanvas.getContext('2d');
+
+// Initialize PDF.js
+(function initPdfJs() {
+    if (typeof pdfjsLib === 'undefined') {
+        setTimeout(initPdfJs, 50);
+        return;
+    }
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    console.log('PDF.js initialized');
+})();
+
+// Load documents list
+async function loadDocuments() {
+    try {
+        const mode = getMode();
+        const data = await fetchApi(`/api/documents?mode=${mode}`);
+        documents = data.documents || [];
+        renderDocList();
+    } catch (e) {
+        console.error('Error loading documents:', e);
+        documents = [];
+        renderDocList();
+    }
+}
+
+function renderDocList() {
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    const filtered = documents.filter(d => d.name.toLowerCase().includes(search));
+    
+    const docList = document.getElementById('docList');
+    if (filtered.length === 0) {
+        docList.innerHTML = '<div class="text-slate-500 text-center py-8">No documents found</div>';
+        return;
+    }
+    
+    docList.innerHTML = filtered.map(doc => `
+        <button onclick="selectDoc('${doc.name}')" 
+                class="w-full text-left p-2 rounded-lg text-sm hover:bg-slate-700 transition-colors ${currentDoc === doc.name ? 'bg-slate-700 border border-cyan-500' : ''}">
+            <div class="truncate font-medium">${doc.name.substring(0, 35)}...</div>
+            <div class="flex gap-1 mt-1">
+                ${doc.has_pdf ? '<span class="text-xs bg-green-900/50 text-green-400 px-1.5 py-0.5 rounded">PDF</span>' : '<span class="text-xs bg-red-900/50 text-red-400 px-1.5 py-0.5 rounded">No PDF</span>'}
+            </div>
+        </button>
+    `).join('');
+}
+
+async function selectDoc(name) {
+    currentDoc = name;
+    currentPage = 1;
+    pdfDoc = null;
+    renderDocList();
+    
+    document.getElementById('noDocMessage').style.display = 'none';
+    document.getElementById('viewerWrapper').style.display = 'block';
+    
+    const mode = getMode();
+    
+    try {
+        // Load JSON data
+        jsonData = await fetchApi(`/api/document/${encodeURIComponent(name)}?mode=${mode}`);
+        totalPages = jsonData.pages?.length || 0;
+        console.log('JSON loaded:', totalPages, 'pages');
+    } catch (e) {
+        console.error('Error loading JSON:', e);
+        jsonData = null;
+        totalPages = 0;
+    }
+    
+    // Load PDF if available
+    const doc = documents.find(d => d.name === name);
+    if (doc?.has_pdf && typeof pdfjsLib !== 'undefined') {
+        try {
+            const pdfUrl = `/api/pdf/${encodeURIComponent(name)}?mode=${mode}`;
+            pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
+            console.log('PDF loaded:', pdfDoc.numPages, 'pages');
+        } catch (e) {
+            console.error('Error loading PDF:', e);
+            pdfDoc = null;
+        }
+    }
+    
+    renderPage();
+}
+
+async function renderPage() {
+    if (!jsonData) {
+        console.log('No JSON data to render');
+        return;
+    }
+    
+    const zoom = parseFloat(document.getElementById('zoomLevel').value);
+    const pageData = jsonData.pages?.[currentPage - 1];
+    
+    if (!pageData) {
+        console.log('No page data for page', currentPage);
+        return;
+    }
+    
+    console.log('Rendering page', currentPage, 'of', totalPages);
+    
+    // Get page dimensions from JSON
+    const width = (pageData.width || 8.5) * 72 * zoom;
+    const height = (pageData.height || 11) * 72 * zoom;
+    
+    pdfCanvas.width = width;
+    pdfCanvas.height = height;
+    overlayCanvas.width = width;
+    overlayCanvas.height = height;
+    
+    // Render PDF if available
+    if (pdfDoc) {
+        try {
+            const page = await pdfDoc.getPage(currentPage);
+            const viewport = page.getViewport({ scale: zoom });
+            pdfCanvas.width = viewport.width;
+            pdfCanvas.height = viewport.height;
+            overlayCanvas.width = viewport.width;
+            overlayCanvas.height = viewport.height;
+            
+            await page.render({
+                canvasContext: pdfCtx,
+                viewport: viewport
+            }).promise;
+        } catch (e) {
+            // Draw placeholder
+            pdfCtx.fillStyle = '#1e293b';
+            pdfCtx.fillRect(0, 0, width, height);
+            pdfCtx.fillStyle = '#475569';
+            pdfCtx.font = '14px sans-serif';
+            pdfCtx.textAlign = 'center';
+            pdfCtx.fillText('PDF page not available', width / 2, height / 2);
+        }
+    } else {
+        // Draw placeholder
+        pdfCtx.fillStyle = '#1e293b';
+        pdfCtx.fillRect(0, 0, width, height);
+        pdfCtx.fillStyle = '#475569';
+        pdfCtx.font = '14px sans-serif';
+        pdfCtx.textAlign = 'center';
+        pdfCtx.fillText('No PDF available', width / 2, height / 2);
+    }
+    
+    // Draw polygons
+    if (document.getElementById('showPolygons').checked) {
+        drawPolygons(pageData, zoom);
+    }
+    
+    // Update page info
+    document.getElementById('pageInfo').textContent = `${currentPage} / ${totalPages}`;
+    
+    // Load page content
+    loadPageContent();
+}
+
+function drawPolygons(pageData, zoom) {
+    overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    
+    if (!pageData.lines) return;
+    
+    const dpi = 72;
+    
+    pageData.lines.forEach((line, i) => {
+        if (!line.polygon || line.polygon.length < 8) return;
+        
+        const poly = line.polygon.map(p => p * dpi * zoom);
+        
+        overlayCtx.beginPath();
+        overlayCtx.moveTo(poly[0], poly[1]);
+        for (let j = 2; j < poly.length; j += 2) {
+            overlayCtx.lineTo(poly[j], poly[j + 1]);
+        }
+        overlayCtx.closePath();
+        
+        overlayCtx.fillStyle = 'rgba(0, 217, 255, 0.15)';
+        overlayCtx.fill();
+        overlayCtx.strokeStyle = 'rgba(0, 217, 255, 0.6)';
+        overlayCtx.lineWidth = 1;
+        overlayCtx.stroke();
+    });
+}
+
+async function loadPageContent() {
+    const mode = getMode();
+    try {
+        const data = await fetchApi(`/api/document/${encodeURIComponent(currentDoc)}/page/${currentPage}?mode=${mode}`);
+        currentPageContent = data.content || '';
+        renderPageContent();
+        document.getElementById('lineCount').textContent = data.lines?.length || 0;
+    } catch (e) {
+        currentPageContent = '';
+        document.getElementById('pageContent').textContent = 'Error loading content';
+        document.getElementById('lineCount').textContent = '-';
+    }
+}
+
+function renderPageContent() {
+    const searchTerm = document.getElementById('contentSearch').value.toLowerCase();
+    let content = currentPageContent;
+    
+    if (searchTerm && content) {
+        const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
+        content = escapeHtml(content).replace(regex, '<mark class="bg-yellow-500 text-black px-0.5">$1</mark>');
+        document.getElementById('pageContent').innerHTML = content;
+    } else {
+        document.getElementById('pageContent').textContent = content || 'No content';
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function escapeRegex(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function copyPageContent() {
+    if (currentPageContent) {
+        navigator.clipboard.writeText(currentPageContent);
+        showToast('Content copied!');
+    }
+}
+
+function prevPage() {
+    if (currentPage > 1) {
+        currentPage--;
+        renderPage();
+    }
+}
+
+function nextPage() {
+    if (currentPage < totalPages) {
+        currentPage++;
+        renderPage();
+    }
+}
+
+// ============================================
+// Drawing functionality
+// ============================================
+const drawCanvas = document.getElementById('drawCanvas');
+const drawCtx = drawCanvas.getContext('2d');
+
+let drawMode = false;
+let currentPoints = [];
+let drawnPolygons = [];
+
+function toggleDrawMode() {
+    drawMode = !drawMode;
+    const btn = document.getElementById('drawModeBtn');
+    if (drawMode) {
+        btn.classList.add('bg-cyan-600');
+        btn.classList.remove('bg-slate-700');
+        drawCanvas.classList.remove('hidden');
+        showTab('drawing');
+    } else {
+        btn.classList.remove('bg-cyan-600');
+        btn.classList.add('bg-slate-700');
+        drawCanvas.classList.add('hidden');
+    }
+}
+
+function showTab(tab) {
+    const tabs = ['content', 'drawing'];
+    tabs.forEach(t => {
+        document.getElementById(`tab${t.charAt(0).toUpperCase() + t.slice(1)}`).classList.remove('border-cyan-500', 'text-cyan-400');
+        document.getElementById(`tab${t.charAt(0).toUpperCase() + t.slice(1)}`).classList.add('border-transparent', 'text-slate-400');
+        document.getElementById(`panel${t.charAt(0).toUpperCase() + t.slice(1)}`).classList.add('hidden');
+    });
+    document.getElementById(`tab${tab.charAt(0).toUpperCase() + tab.slice(1)}`).classList.add('border-cyan-500', 'text-cyan-400');
+    document.getElementById(`tab${tab.charAt(0).toUpperCase() + tab.slice(1)}`).classList.remove('border-transparent', 'text-slate-400');
+    document.getElementById(`panel${tab.charAt(0).toUpperCase() + tab.slice(1)}`).classList.remove('hidden');
+}
+
+function getDocCoords(e) {
+    const rect = drawCanvas.getBoundingClientRect();
+    const zoom = parseFloat(document.getElementById('zoomLevel').value);
+    const dpi = 72;
+    const x = (e.clientX - rect.left) / (dpi * zoom);
+    const y = (e.clientY - rect.top) / (dpi * zoom);
+    return { x, y };
+}
+
+drawCanvas.addEventListener('mousemove', (e) => {
+    const coords = getDocCoords(e);
+    document.getElementById('mouseCoords').textContent = `x: ${coords.x.toFixed(4)}, y: ${coords.y.toFixed(4)}`;
+    
+    if (currentPoints.length > 0) {
+        redrawDrawing();
+        // Draw line to cursor
+        const zoom = parseFloat(document.getElementById('zoomLevel').value);
+        const dpi = 72;
+        drawCtx.beginPath();
+        drawCtx.moveTo(currentPoints[currentPoints.length - 1].x * dpi * zoom, currentPoints[currentPoints.length - 1].y * dpi * zoom);
+        drawCtx.lineTo(e.clientX - drawCanvas.getBoundingClientRect().left, e.clientY - drawCanvas.getBoundingClientRect().top);
+        drawCtx.strokeStyle = 'rgba(255, 200, 0, 0.8)';
+        drawCtx.lineWidth = 2;
+        drawCtx.setLineDash([5, 5]);
+        drawCtx.stroke();
+        drawCtx.setLineDash([]);
+    }
+});
+
+drawCanvas.addEventListener('click', (e) => {
+    if (!drawMode) return;
+    const coords = getDocCoords(e);
+    currentPoints.push(coords);
+    document.getElementById('pointCount').textContent = currentPoints.length;
+    redrawDrawing();
+    
+    // Auto-complete at 4 points (rectangle)
+    if (currentPoints.length === 4) {
+        completePolygon();
+    }
+});
+
+drawCanvas.addEventListener('dblclick', (e) => {
+    if (!drawMode || currentPoints.length < 3) return;
+    completePolygon();
+});
+
+function completePolygon() {
+    if (currentPoints.length < 3) return;
+    
+    // Complete polygon - format: [x1,y1, x2,y2, x3,y3, x4,y4]
+    const polygon = currentPoints.map(p => [p.x, p.y]).flat();
+    drawnPolygons.push({
+        points: [...currentPoints],
+        polygon: polygon
+    });
+    
+    currentPoints = [];
+    document.getElementById('pointCount').textContent = 0;
+    redrawDrawing();
+    renderDrawnPolygons();
+    showToast(`Polygon #${drawnPolygons.length} created!`);
+}
+
+function redrawDrawing() {
+    drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+    const zoom = parseFloat(document.getElementById('zoomLevel').value);
+    const dpi = 72;
+    
+    // Draw completed polygons
+    drawnPolygons.forEach((poly, idx) => {
+        drawCtx.beginPath();
+        poly.points.forEach((p, i) => {
+            if (i === 0) drawCtx.moveTo(p.x * dpi * zoom, p.y * dpi * zoom);
+            else drawCtx.lineTo(p.x * dpi * zoom, p.y * dpi * zoom);
+        });
+        drawCtx.closePath();
+        drawCtx.fillStyle = 'rgba(0, 255, 100, 0.2)';
+        drawCtx.fill();
+        drawCtx.strokeStyle = 'rgba(0, 255, 100, 0.8)';
+        drawCtx.lineWidth = 2;
+        drawCtx.stroke();
+        
+        // Draw label
+        const cx = poly.points.reduce((s, p) => s + p.x, 0) / poly.points.length * dpi * zoom;
+        const cy = poly.points.reduce((s, p) => s + p.y, 0) / poly.points.length * dpi * zoom;
+        drawCtx.fillStyle = '#00ff64';
+        drawCtx.font = '12px sans-serif';
+        drawCtx.fillText(`#${idx + 1}`, cx - 8, cy + 4);
+    });
+    
+    // Draw current points
+    if (currentPoints.length > 0) {
+        drawCtx.beginPath();
+        currentPoints.forEach((p, i) => {
+            if (i === 0) drawCtx.moveTo(p.x * dpi * zoom, p.y * dpi * zoom);
+            else drawCtx.lineTo(p.x * dpi * zoom, p.y * dpi * zoom);
+        });
+        drawCtx.strokeStyle = 'rgba(255, 200, 0, 0.8)';
+        drawCtx.lineWidth = 2;
+        drawCtx.stroke();
+        
+        // Draw points
+        currentPoints.forEach(p => {
+            drawCtx.beginPath();
+            drawCtx.arc(p.x * dpi * zoom, p.y * dpi * zoom, 4, 0, Math.PI * 2);
+            drawCtx.fillStyle = '#ffc800';
+            drawCtx.fill();
+        });
+    }
+}
+
+function renderDrawnPolygons() {
+    const container = document.getElementById('drawnPolygons');
+    if (drawnPolygons.length === 0) {
+        container.innerHTML = '<div class="text-slate-500 text-center py-4 text-sm">No polygons drawn</div>';
+        return;
+    }
+    
+    container.innerHTML = drawnPolygons.map((poly, i) => `
+        <div class="mb-3 p-2 bg-slate-700 rounded-lg">
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-sm font-medium text-green-400">Polygon #${i + 1}</span>
+                <div class="flex gap-2">
+                    <button onclick="copyPolygon(${i})" class="text-xs text-cyan-400 hover:text-cyan-300">copy</button>
+                    <button onclick="deletePolygon(${i})" class="text-xs text-red-400 hover:text-red-300">delete</button>
+                </div>
+            </div>
+            <div class="text-xs text-slate-400 mb-1">${poly.points.length} points</div>
+            <div class="text-xs font-mono bg-slate-900 p-2 rounded break-all text-slate-300">
+                [${poly.polygon.map(v => v.toFixed(4)).join(', ')}]
+            </div>
+        </div>
+    `).join('');
+}
+
+function copyPolygon(index) {
+    const poly = drawnPolygons[index];
+    const data = JSON.stringify(poly.polygon);
+    navigator.clipboard.writeText(data);
+    showToast('Polygon copied!');
+}
+
+function deletePolygon(index) {
+    drawnPolygons.splice(index, 1);
+    redrawDrawing();
+    renderDrawnPolygons();
+}
+
+function copyAllDrawnPolygons() {
+    const data = JSON.stringify(drawnPolygons.map(p => p.polygon), null, 2);
+    navigator.clipboard.writeText(data);
+    showToast('All polygons copied!');
+}
+
+function clearDrawing() {
+    currentPoints = [];
+    drawnPolygons = [];
+    document.getElementById('pointCount').textContent = 0;
+    redrawDrawing();
+    renderDrawnPolygons();
+}
+
+function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'fixed bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
+}
+
+// Update renderPage to also update draw canvas size
+const originalRenderPage = renderPage;
+renderPage = async function() {
+    await originalRenderPage();
+    drawCanvas.width = pdfCanvas.width;
+    drawCanvas.height = pdfCanvas.height;
+    redrawDrawing();
+};
+
+// Event listeners
+document.getElementById('searchInput').addEventListener('input', renderDocList);
+document.getElementById('showPolygons').addEventListener('change', renderPage);
+document.getElementById('zoomLevel').addEventListener('change', renderPage);
+document.getElementById('contentSearch').addEventListener('input', renderPageContent);
+
+// Check URL params
+const urlParams = new URLSearchParams(window.location.search);
+const docParam = urlParams.get('doc');
+
+loadDocuments().then(() => {
+    if (docParam) {
+        selectDoc(docParam);
+    }
+});
+
+function onModeChange() {
+    currentDoc = null;
+    pdfDoc = null;
+    jsonData = null;
+    drawnPolygons = [];
+    currentPoints = [];
+    currentPageContent = '';
+    document.getElementById('noDocMessage').style.display = 'flex';
+    document.getElementById('viewerWrapper').style.display = 'none';
+    loadDocuments();
+}
+</script>
+{% endblock %}

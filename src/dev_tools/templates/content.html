@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+{% block title %}Content Browser - Pipeline Dev Tools{% endblock %}
+{% block nav_content %}bg-slate-700 text-cyan-400{% endblock %}
+
+{% block content %}
+<div class="flex gap-4 h-[calc(100vh-120px)]">
+    <!-- Sidebar - Document List -->
+    <div class="w-72 bg-slate-800 rounded-xl border border-slate-700 flex flex-col">
+        <div class="p-3 border-b border-slate-700">
+            <input type="text" id="searchInput" placeholder="Search documents..." 
+                   class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500">
+        </div>
+        <div class="flex-1 overflow-y-auto scrollbar-thin p-2" id="docList">
+            <div class="text-slate-500 text-center py-8">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Page List -->
+    <div class="w-56 bg-slate-800 rounded-xl border border-slate-700 flex flex-col">
+        <div class="p-3 border-b border-slate-700">
+            <h3 class="font-semibold text-sm">Pages</h3>
+            <input type="text" id="pageSearch" placeholder="Search all pages..." 
+                   class="w-full mt-2 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs focus:outline-none focus:border-cyan-500">
+        </div>
+        <div class="flex-1 overflow-y-auto scrollbar-thin p-2" id="pageList">
+            <div class="text-slate-500 text-center py-8 text-sm">Select a document</div>
+        </div>
+        <!-- Search Results -->
+        <div id="searchResults" class="hidden border-t border-slate-700 max-h-48 overflow-y-auto scrollbar-thin">
+            <div class="p-2 text-xs text-slate-400 bg-slate-700">Search Results</div>
+            <div id="searchResultsList" class="p-2"></div>
+        </div>
+    </div>
+
+    <!-- Content Viewer -->
+    <div class="flex-1 bg-slate-800 rounded-xl border border-slate-700 flex flex-col">
+        <div class="p-3 border-b border-slate-700 flex items-center justify-between">
+            <div>
+                <h3 class="font-semibold" id="contentTitle">Page Content</h3>
+                <span class="text-xs text-slate-400" id="contentSubtitle"></span>
+            </div>
+            <div class="flex items-center gap-3">
+                <input type="text" id="contentSearch" placeholder="Search in content..." 
+                       class="bg-slate-700 border border-slate-600 rounded px-3 py-1 text-sm w-48 focus:outline-none focus:border-cyan-500">
+                <button onclick="copyContent()" class="px-3 py-1 bg-slate-700 rounded hover:bg-slate-600 text-sm">Copy</button>
+            </div>
+        </div>
+        <div class="flex-1 overflow-y-auto scrollbar-thin p-4">
+            <div id="contentViewer" class="text-sm font-mono whitespace-pre-wrap text-slate-300">
+                Select a document and page to view content
+            </div>
+        </div>
+        <div class="p-3 border-t border-slate-700 flex justify-between text-xs text-slate-400">
+            <span>Lines: <span id="lineCount">-</span></span>
+            <span>Characters: <span id="charCount">-</span></span>
+        </div>
+    </div>
+
+    <!-- Lines Detail -->
+    <div class="w-96 bg-slate-800 rounded-xl border border-slate-700 flex flex-col">
+        <div class="p-3 border-b border-slate-700 flex justify-between items-center">
+            <h3 class="font-semibold text-sm">Lines Detail</h3>
+            <button onclick="copyAllLines()" class="text-xs text-cyan-400 hover:text-cyan-300">Copy All JSON</button>
+        </div>
+        <div class="flex-1 overflow-y-auto scrollbar-thin" id="linesDetail">
+            <div class="text-slate-500 text-center py-8 text-sm">Select a page</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let documents = [];
+let currentDoc = null;
+let currentPage = null;
+let pageData = null;
+let combinedDocData = null; // Store combined doc for searching
+
+async function loadDocuments() {
+    const mode = getMode();
+    const data = await fetchApi(`/api/documents?mode=${mode}`);
+    documents = data.documents;
+    renderDocList();
+}
+
+function renderDocList() {
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    const filtered = documents.filter(d => d.name.toLowerCase().includes(search));
+    
+    const docList = document.getElementById('docList');
+    if (filtered.length === 0) {
+        docList.innerHTML = '<div class="text-slate-500 text-center py-8">No documents found</div>';
+        return;
+    }
+    
+    docList.innerHTML = filtered.map(doc => `
+        <button onclick="selectDoc('${doc.name}')" 
+                class="w-full text-left p-2 rounded-lg text-sm hover:bg-slate-700 transition-colors ${currentDoc === doc.name ? 'bg-slate-700 border border-cyan-500' : ''}">
+            <div class="truncate">${doc.name.substring(0, 30)}...</div>
+        </button>
+    `).join('');
+}
+
+async function selectDoc(name) {
+    currentDoc = name;
+    currentPage = null;
+    renderDocList();
+    
+    // Load combined document to get page count
+    const mode = getMode();
+    combinedDocData = await fetchApi(`/api/document/${encodeURIComponent(name)}/combined?mode=${mode}`);
+    
+    renderPageList();
+    
+    document.getElementById('contentTitle').textContent = name.substring(0, 50) + '...';
+    document.getElementById('contentSubtitle').textContent = `${combinedDocData.total_pages} pages`;
+    
+    // Re-run search if there's existing search term (don't clear)
+    const existingSearch = document.getElementById('pageSearch').value;
+    if (existingSearch) {
+        searchAllPages();
+    } else {
+        document.getElementById('searchResults').classList.add('hidden');
+    }
+}
+
+function renderPageList() {
+    if (!combinedDocData) return;
+    
+    const pageList = document.getElementById('pageList');
+    pageList.innerHTML = combinedDocData.pages.map(p => `
+        <button onclick="selectPage(${p.page_number})" 
+                class="w-full text-left p-2 rounded-lg text-sm hover:bg-slate-700 transition-colors flex justify-between items-center ${currentPage === p.page_number ? 'bg-slate-700 border border-green-500' : ''}">
+            <span>Page ${p.page_number}</span>
+            <span class="text-xs text-slate-500">${p.lines_count} lines</span>
+        </button>
+    `).join('');
+}
+
+async function selectPage(pageNum) {
+    currentPage = pageNum;
+    renderPageList();
+    
+    // Load page content
+    const mode = getMode();
+    pageData = await fetchApi(`/api/document/${encodeURIComponent(currentDoc)}/page/${pageNum}?mode=${mode}`);
+    
+    renderContent();
+    renderLinesDetail();
+    
+    // Keep search results visible if search is active
+    const pageSearchValue = document.getElementById('pageSearch').value;
+    if (pageSearchValue) {
+        document.getElementById('searchResults').classList.remove('hidden');
+    }
+}
+
+// Search across all pages
+function searchAllPages() {
+    const query = document.getElementById('pageSearch').value.toLowerCase().trim();
+    const resultsContainer = document.getElementById('searchResults');
+    const resultsList = document.getElementById('searchResultsList');
+    
+    if (!query || !combinedDocData) {
+        resultsContainer.classList.add('hidden');
+        return;
+    }
+    
+    const results = [];
+    combinedDocData.pages.forEach(page => {
+        if (page.content && page.content.toLowerCase().includes(query)) {
+            // Find matching lines
+            const lines = page.content.split('\n');
+            const matchingLines = lines.filter(line => line.toLowerCase().includes(query));
+            results.push({
+                pageNum: page.page_number,
+                matches: matchingLines.length,
+                preview: matchingLines[0]?.substring(0, 50) || ''
+            });
+        }
+    });
+    
+    if (results.length === 0) {
+        resultsList.innerHTML = '<div class="text-slate-500 text-xs py-2">No matches found</div>';
+    } else {
+        resultsList.innerHTML = results.map(r => `
+            <button onclick="goToSearchResult(${r.pageNum}, '${escapeQuotes(query)}')" 
+                    class="w-full text-left p-2 rounded hover:bg-slate-700 text-xs mb-1">
+                <div class="flex justify-between">
+                    <span class="text-green-400">Page ${r.pageNum}</span>
+                    <span class="text-slate-500">${r.matches} matches</span>
+                </div>
+                <div class="text-slate-400 truncate mt-1">${escapeHtml(r.preview)}...</div>
+            </button>
+        `).join('');
+    }
+    
+    resultsContainer.classList.remove('hidden');
+}
+
+function escapeQuotes(str) {
+    return str.replace(/'/g, "\\'").replace(/"/g, '\\"');
+}
+
+async function goToSearchResult(pageNum, query) {
+    // Set highlight term first
+    document.getElementById('contentSearch').value = query;
+    // Then load page (which will use the highlight term)
+    await selectPage(pageNum);
+}
+
+function highlightSearch(query) {
+    document.getElementById('contentSearch').value = query;
+    renderContent();
+}
+
+function renderContent() {
+    const searchTerm = document.getElementById('contentSearch').value.toLowerCase();
+    let content = pageData.content || '';
+    
+    if (searchTerm) {
+        const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
+        content = content.replace(regex, '<mark class="bg-yellow-500 text-black px-0.5">$1</mark>');
+    }
+    
+    document.getElementById('contentViewer').innerHTML = content || 'No content';
+    document.getElementById('contentTitle').textContent = `Page ${currentPage}`;
+    document.getElementById('lineCount').textContent = pageData.lines?.length || 0;
+    document.getElementById('charCount').textContent = (pageData.content?.length || 0).toLocaleString();
+}
+
+function renderLinesDetail() {
+    const linesDetail = document.getElementById('linesDetail');
+    
+    if (!pageData.lines || pageData.lines.length === 0) {
+        linesDetail.innerHTML = '<div class="text-slate-500 text-center py-8 text-sm">No lines</div>';
+        return;
+    }
+    
+    linesDetail.innerHTML = pageData.lines.map((line, i) => `
+        <div class="p-2 border-b border-slate-700 hover:bg-slate-700/50 group">
+            <div class="flex justify-between text-xs text-slate-500 mb-1">
+                <span>#${i + 1}</span>
+                <div class="flex gap-2">
+                    <span>x:${line.x?.toFixed(2) || '-'} y:${line.y?.toFixed(2) || '-'}</span>
+                    <button onclick="copyLine(${i})" class="text-cyan-400 hover:text-cyan-300 opacity-0 group-hover:opacity-100">copy</button>
+                </div>
+            </div>
+            <div class="text-sm mb-1">${escapeHtml(line.text || '')}</div>
+            ${line.polygon ? `
+                <details class="text-xs">
+                    <summary class="text-slate-500 cursor-pointer hover:text-slate-300">polygon [${line.polygon.length/2} points]</summary>
+                    <div class="mt-1 p-2 bg-slate-900 rounded text-slate-400 font-mono break-all">
+                        [${line.polygon.map(p => p.toFixed(4)).join(', ')}]
+                    </div>
+                </details>
+            ` : ''}
+        </div>
+    `).join('');
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function copyLine(index) {
+    if (pageData?.lines?.[index]) {
+        const line = pageData.lines[index];
+        const data = JSON.stringify(line, null, 2);
+        navigator.clipboard.writeText(data);
+        showToast('Line data copied!');
+    }
+}
+
+function copyAllLines() {
+    if (pageData?.lines) {
+        const data = JSON.stringify(pageData.lines, null, 2);
+        navigator.clipboard.writeText(data);
+        showToast('All lines copied!');
+    }
+}
+
+function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'fixed bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
+}
+
+function escapeRegex(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function copyContent() {
+    if (pageData?.content) {
+        navigator.clipboard.writeText(pageData.content);
+        alert('Content copied to clipboard!');
+    }
+}
+
+// Event listeners
+document.getElementById('searchInput').addEventListener('input', renderDocList);
+document.getElementById('contentSearch').addEventListener('input', renderContent);
+document.getElementById('pageSearch').addEventListener('input', searchAllPages);
+
+function onModeChange() {
+    currentDoc = null;
+    currentPage = null;
+    pageData = null;
+    combinedDocData = null;
+    document.getElementById('pageList').innerHTML = '<div class="text-slate-500 text-center py-8 text-sm">Select a document</div>';
+    document.getElementById('contentViewer').textContent = 'Select a document and page to view content';
+    document.getElementById('linesDetail').innerHTML = '<div class="text-slate-500 text-center py-8 text-sm">Select a page</div>';
+    document.getElementById('searchResults').classList.add('hidden');
+    loadDocuments();
+}
+
+loadDocuments();
+</script>
+{% endblock %}

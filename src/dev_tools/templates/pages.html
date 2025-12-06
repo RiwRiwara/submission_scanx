@@ -1,0 +1,606 @@
+{% extends "base.html" %}
+{% block title %}Page Viewer - Pipeline Dev Tools{% endblock %}
+{% block nav_pages %}bg-slate-700 text-cyan-400{% endblock %}
+
+{% block head %}
+<style>
+    .pdf-container {
+        height: calc(100vh - 200px);
+        min-height: 600px;
+        position: relative;
+    }
+    .step-btn.active {
+        background: rgb(8 145 178) !important;
+        color: white;
+    }
+    .page-thumb:hover {
+        transform: scale(1.05);
+    }
+    .canvas-wrapper {
+        position: relative;
+        display: inline-block;
+    }
+    .polygon-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+    }
+    .polygon-overlay.interactive {
+        pointer-events: auto;
+    }
+    .polygon-overlay path:hover {
+        fill: rgba(34, 211, 238, 0.3) !important;
+        cursor: pointer;
+    }
+    .text-content-panel {
+        max-height: calc(100vh - 300px);
+        overflow-y: auto;
+    }
+    .line-item:hover {
+        background: rgba(34, 211, 238, 0.1);
+    }
+    .line-item.highlighted {
+        background: rgba(34, 211, 238, 0.2);
+        border-left: 3px solid rgb(34, 211, 238);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex gap-4 h-full">
+    <!-- Left Sidebar - Document & Step Selection -->
+    <div class="w-72 flex-shrink-0 space-y-3">
+        <!-- Document Selector -->
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-3">
+            <label class="block text-sm text-slate-400 mb-2">Select Document</label>
+            <div class="relative">
+                <input type="text" id="docSearch" placeholder="🔍 Type to search..." 
+                       class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm"
+                       autocomplete="off">
+                <div id="docDropdown" class="absolute z-50 w-full mt-1 bg-slate-700 border border-slate-600 rounded-lg shadow-xl max-h-64 overflow-y-auto hidden">
+                </div>
+            </div>
+            <div id="selectedDoc" class="mt-2 p-2 bg-cyan-900/30 border border-cyan-700/50 rounded-lg text-sm hidden">
+                <div class="text-cyan-400 font-medium text-xs truncate" id="selectedDocName">-</div>
+                <div class="text-xs text-slate-400 mt-1"><span id="pageCount">0</span> pages</div>
+            </div>
+        </div>
+
+        <!-- Steps List -->
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-3">
+            <div class="text-sm text-slate-400 mb-2">Pipeline Steps</div>
+            <div id="stepsList" class="space-y-1 max-h-48 overflow-y-auto">
+                <div class="text-slate-500 text-xs">Select a document first</div>
+            </div>
+        </div>
+
+        <!-- Page Thumbnails for Step -->
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-3">
+            <div class="text-sm text-slate-400 mb-2">Step Pages: <span id="currentStepLabel" class="text-cyan-400">-</span></div>
+            <div id="pageThumbs" class="flex flex-wrap gap-1">
+                <div class="text-slate-500 text-xs">Select a step</div>
+            </div>
+        </div>
+
+        <!-- All Pages Grid -->
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-3">
+            <div class="text-sm text-slate-400 mb-2">All Pages</div>
+            <div id="allPagesGrid" class="grid grid-cols-6 gap-1 max-h-32 overflow-y-auto">
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content - PDF Viewer with Overlay -->
+    <div class="flex-1 bg-slate-800 rounded-xl border border-slate-700 overflow-hidden flex flex-col">
+        <!-- Toolbar -->
+        <div class="bg-slate-900 px-4 py-2 flex items-center justify-between border-b border-slate-700">
+            <div class="flex items-center gap-3">
+                <button onclick="prevPage()" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm">◀</button>
+                <span class="text-sm">Page <span id="pageNum" class="text-cyan-400 font-mono">-</span> / <span id="totalPages" class="text-slate-400 font-mono">-</span></span>
+                <button onclick="nextPage()" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm">▶</button>
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="flex items-center gap-2 text-sm text-slate-400">
+                    <input type="checkbox" id="showPolygons" class="rounded" checked>
+                    <span>Polygons</span>
+                </label>
+                <span class="text-slate-600">|</span>
+                <button onclick="zoomOut()" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm">−</button>
+                <span id="zoomLevel" class="text-xs text-slate-400 w-12 text-center">100%</span>
+                <button onclick="zoomIn()" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm">+</button>
+            </div>
+        </div>
+
+        <!-- PDF Canvas with Overlay -->
+        <div id="pdfContainer" class="pdf-container overflow-auto bg-slate-950 flex items-start justify-center p-4">
+            <div id="emptyState" class="text-center py-20">
+                <div class="text-6xl mb-4">📄</div>
+                <div class="text-xl text-slate-400">Select a document and step</div>
+                <div class="text-sm text-slate-500 mt-2">PDF with polygon overlays will be displayed here</div>
+            </div>
+            <div id="canvasWrapper" class="canvas-wrapper hidden">
+                <canvas id="pdfCanvas"></canvas>
+                <svg id="polygonOverlay" class="polygon-overlay interactive"></svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Sidebar - Text Content -->
+    <div class="w-80 flex-shrink-0 space-y-3">
+        <!-- Page Info -->
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-3">
+            <div class="text-sm text-slate-400 mb-2">Page Info</div>
+            <div id="pageInfo" class="text-xs space-y-1">
+                <div class="text-slate-500">No page selected</div>
+            </div>
+        </div>
+
+        <!-- Text Content -->
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-3 flex-1">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-sm text-slate-400">Text Content</span>
+                <span id="lineCount" class="text-xs text-slate-500">0 lines</span>
+            </div>
+            <div id="textContent" class="text-content-panel text-xs font-mono bg-slate-900 rounded p-2 space-y-0.5">
+                <div class="text-slate-500">Select a page to view text</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// PDF.js setup
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+let pdfDoc = null;
+let currentPage = 1;
+let currentScale = 1.0;
+let currentDocName = null;
+let currentMetadata = null;
+let currentPageData = null;  // Text and polygon data for current page
+let stepPages = [];
+let allDocuments = [];
+
+const STEP_COLORS = {
+    'step_1': '#06b6d4', 'step_2': '#3b82f6', 'step_3_1': '#6366f1',
+    'step_3_2': '#8b5cf6', 'step_3_3': '#a855f7', 'step_4': '#ec4899',
+    'step_5': '#f43f5e', 'step_6': '#f97316', 'step_7': '#eab308',
+    'step_8': '#facc15', 'step_9': '#84cc16', 'step_10': '#22c55e',
+};
+
+// ============================================================================
+// Document Loading
+// ============================================================================
+
+async function loadDocuments() {
+    try {
+        const response = await fetchApi('/api/page-metadata');
+        if (response.documents && response.documents.length > 0) {
+            allDocuments = response.documents;
+            filterDocuments('');
+        }
+    } catch (e) {
+        console.error('Error loading documents:', e);
+    }
+}
+
+function filterDocuments(searchText) {
+    const dropdown = document.getElementById('docDropdown');
+    const search = searchText.toLowerCase().trim();
+    
+    const filtered = search 
+        ? allDocuments.filter(doc => doc.doc_name.toLowerCase().includes(search))
+        : allDocuments;
+    
+    if (filtered.length === 0) {
+        dropdown.innerHTML = '<div class="px-3 py-2 text-slate-400 text-sm">No documents found</div>';
+    } else {
+        dropdown.innerHTML = filtered.slice(0, 15).map(doc => {
+            let displayName = doc.doc_name;
+            if (search) {
+                const regex = new RegExp(`(${search})`, 'gi');
+                displayName = displayName.replace(regex, '<span class="text-cyan-400 font-bold">$1</span>');
+            }
+            return `
+                <div class="doc-item px-3 py-2 hover:bg-slate-600 cursor-pointer text-sm border-b border-slate-600/50"
+                     data-value="${doc.doc_name}" data-pages="${doc.total_pages}">
+                    <div class="truncate text-xs">${displayName}</div>
+                    <div class="text-xs text-slate-400">${doc.total_pages} pages</div>
+                </div>
+            `;
+        }).join('');
+        if (filtered.length > 15) {
+            dropdown.innerHTML += `<div class="px-3 py-1 text-slate-500 text-xs text-center">+${filtered.length - 15} more</div>`;
+        }
+    }
+    dropdown.classList.remove('hidden');
+}
+
+function selectDocument(docName, totalPages) {
+    document.getElementById('docSearch').value = '';
+    document.getElementById('docDropdown').classList.add('hidden');
+    document.getElementById('selectedDoc').classList.remove('hidden');
+    document.getElementById('selectedDocName').textContent = docName;
+    document.getElementById('pageCount').textContent = totalPages;
+    loadDocument(docName);
+}
+
+async function loadDocument(docName) {
+    if (!docName) return;
+    
+    currentDocName = docName;
+    
+    try {
+        // Load page metadata
+        currentMetadata = await fetchApi(`/api/page-metadata/${encodeURIComponent(docName)}`);
+        
+        // Build UI
+        buildStepsList(currentMetadata);
+        buildAllPagesGrid(currentMetadata);
+        
+        // Load PDF
+        const pdfUrl = `/api/pdf/${encodeURIComponent(docName)}`;
+        pdfDoc = await (pdfjsLib.getDocument(pdfUrl).promise);
+        document.getElementById('totalPages').textContent = pdfDoc.numPages;
+        
+        // Show first page
+        document.getElementById('emptyState').classList.add('hidden');
+        document.getElementById('canvasWrapper').classList.remove('hidden');
+        await goToPage(1);
+        
+    } catch (e) {
+        console.error('Error loading document:', e);
+        alert('Error: ' + e.message);
+    }
+}
+
+// ============================================================================
+// Steps UI
+// ============================================================================
+
+function buildStepsList(metadata) {
+    const container = document.getElementById('stepsList');
+    const stepMappings = metadata.step_mappings || [];
+    
+    if (stepMappings.length === 0) {
+        container.innerHTML = '<div class="text-slate-500 text-xs">No step mappings</div>';
+        return;
+    }
+    
+    stepMappings.sort((a, b) => {
+        const numA = parseInt(a.step_name.replace(/\D/g, '') || '0');
+        const numB = parseInt(b.step_name.replace(/\D/g, '') || '0');
+        return numA - numB || a.step_name.localeCompare(b.step_name);
+    });
+    
+    container.innerHTML = stepMappings.map(step => {
+        const color = STEP_COLORS[step.step_name] || '#64748b';
+        const pageCount = step.page_numbers?.length || 0;
+        return `
+            <button onclick="selectStep('${step.step_name}')" 
+                    class="step-btn w-full text-left px-2 py-1.5 rounded bg-slate-700 hover:bg-slate-600 transition-colors text-xs"
+                    data-step="${step.step_name}">
+                <div class="flex justify-between items-center">
+                    <span style="color: ${color}" class="font-medium">${step.step_name}</span>
+                    <span class="text-slate-400">${pageCount}p</span>
+                </div>
+            </button>
+        `;
+    }).join('');
+}
+
+function buildAllPagesGrid(metadata) {
+    const container = document.getElementById('allPagesGrid');
+    const totalPages = metadata.total_pages || 0;
+    
+    const pageStepMap = {};
+    (metadata.step_mappings || []).forEach(step => {
+        (step.page_numbers || []).forEach(p => {
+            if (!pageStepMap[p]) pageStepMap[p] = [];
+            pageStepMap[p].push(step.step_name);
+        });
+    });
+    
+    let html = '';
+    for (let i = 1; i <= totalPages; i++) {
+        const steps = pageStepMap[i] || [];
+        const color = steps.length > 0 ? STEP_COLORS[steps[0]] || '#64748b' : '#334155';
+        html += `
+            <button onclick="goToPage(${i})" 
+                    class="w-6 h-6 text-xs rounded page-nav-btn hover:opacity-80"
+                    style="background: ${color}20; border: 1px solid ${color}50"
+                    data-page="${i}" title="Page ${i}">
+                ${i}
+            </button>
+        `;
+    }
+    container.innerHTML = html;
+}
+
+async function selectStep(stepName) {
+    // Update active step
+    document.querySelectorAll('.step-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelector(`.step-btn[data-step="${stepName}"]`)?.classList.add('active');
+    
+    const stepData = currentMetadata.step_mappings?.find(s => s.step_name === stepName);
+    if (!stepData) return;
+    
+    stepPages = stepData.page_numbers || [];
+    document.getElementById('currentStepLabel').textContent = stepName;
+    
+    // Build page thumbnails
+    document.getElementById('pageThumbs').innerHTML = stepPages.length === 0
+        ? '<div class="text-slate-500 text-xs">No pages</div>'
+        : stepPages.map(p => `
+            <button onclick="goToPage(${p})" 
+                    class="page-thumb w-8 h-8 bg-slate-700 hover:bg-slate-600 rounded flex items-center justify-center text-xs border border-slate-600"
+                    data-page="${p}">${p}</button>
+        `).join('');
+    
+    if (stepPages.length > 0) {
+        await goToPage(stepPages[0]);
+    }
+}
+
+// ============================================================================
+// Page Rendering with Polygons
+// ============================================================================
+
+async function goToPage(num) {
+    if (!pdfDoc || num < 1 || num > pdfDoc.numPages) return;
+    currentPage = num;
+    
+    try {
+        // Render PDF page
+        const page = await pdfDoc.getPage(num);
+        const canvas = document.getElementById('pdfCanvas');
+        const ctx = canvas.getContext('2d');
+        const viewport = page.getViewport({ scale: currentScale });
+        
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        
+        await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+        
+        // Setup overlay
+        const overlay = document.getElementById('polygonOverlay');
+        overlay.setAttribute('width', viewport.width);
+        overlay.setAttribute('height', viewport.height);
+        overlay.style.width = viewport.width + 'px';
+        overlay.style.height = viewport.height + 'px';
+        
+        // Load page text data and draw polygons
+        await loadPageTextData(num, viewport);
+        
+        // Update UI
+        document.getElementById('pageNum').textContent = num;
+        updatePageInfo(num);
+        highlightCurrentPage(num);
+        
+    } catch (e) {
+        console.error('Error rendering page:', e);
+    }
+}
+
+async function loadPageTextData(pageNum, viewport) {
+    const overlay = document.getElementById('polygonOverlay');
+    const textContent = document.getElementById('textContent');
+    
+    try {
+        // Try to load from text_each_page
+        const mode = getMode();
+        const textUrl = `/api/document/${encodeURIComponent(currentDocName)}/page/${pageNum}?mode=${mode}`;
+        currentPageData = await fetchApi(textUrl);
+        
+        const lines = currentPageData.lines || [];
+        document.getElementById('lineCount').textContent = `${lines.length} lines`;
+        
+        // Draw polygons
+        if (document.getElementById('showPolygons').checked) {
+            drawPolygons(lines, viewport, overlay);
+        } else {
+            overlay.innerHTML = '';
+        }
+        
+        // Show text content
+        textContent.innerHTML = lines.length === 0 
+            ? '<div class="text-slate-500">No text data</div>'
+            : lines.map((line, idx) => `
+                <div class="line-item px-1 py-0.5 rounded cursor-pointer hover:bg-slate-700" 
+                     data-idx="${idx}"
+                     onmouseenter="highlightLine(${idx})"
+                     onmouseleave="unhighlightLine(${idx})">
+                    ${escapeHtml(line.text || '')}
+                </div>
+            `).join('');
+            
+    } catch (e) {
+        console.log('No text data for page:', e.message);
+        overlay.innerHTML = '';
+        textContent.innerHTML = '<div class="text-slate-500">No text data available</div>';
+        document.getElementById('lineCount').textContent = '0 lines';
+        currentPageData = null;
+    }
+}
+
+function drawPolygons(lines, viewport, overlay) {
+    // PDF coordinates: origin at top-left (same as SVG in PDF.js)
+    // Polygon coordinates are in inches, need to convert to pixels
+    const canvasWidth = viewport.width;
+    const canvasHeight = viewport.height;
+    
+    // Get page dimensions from currentPageData (in inches typically)
+    const pageWidth = currentPageData?.width || (canvasWidth / 72 / currentScale);
+    const pageHeight = currentPageData?.height || (canvasHeight / 72 / currentScale);
+    
+    // Calculate scale factors
+    const scaleX = canvasWidth / pageWidth;
+    const scaleY = canvasHeight / pageHeight;
+    
+    let paths = '';
+    lines.forEach((line, idx) => {
+        const polygon = line.polygon || [];
+        if (polygon.length >= 8) {
+            // polygon format: [x0, y0, x1, y1, x2, y2, x3, y3] (4 corners in inches)
+            const points = [];
+            for (let i = 0; i < 8; i += 2) {
+                const x = polygon[i] * scaleX;
+                const y = polygon[i + 1] * scaleY;
+                points.push(`${x},${y}`);
+            }
+            paths += `<path d="M ${points.join(' L ')} Z" 
+                           fill="rgba(34, 211, 238, 0.08)" 
+                           stroke="rgba(34, 211, 238, 0.4)" 
+                           stroke-width="1"
+                           data-idx="${idx}"
+                           onclick="scrollToLine(${idx})"/>`;
+        }
+    });
+    overlay.innerHTML = paths;
+}
+
+function highlightLine(idx) {
+    // Highlight in text panel
+    document.querySelectorAll('.line-item').forEach(el => el.classList.remove('highlighted'));
+    document.querySelector(`.line-item[data-idx="${idx}"]`)?.classList.add('highlighted');
+    
+    // Highlight polygon
+    document.querySelectorAll('#polygonOverlay path').forEach(el => {
+        el.setAttribute('fill', 'rgba(34, 211, 238, 0.1)');
+    });
+    document.querySelector(`#polygonOverlay path[data-idx="${idx}"]`)?.setAttribute('fill', 'rgba(34, 211, 238, 0.4)');
+}
+
+function unhighlightLine(idx) {
+    document.querySelector(`.line-item[data-idx="${idx}"]`)?.classList.remove('highlighted');
+    document.querySelector(`#polygonOverlay path[data-idx="${idx}"]`)?.setAttribute('fill', 'rgba(34, 211, 238, 0.1)');
+}
+
+function scrollToLine(idx) {
+    const lineEl = document.querySelector(`.line-item[data-idx="${idx}"]`);
+    if (lineEl) {
+        lineEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        highlightLine(idx);
+    }
+}
+
+function highlightCurrentPage(num) {
+    document.querySelectorAll('.page-thumb, .page-nav-btn').forEach(btn => {
+        btn.classList.toggle('ring-2', parseInt(btn.dataset.page) === num);
+        btn.classList.toggle('ring-cyan-400', parseInt(btn.dataset.page) === num);
+    });
+}
+
+function updatePageInfo(pageNum) {
+    const stepsForPage = [];
+    (currentMetadata?.step_mappings || []).forEach(step => {
+        if ((step.page_numbers || []).includes(pageNum)) {
+            stepsForPage.push(step.step_name);
+        }
+    });
+    
+    document.getElementById('pageInfo').innerHTML = `
+        <div class="flex justify-between"><span class="text-slate-400">Page:</span><span class="text-cyan-400">${pageNum}</span></div>
+        <div class="flex justify-between"><span class="text-slate-400">Total:</span><span>${currentMetadata?.total_pages || '-'}</span></div>
+        <div class="mt-1 pt-1 border-t border-slate-700">
+            <span class="text-slate-400">Steps:</span>
+            ${stepsForPage.length > 0 
+                ? stepsForPage.map(s => `<span class="ml-1 text-cyan-400">${s}</span>`).join(',')
+                : '<span class="text-slate-500 ml-1">-</span>'
+            }
+        </div>
+    `;
+}
+
+// ============================================================================
+// Navigation & Zoom
+// ============================================================================
+
+function prevPage() {
+    if (stepPages.length > 0) {
+        const idx = stepPages.indexOf(currentPage);
+        if (idx > 0) goToPage(stepPages[idx - 1]);
+    } else if (currentPage > 1) {
+        goToPage(currentPage - 1);
+    }
+}
+
+function nextPage() {
+    if (stepPages.length > 0) {
+        const idx = stepPages.indexOf(currentPage);
+        if (idx < stepPages.length - 1) goToPage(stepPages[idx + 1]);
+    } else if (pdfDoc && currentPage < pdfDoc.numPages) {
+        goToPage(currentPage + 1);
+    }
+}
+
+function zoomIn() {
+    currentScale = Math.min(currentScale + 0.25, 3.0);
+    document.getElementById('zoomLevel').textContent = Math.round(currentScale * 100) + '%';
+    goToPage(currentPage);
+}
+
+function zoomOut() {
+    currentScale = Math.max(currentScale - 0.25, 0.5);
+    document.getElementById('zoomLevel').textContent = Math.round(currentScale * 100) + '%';
+    goToPage(currentPage);
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// ============================================================================
+// Event Handlers
+// ============================================================================
+
+const docSearch = document.getElementById('docSearch');
+const docDropdown = document.getElementById('docDropdown');
+
+docSearch.addEventListener('input', e => filterDocuments(e.target.value));
+docSearch.addEventListener('focus', () => filterDocuments(docSearch.value));
+
+docDropdown.addEventListener('click', e => {
+    const item = e.target.closest('.doc-item');
+    if (item) selectDocument(item.dataset.value, item.dataset.pages);
+});
+
+document.addEventListener('click', e => {
+    if (!e.target.closest('#docSearch') && !e.target.closest('#docDropdown')) {
+        docDropdown.classList.add('hidden');
+    }
+});
+
+document.getElementById('showPolygons').addEventListener('change', () => {
+    if (currentPage && pdfDoc) goToPage(currentPage);
+});
+
+// Keyboard navigation
+document.addEventListener('keydown', e => {
+    if (document.activeElement.tagName === 'INPUT') return;
+    if (e.key === 'ArrowLeft') prevPage();
+    if (e.key === 'ArrowRight') nextPage();
+});
+
+// Initialize
+loadDocuments();
+
+// URL params
+const params = new URLSearchParams(window.location.search);
+if (params.get('doc')) {
+    setTimeout(() => {
+        const docName = params.get('doc');
+        document.getElementById('selectedDoc').classList.remove('hidden');
+        document.getElementById('selectedDocName').textContent = docName;
+        loadDocument(docName).then(() => {
+            if (params.get('step')) selectStep(params.get('step'));
+        });
+    }, 300);
+}
+</script>
+{% endblock %}

@@ -1,4 +1,3 @@
 .env
-src/training/train input/Train_pdf
 src/submission_scanx/__pycache__
 */__pycache__

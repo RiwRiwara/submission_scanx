@@ -1,0 +1,435 @@
+{% extends "base.html" %}
+{% block title %}Compare - Pipeline Dev Tools{% endblock %}
+{% block nav_dashboard %}bg-slate-700 text-cyan-400{% endblock %}
+
+{% block head %}
+<style>
+    .match-exact { background: rgba(34, 197, 94, 0.3); }
+    .match-close { background: rgba(234, 179, 8, 0.3); }
+    .match-empty { background: rgba(100, 116, 139, 0.2); }
+    .compare-table { font-size: 11px; }
+    .compare-table th { position: sticky; top: 0; z-index: 10; }
+    .compare-table td, .compare-table th { 
+        padding: 4px 8px; 
+        white-space: nowrap;
+        max-width: 150px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+    <!-- Header with File Selector -->
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+        <div class="flex items-center gap-4 flex-wrap">
+            <label class="text-sm text-slate-400">Compare:</label>
+            <select id="fileSelect" class="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm min-w-48">
+                <option value="">-- Select file --</option>
+            </select>
+            <button onclick="runCompare()" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-sm font-medium">
+                Compare
+            </button>
+            <div id="loadingIndicator" class="hidden text-cyan-400 text-sm">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Accuracy Summary -->
+    <div id="accuracyPanel" class="bg-slate-800 rounded-xl border border-slate-700 p-4 hidden">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="font-semibold">Accuracy</h2>
+            <div class="flex items-center gap-4 text-xs">
+                <span class="flex items-center gap-1"><span class="w-3 h-3 rounded match-exact"></span> Exact</span>
+                <span class="flex items-center gap-1"><span class="w-3 h-3 rounded match-close"></span> Near</span>
+                <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-slate-600"></span> Mismatch</span>
+            </div>
+        </div>
+        <div id="accuracyStats" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 text-sm">
+        </div>
+    </div>
+
+    <!-- Field Accuracy -->
+    <div id="fieldAccuracyPanel" class="bg-slate-800 rounded-xl border border-slate-700 hidden">
+        <div class="p-3 border-b border-slate-700 flex justify-between items-center">
+            <h2 class="font-semibold text-sm">Field Accuracy</h2>
+            <span id="fieldCount" class="text-xs text-slate-400"></span>
+        </div>
+        <div id="fieldAccuracy" class="p-3 grid grid-cols-3 md:grid-cols-6 lg:grid-cols-8 gap-2 max-h-48 overflow-y-auto">
+        </div>
+    </div>
+
+    <!-- Comparison Table -->
+    <div id="comparePanel" class="bg-slate-800 rounded-xl border border-slate-700 hidden">
+        <div class="p-3 border-b border-slate-700 flex justify-between items-center">
+            <h2 class="font-semibold text-sm">Row Comparison</h2>
+            <div class="flex items-center gap-3">
+                <!-- View Mode Toggle -->
+                <div class="flex bg-slate-700 rounded-lg p-0.5">
+                    <button id="viewInterleaved" onclick="setViewMode('interleaved')" class="px-2 py-1 text-xs rounded-md bg-cyan-600">Interleaved</button>
+                    <button id="viewSideBySide" onclick="setViewMode('sidebyside')" class="px-2 py-1 text-xs rounded-md">Side by Side</button>
+                </div>
+                <select id="filterSelect" class="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs">
+                    <option value="all">All Rows</option>
+                    <option value="mismatch">Mismatches Only</option>
+                    <option value="match">Matches Only</option>
+                </select>
+                <span id="rowCount" class="text-xs text-slate-400"></span>
+            </div>
+        </div>
+        
+        <!-- Interleaved View -->
+        <div id="interleavedView" class="overflow-auto" style="max-height: calc(100vh - 450px);">
+            <table id="compareTable" class="compare-table w-full">
+                <thead class="bg-slate-700"></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        
+        <!-- Side by Side View -->
+        <div id="sideBySideView" class="hidden grid grid-cols-2 gap-1" style="max-height: calc(100vh - 450px);">
+            <div class="overflow-auto border-r border-slate-700">
+                <div class="sticky top-0 bg-cyan-800 text-center py-1 text-xs font-semibold z-20">Generated</div>
+                <table id="genTable" class="compare-table w-full">
+                    <thead class="bg-slate-700"></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="overflow-auto">
+                <div class="sticky top-0 bg-amber-800 text-center py-1 text-xs font-semibold z-20">Expected</div>
+                <table id="expTable" class="compare-table w-full">
+                    <thead class="bg-slate-700"></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Presets matching compare_csv.py - with submitter_id as primary key where applicable
+const PRESETS = {
+    'summary': { generated: 'summary.csv', expected: 'test_summary.csv', key: ['id'], primary: null },
+    'statement': { generated: 'statement.csv', expected: 'Train_statement.csv', key: ['submitter_id', 'nacc_id', 'statement_type_id'], primary: 'submitter_id' },
+    'statement_detail': { generated: 'statement_detail.csv', expected: 'Train_statement_detail.csv', key: ['submitter_id', 'nacc_id', 'statement_detail_type_id', 'index'], primary: 'submitter_id' },
+    'relative': { generated: 'relative_info.csv', expected: 'Train_relative_info.csv', key: ['submitter_id', 'nacc_id', 'index', 'relationship_id'], primary: 'submitter_id' },
+    'spouse_info': { generated: 'spouse_info.csv', expected: 'Train_spouse_info.csv', key: ['submitter_id', 'nacc_id'], primary: 'submitter_id' },
+    'spouse_old_name': { generated: 'spouse_old_name.csv', expected: 'Train_spouse_old_name.csv', key: ['submitter_id', 'nacc_id', 'index'], primary: 'submitter_id' },
+    'spouse_position': { generated: 'spouse_position.csv', expected: 'Train_spouse_position.csv', key: ['submitter_id', 'nacc_id', 'position_period_type_id', 'index'], primary: 'submitter_id' },
+    'submitter_old_name': { generated: 'submitter_old_name.csv', expected: 'Train_submitter_old_name.csv', key: ['submitter_id', 'nacc_id', 'index'], primary: 'submitter_id' },
+    'submitter_position': { generated: 'submitter_position.csv', expected: 'Train_submitter_position.csv', key: ['submitter_id', 'nacc_id', 'position_period_type_id', 'index'], primary: 'submitter_id' },
+    'asset': { generated: 'asset.csv', expected: 'Train_asset.csv', key: ['submitter_id', 'nacc_id', 'index', 'asset_type_id'], primary: 'submitter_id' },
+    'asset_land': { generated: 'asset_land_info.csv', expected: 'Train_asset_land_info.csv', key: ['submitter_id', 'nacc_id', 'asset_id'], primary: 'submitter_id' },
+    'asset_building': { generated: 'asset_building_info.csv', expected: 'Train_asset_building_info.csv', key: ['submitter_id', 'nacc_id', 'asset_id'], primary: 'submitter_id' },
+    'asset_vehicle': { generated: 'asset_vehicle_info.csv', expected: 'Train_asset_vehicle_info.csv', key: ['submitter_id', 'nacc_id', 'asset_id'], primary: 'submitter_id' },
+    'asset_other': { generated: 'asset_other_asset_info.csv', expected: 'Train_asset_other_asset_info.csv', key: ['submitter_id', 'nacc_id', 'asset_id'], primary: 'submitter_id' },
+};
+
+let currentData = null;
+let viewMode = 'interleaved';
+
+function setViewMode(mode) {
+    viewMode = mode;
+    
+    // Update button styles
+    document.getElementById('viewInterleaved').className = `px-2 py-1 text-xs rounded-md ${mode === 'interleaved' ? 'bg-cyan-600' : ''}`;
+    document.getElementById('viewSideBySide').className = `px-2 py-1 text-xs rounded-md ${mode === 'sidebyside' ? 'bg-cyan-600' : ''}`;
+    
+    // Toggle views
+    document.getElementById('interleavedView').classList.toggle('hidden', mode !== 'interleaved');
+    document.getElementById('sideBySideView').classList.toggle('hidden', mode !== 'sidebyside');
+    
+    // Re-render
+    if (currentData) {
+        if (mode === 'interleaved') {
+            renderCompareTable(currentData);
+        } else {
+            renderSideBySide(currentData);
+        }
+    }
+}
+
+// Initialize file selector
+const fileSelect = document.getElementById('fileSelect');
+Object.keys(PRESETS).forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = `${name} (${PRESETS[name].generated})`;
+    fileSelect.appendChild(opt);
+});
+
+async function runCompare() {
+    const preset = fileSelect.value;
+    if (!preset) return alert('Select a file first');
+    
+    const config = PRESETS[preset];
+    document.getElementById('loadingIndicator').classList.remove('hidden');
+    
+    try {
+        const response = await fetch('/api/compare/csv', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                generated: config.generated,
+                expected: config.expected,
+                key_fields: config.key,
+                primary_key: config.primary
+            })
+        });
+        
+        currentData = await response.json();
+        console.log('Compare response:', currentData);
+        if (currentData.error) {
+            alert(currentData.error);
+            return;
+        }
+        if (!currentData.stats) {
+            console.error('Invalid response:', currentData);
+            alert('Invalid response: no stats returned');
+            return;
+        }
+        
+        renderResults(currentData);
+    } catch (e) {
+        alert('Error: ' + e.message);
+    } finally {
+        document.getElementById('loadingIndicator').classList.add('hidden');
+    }
+}
+
+function renderResults(data) {
+    // Show panels
+    document.getElementById('accuracyPanel').classList.remove('hidden');
+    document.getElementById('fieldAccuracyPanel').classList.remove('hidden');
+    document.getElementById('comparePanel').classList.remove('hidden');
+    
+    // Accuracy stats with safe defaults
+    const stats = data.stats || {};
+    const totalExpected = stats.total_expected || 0;
+    const commonRows = stats.common_rows || 0;
+    const matchPct = totalExpected > 0 ? (commonRows / totalExpected * 100).toFixed(0) : 0;
+    const accuracy = (stats.accuracy || 0).toFixed(1);
+    const exactMatches = stats.exact_matches || 0;
+    const closeMatches = stats.close_matches || 0;
+    const totalGenerated = stats.total_generated || 0;
+    const onlyGenerated = stats.only_generated || 0;
+    const onlyExpected = stats.only_expected || 0;
+    
+    document.getElementById('accuracyStats').innerHTML = `
+        <div class="bg-slate-700 rounded p-3">
+            <div class="text-2xl font-bold text-cyan-400">${accuracy}%</div>
+            <div class="text-xs text-slate-400">Field Accuracy</div>
+        </div>
+        <div class="bg-slate-700 rounded p-3">
+            <div class="text-xl font-bold text-green-400">${exactMatches}</div>
+            <div class="text-xs text-slate-400">Exact Matches</div>
+        </div>
+        <div class="bg-slate-700 rounded p-3">
+            <div class="text-xl font-bold text-yellow-400">${closeMatches}</div>
+            <div class="text-xs text-slate-400">Near Matches</div>
+        </div>
+        <div class="bg-slate-700 rounded p-3">
+            <div class="text-xl font-bold ${matchPct >= 80 ? 'text-green-400' : matchPct >= 50 ? 'text-yellow-400' : 'text-red-400'}">${commonRows} / ${totalExpected}</div>
+            <div class="text-xs text-slate-400">Matched Rows (${matchPct}%)</div>
+        </div>
+        <div class="bg-slate-700 rounded p-3">
+            <div class="text-xl font-bold text-slate-300">${totalGenerated}</div>
+            <div class="text-xs text-slate-400">Generated Rows</div>
+        </div>
+        <div class="bg-slate-700 rounded p-3">
+            <div class="text-xl font-bold text-orange-400">${onlyGenerated}</div>
+            <div class="text-xs text-slate-400">Extra (Gen only)</div>
+        </div>
+        <div class="bg-slate-700 rounded p-3">
+            <div class="text-xl font-bold text-red-400">${onlyExpected}</div>
+            <div class="text-xs text-slate-400">Missing (Exp only)</div>
+        </div>
+    `;
+    
+    // Field accuracy
+    const fields = data.field_accuracy || {};
+    const fieldNames = Object.keys(fields);
+    document.getElementById('fieldCount').textContent = `${fieldNames.length} fields`;
+    
+    document.getElementById('fieldAccuracy').innerHTML = fieldNames.map(f => {
+        const fa = fields[f];
+        const acc = fa.total > 0 ? ((fa.exact + fa.close + fa.empty) / fa.total * 100) : 0;
+        const color = acc >= 90 ? 'text-green-400' : acc >= 70 ? 'text-yellow-400' : 'text-red-400';
+        return `
+            <div class="bg-slate-700/50 rounded p-2 text-center">
+                <div class="text-xs text-slate-400 truncate" title="${f}">${f}</div>
+                <div class="text-sm font-bold ${color}">${acc.toFixed(0)}%</div>
+            </div>
+        `;
+    }).join('');
+    
+    // Render table
+    renderCompareTable(data);
+}
+
+function renderCompareTable(data) {
+    const filter = document.getElementById('filterSelect').value;
+    const rows = data.rows || [];
+    const keyFields = data.key_fields || [];
+    const allFields = data.fields || [];
+    
+    // Filter rows
+    let filteredRows = rows;
+    if (filter === 'mismatch') {
+        filteredRows = rows.filter(r => r.has_mismatch);
+    } else if (filter === 'match') {
+        filteredRows = rows.filter(r => !r.has_mismatch);
+    }
+    
+    document.getElementById('rowCount').textContent = `${filteredRows.length} rows`;
+    
+    const thead = document.getElementById('compareTable').querySelector('thead');
+    const tbody = document.getElementById('compareTable').querySelector('tbody');
+    
+    // Header: Key fields + comparison fields (Gen | Exp)
+    const compFields = allFields.filter(f => !keyFields.includes(f));
+    thead.innerHTML = `
+        <tr>
+            ${keyFields.map(k => `<th class="bg-slate-600 text-left">${k}</th>`).join('')}
+            ${compFields.map(f => `
+                <th class="bg-slate-700 text-left border-l border-slate-600" colspan="2">
+                    <span class="truncate block" title="${f}">${f}</span>
+                </th>
+            `).join('')}
+        </tr>
+        <tr class="text-xs text-slate-400">
+            ${keyFields.map(() => '<th></th>').join('')}
+            ${compFields.map(() => '<th class="border-l border-slate-600">Gen</th><th>Exp</th>').join('')}
+        </tr>
+    `;
+    
+    // Body
+    tbody.innerHTML = filteredRows.slice(0, 200).map(row => {
+        const comparisons = row.comparisons || {};
+        return `
+            <tr class="border-t border-slate-700 hover:bg-slate-700/30">
+                ${keyFields.map(k => `<td class="font-mono text-cyan-300">${row.key_values?.[k] || ''}</td>`).join('')}
+                ${compFields.map(f => {
+                    const cmp = comparisons[f] || {};
+                    const bgClass = cmp.match_type === 'exact' ? 'match-exact' 
+                                  : cmp.match_type === 'numeric_close' ? 'match-close'
+                                  : cmp.match_type === 'both_empty' ? 'match-empty'
+                                  : '';
+                    return `
+                        <td class="${bgClass} border-l border-slate-700">${escapeHtml(cmp.generated ?? '')}</td>
+                        <td class="${bgClass}">${escapeHtml(cmp.expected ?? '')}</td>
+                    `;
+                }).join('')}
+            </tr>
+        `;
+    }).join('');
+    
+    if (filteredRows.length > 200) {
+        tbody.innerHTML += `<tr><td colspan="100" class="text-center text-slate-500 py-2">Showing first 200 rows...</td></tr>`;
+    }
+}
+
+function renderSideBySide(data) {
+    const filter = document.getElementById('filterSelect').value;
+    const rows = data.rows || [];
+    const keyFields = data.key_fields || [];
+    const allFields = data.fields || [];
+    
+    // Filter rows
+    let filteredRows = rows;
+    if (filter === 'mismatch') {
+        filteredRows = rows.filter(r => r.has_mismatch);
+    } else if (filter === 'match') {
+        filteredRows = rows.filter(r => !r.has_mismatch);
+    }
+    
+    document.getElementById('rowCount').textContent = `${filteredRows.length} rows`;
+    
+    const compFields = allFields.filter(f => !keyFields.includes(f));
+    
+    // Header for both tables
+    const headerHTML = `
+        <tr>
+            ${keyFields.map(k => `<th class="bg-slate-600 text-left">${k}</th>`).join('')}
+            ${compFields.map(f => `<th class="bg-slate-700 text-left border-l border-slate-600"><span class="truncate block" title="${f}">${f}</span></th>`).join('')}
+        </tr>
+    `;
+    
+    // Generated table
+    const genThead = document.getElementById('genTable').querySelector('thead');
+    const genTbody = document.getElementById('genTable').querySelector('tbody');
+    genThead.innerHTML = headerHTML;
+    
+    genTbody.innerHTML = filteredRows.slice(0, 200).map(row => {
+        const comparisons = row.comparisons || {};
+        return `
+            <tr class="border-t border-slate-700 hover:bg-slate-700/30">
+                ${keyFields.map(k => `<td class="font-mono text-cyan-300">${row.key_values?.[k] || ''}</td>`).join('')}
+                ${compFields.map(f => {
+                    const cmp = comparisons[f] || {};
+                    const bgClass = cmp.match_type === 'exact' ? 'match-exact' 
+                                  : cmp.match_type === 'numeric_close' ? 'match-close'
+                                  : cmp.match_type === 'both_empty' ? 'match-empty'
+                                  : '';
+                    return `<td class="${bgClass} border-l border-slate-700">${escapeHtml(cmp.generated ?? '')}</td>`;
+                }).join('')}
+            </tr>
+        `;
+    }).join('');
+    
+    // Expected table
+    const expThead = document.getElementById('expTable').querySelector('thead');
+    const expTbody = document.getElementById('expTable').querySelector('tbody');
+    expThead.innerHTML = headerHTML;
+    
+    expTbody.innerHTML = filteredRows.slice(0, 200).map(row => {
+        const comparisons = row.comparisons || {};
+        return `
+            <tr class="border-t border-slate-700 hover:bg-slate-700/30">
+                ${keyFields.map(k => `<td class="font-mono text-cyan-300">${row.key_values?.[k] || ''}</td>`).join('')}
+                ${compFields.map(f => {
+                    const cmp = comparisons[f] || {};
+                    const bgClass = cmp.match_type === 'exact' ? 'match-exact' 
+                                  : cmp.match_type === 'numeric_close' ? 'match-close'
+                                  : cmp.match_type === 'both_empty' ? 'match-empty'
+                                  : '';
+                    return `<td class="${bgClass} border-l border-slate-700">${escapeHtml(cmp.expected ?? '')}</td>`;
+                }).join('')}
+            </tr>
+        `;
+    }).join('');
+    
+    // Sync scroll between tables
+    const leftDiv = document.getElementById('genTable').parentElement;
+    const rightDiv = document.getElementById('expTable').parentElement;
+    
+    leftDiv.onscroll = () => { rightDiv.scrollTop = leftDiv.scrollTop; };
+    rightDiv.onscroll = () => { leftDiv.scrollTop = rightDiv.scrollTop; };
+}
+
+function escapeHtml(text) {
+    if (text === null || text === undefined) return '';
+    const div = document.createElement('div');
+    div.textContent = String(text);
+    return div.innerHTML;
+}
+
+// Filter change handler
+document.getElementById('filterSelect').addEventListener('change', () => {
+    if (currentData) {
+        if (viewMode === 'interleaved') {
+            renderCompareTable(currentData);
+        } else {
+            renderSideBySide(currentData);
+        }
+    }
+});
+
+// Load on select change (optional auto-compare)
+fileSelect.addEventListener('change', () => {
+    if (fileSelect.value) runCompare();
+});
+</script>
+{% endblock %}

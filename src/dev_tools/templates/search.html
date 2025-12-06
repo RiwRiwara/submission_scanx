@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+{% block title %}Search - Pipeline Dev Tools{% endblock %}
+{% block nav_search %}bg-slate-700 text-cyan-400{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-cyan-400">Search by Submitter ID</h1>
+            <p class="text-slate-400 text-sm mt-1">Search all pipeline data for a specific submitter</p>
+        </div>
+    </div>
+
+    <!-- Search Form -->
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-6">
+        <div class="flex gap-4 items-end">
+            <div class="flex-1">
+                <label class="block text-sm text-slate-400 mb-2">Select Submitter</label>
+                <select id="submitterSelect" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white">
+                    <option value="">-- Select a submitter --</option>
+                </select>
+            </div>
+            <div class="w-48">
+                <label class="block text-sm text-slate-400 mb-2">Or Enter ID</label>
+                <input type="text" id="submitterIdInput" placeholder="e.g., 40"
+                       class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white">
+            </div>
+            <button onclick="doSearch()" 
+                    class="px-6 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg font-medium transition-colors">
+                🔍 Search
+            </button>
+        </div>
+    </div>
+
+    <!-- Selected Submitter Info -->
+    <div id="submitterInfo" class="hidden bg-slate-800 rounded-xl border border-cyan-700 p-6">
+        <div class="flex items-center gap-4">
+            <div class="w-16 h-16 bg-cyan-900 rounded-full flex items-center justify-center text-2xl">👤</div>
+            <div>
+                <div class="text-xl font-bold text-cyan-400" id="submitterName">-</div>
+                <div class="text-slate-400" id="submitterPosition">-</div>
+                <div class="text-sm text-slate-500">Submitter ID: <span id="submitterIdDisplay">-</span> | NACC ID: <span id="naccIdDisplay">-</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Summary -->
+    <div id="resultsSummary" class="hidden grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+    </div>
+
+    <!-- Results Tabs -->
+    <div id="resultsContainer" class="hidden">
+        <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+            <!-- Tabs -->
+            <div class="flex flex-wrap border-b border-slate-700 bg-slate-900" id="tabsContainer">
+            </div>
+            
+            <!-- Tab Content -->
+            <div id="tabContent" class="p-4">
+                <div class="text-slate-500 text-center py-8">Select a tab to view data</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="bg-slate-800 rounded-xl border border-slate-700 p-12 text-center">
+        <div class="text-4xl mb-4">🔍</div>
+        <div class="text-xl text-slate-400">Select a submitter to view their data</div>
+        <div class="text-sm text-slate-500 mt-2">All related data will be displayed from the pipeline output files</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentResults = null;
+let activeTab = null;
+
+async function loadSubmitters() {
+    try {
+        const response = await fetchApi('/api/search/submitters');
+        const select = document.getElementById('submitterSelect');
+        
+        if (response.submitters && response.submitters.length > 0) {
+            select.innerHTML = '<option value="">-- Select a submitter (' + response.count + ' total) --</option>';
+            response.submitters.forEach(s => {
+                const name = `${s.title || ''} ${s.first_name || ''} ${s.last_name || ''}`.trim();
+                const label = `[${s.submitter_id}] ${name} - ${(s.position || '').substring(0, 30)}`;
+                select.innerHTML += `<option value="${s.submitter_id}" 
+                    data-name="${name}" 
+                    data-position="${s.position || ''}"
+                    data-nacc="${s.nacc_id}">${label}</option>`;
+            });
+        }
+    } catch (e) {
+        console.error('Error loading submitters:', e);
+    }
+}
+
+async function doSearch() {
+    // Get submitter ID from select or input
+    const select = document.getElementById('submitterSelect');
+    const input = document.getElementById('submitterIdInput');
+    const submitterId = input.value.trim() || select.value;
+    
+    if (!submitterId) {
+        alert('Please select or enter a submitter ID');
+        return;
+    }
+    
+    // Update URL
+    history.pushState({}, '', `/search?submitter_id=${submitterId}`);
+    
+    try {
+        // Show loading
+        document.getElementById('emptyState').classList.add('hidden');
+        document.getElementById('tabContent').innerHTML = '<div class="text-center py-8">Loading...</div>';
+        document.getElementById('resultsContainer').classList.remove('hidden');
+        
+        // Fetch data
+        const response = await fetchApi(`/api/search/submitter/${submitterId}`);
+        currentResults = response.results;
+        
+        // Update submitter info
+        updateSubmitterInfo(submitterId);
+        
+        // Build results summary
+        buildResultsSummary(response.results);
+        
+        // Build tabs
+        buildTabs(response.results);
+        
+    } catch (e) {
+        console.error('Search error:', e);
+        document.getElementById('tabContent').innerHTML = 
+            `<div class="text-red-400 text-center py-8">Error: ${e.message}</div>`;
+    }
+}
+
+function updateSubmitterInfo(submitterId) {
+    const select = document.getElementById('submitterSelect');
+    const option = select.querySelector(`option[value="${submitterId}"]`);
+    
+    const info = document.getElementById('submitterInfo');
+    info.classList.remove('hidden');
+    
+    if (option) {
+        document.getElementById('submitterName').textContent = option.dataset.name || submitterId;
+        document.getElementById('submitterPosition').textContent = option.dataset.position || '-';
+        document.getElementById('submitterIdDisplay').textContent = submitterId;
+        document.getElementById('naccIdDisplay').textContent = option.dataset.nacc || '-';
+    } else {
+        document.getElementById('submitterName').textContent = `Submitter ${submitterId}`;
+        document.getElementById('submitterPosition').textContent = '-';
+        document.getElementById('submitterIdDisplay').textContent = submitterId;
+        document.getElementById('naccIdDisplay').textContent = '-';
+    }
+}
+
+function buildResultsSummary(results) {
+    const container = document.getElementById('resultsSummary');
+    container.classList.remove('hidden');
+    
+    const categories = [
+        { key: 'summary', label: 'Summary', color: 'cyan' },
+        { key: 'statement', label: 'Statement', color: 'blue' },
+        { key: 'statement_detail', label: 'Details', color: 'indigo' },
+        { key: 'relative_info', label: 'Relatives', color: 'purple' },
+        { key: 'spouse_info', label: 'Spouse', color: 'pink' },
+        { key: 'asset', label: 'Assets', color: 'green' },
+        { key: 'submitter_position', label: 'Positions', color: 'yellow' },
+    ];
+    
+    container.innerHTML = categories.map(cat => {
+        const data = results[cat.key];
+        const count = data?.count || 0;
+        return `
+            <div class="bg-slate-800 rounded-lg p-4 border border-slate-700 cursor-pointer hover:border-${cat.color}-500 transition-colors"
+                 onclick="showTab('${cat.key}')">
+                <div class="text-2xl font-bold text-${cat.color}-400">${count}</div>
+                <div class="text-sm text-slate-400">${cat.label}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+function buildTabs(results) {
+    const container = document.getElementById('tabsContainer');
+    const tabs = Object.keys(results).filter(key => results[key].count > 0);
+    
+    container.innerHTML = tabs.map((key, i) => {
+        const data = results[key];
+        const isActive = i === 0;
+        return `
+            <button onclick="showTab('${key}')" 
+                    class="px-4 py-3 text-sm font-medium transition-colors tab-btn ${isActive ? 'bg-slate-700 text-cyan-400 border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white hover:bg-slate-800'}"
+                    data-tab="${key}">
+                ${key.replace(/_/g, ' ')} (${data.count})
+            </button>
+        `;
+    }).join('');
+    
+    // Show first tab
+    if (tabs.length > 0) {
+        showTab(tabs[0]);
+    }
+}
+
+function showTab(tabKey) {
+    activeTab = tabKey;
+    
+    // Update tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        if (btn.dataset.tab === tabKey) {
+            btn.classList.add('bg-slate-700', 'text-cyan-400', 'border-b-2', 'border-cyan-400');
+            btn.classList.remove('text-slate-400');
+        } else {
+            btn.classList.remove('bg-slate-700', 'text-cyan-400', 'border-b-2', 'border-cyan-400');
+            btn.classList.add('text-slate-400');
+        }
+    });
+    
+    // Show content
+    const data = currentResults[tabKey];
+    if (!data || !data.data) {
+        document.getElementById('tabContent').innerHTML = '<div class="text-slate-500 text-center py-8">No data</div>';
+        return;
+    }
+    
+    // Build table
+    const columns = data.columns || Object.keys(data.data[0] || {});
+    
+    let html = `
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-slate-900">
+                    <tr>
+                        ${columns.map(col => `<th class="px-3 py-2 text-left text-slate-400 font-medium">${col}</th>`).join('')}
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700">
+    `;
+    
+    data.data.forEach((row, i) => {
+        html += `<tr class="hover:bg-slate-700/50">`;
+        columns.forEach(col => {
+            let value = row[col];
+            if (value === null || value === undefined) {
+                value = '<span class="text-slate-600">-</span>';
+            } else if (typeof value === 'number') {
+                value = `<span class="text-cyan-400">${value.toLocaleString()}</span>`;
+            } else if (typeof value === 'boolean') {
+                value = value ? '<span class="text-green-400">✓</span>' : '<span class="text-red-400">✗</span>';
+            } else {
+                value = String(value).substring(0, 50);
+                if (String(row[col]).length > 50) value += '...';
+            }
+            html += `<td class="px-3 py-2">${value}</td>`;
+        });
+        html += `</tr>`;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    document.getElementById('tabContent').innerHTML = html;
+}
+
+// Check URL params on load
+function checkUrlParams() {
+    const params = new URLSearchParams(window.location.search);
+    const submitterId = params.get('submitter_id');
+    if (submitterId) {
+        document.getElementById('submitterIdInput').value = submitterId;
+        doSearch();
+    }
+}
+
+// Initialize
+loadSubmitters().then(() => {
+    checkUrlParams();
+});
+
+// Handle select change
+document.getElementById('submitterSelect').addEventListener('change', function() {
+    if (this.value) {
+        document.getElementById('submitterIdInput').value = '';
+        doSearch();
+    }
+});
+
+// Handle enter key
+document.getElementById('submitterIdInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        doSearch();
+    }
+});
+</script>
+{% endblock %}

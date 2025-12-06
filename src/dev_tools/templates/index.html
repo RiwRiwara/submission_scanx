@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Home - Pipeline Dev Tools{% endblock %}
+{% block nav_home %}bg-slate-700 text-cyan-400{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="text-center py-8">
+        <h1 class="text-3xl font-bold text-cyan-400 mb-2">Pipeline Dev Tools</h1>
+        <p class="text-slate-400">Development tools for NACC Asset Declaration Pipeline</p>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4" id="statsGrid">
+        <div class="bg-slate-800 rounded-xl p-6 border border-slate-700">
+            <div class="text-3xl font-bold text-cyan-400" id="docCount">-</div>
+            <div class="text-slate-400 text-sm">Documents</div>
+        </div>
+        <div class="bg-slate-800 rounded-xl p-6 border border-slate-700">
+            <div class="text-3xl font-bold text-green-400" id="summaryCount">-</div>
+            <div class="text-slate-400 text-sm">Summary Records</div>
+        </div>
+        <div class="bg-slate-800 rounded-xl p-6 border border-slate-700">
+            <div class="text-3xl font-bold text-yellow-400" id="testCount">-</div>
+            <div class="text-slate-400 text-sm">Test Records</div>
+        </div>
+        <div class="bg-slate-800 rounded-xl p-6 border border-slate-700">
+            <div class="text-3xl font-bold text-purple-400" id="pipelineStatus">Ready</div>
+            <div class="text-slate-400 text-sm">Pipeline Status</div>
+        </div>
+    </div>
+
+    <!-- Tools Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Viewer Tool -->
+        <a href="/viewer" class="group bg-slate-800 rounded-xl p-6 border border-slate-700 hover:border-cyan-500 transition-all">
+            <div class="text-2xl mb-3">📄</div>
+            <h3 class="text-lg font-semibold text-cyan-400 group-hover:text-cyan-300">PDF/JSON Viewer</h3>
+            <p class="text-slate-400 text-sm mt-2">View PDF with polygon overlays. Select documents from the list instead of manual upload.</p>
+        </a>
+
+        <!-- Pages Viewer -->
+        <a href="/pages" class="group bg-slate-800 rounded-xl p-6 border border-slate-700 hover:border-orange-500 transition-all">
+            <div class="text-2xl mb-3">📑</div>
+            <h3 class="text-lg font-semibold text-orange-400 group-hover:text-orange-300">Step Pages Viewer</h3>
+            <p class="text-slate-400 text-sm mt-2">View PDF pages by pipeline step. See which pages relate to each extraction step.</p>
+        </a>
+
+        <!-- Content Browser -->
+        <a href="/content" class="group bg-slate-800 rounded-xl p-6 border border-slate-700 hover:border-green-500 transition-all">
+            <div class="text-2xl mb-3">📖</div>
+            <h3 class="text-lg font-semibold text-green-400 group-hover:text-green-300">Content Browser</h3>
+            <p class="text-slate-400 text-sm mt-2">Browse extracted text content by page. Search and analyze document text.</p>
+        </a>
+
+        <!-- Search -->
+        <a href="/search" class="group bg-slate-800 rounded-xl p-6 border border-slate-700 hover:border-purple-500 transition-all">
+            <div class="text-2xl mb-3">🔍</div>
+            <h3 class="text-lg font-semibold text-purple-400 group-hover:text-purple-300">Search by Submitter</h3>
+            <p class="text-slate-400 text-sm mt-2">Search all pipeline data by submitter ID. View statements, assets, and relatives.</p>
+        </a>
+
+        <!-- Dashboard -->
+        <a href="/dashboard" class="group bg-slate-800 rounded-xl p-6 border border-slate-700 hover:border-yellow-500 transition-all">
+            <div class="text-2xl mb-3">📊</div>
+            <h3 class="text-lg font-semibold text-yellow-400 group-hover:text-yellow-300">Dashboard</h3>
+            <p class="text-slate-400 text-sm mt-2">View accuracy metrics, run pipeline, and see evaluation results.</p>
+        </a>
+    </div>
+
+    <!-- Recent Documents -->
+    <div class="bg-slate-800 rounded-xl border border-slate-700">
+        <div class="p-4 border-b border-slate-700 flex justify-between items-center">
+            <h2 class="text-lg font-semibold">Recent Documents</h2>
+            <span class="text-slate-400 text-sm" id="modeLabel">Training Mode</span>
+        </div>
+        <div class="p-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3" id="recentDocs">
+                <div class="text-slate-500 text-center py-8">Loading...</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadStats() {
+    try {
+        const mode = getMode();
+        document.getElementById('modeLabel').textContent = mode === 'final' ? 'Final Test Mode' : 'Training Mode';
+        
+        // Load documents
+        const docs = await fetchApi(`/api/documents?mode=${mode}`);
+        document.getElementById('docCount').textContent = docs.count;
+        
+        // Load recent docs
+        const recentDocs = document.getElementById('recentDocs');
+        if (docs.documents.length > 0) {
+            recentDocs.innerHTML = docs.documents.slice(0, 6).map(doc => `
+                <a href="/viewer?doc=${encodeURIComponent(doc.name)}" 
+                   class="bg-slate-700 rounded-lg p-3 hover:bg-slate-600 transition-colors">
+                    <div class="font-medium text-sm truncate">${doc.name.substring(0, 40)}...</div>
+                    <div class="flex gap-2 mt-2">
+                        ${doc.has_pdf ? '<span class="text-xs bg-green-900 text-green-300 px-2 py-0.5 rounded">PDF</span>' : ''}
+                        <span class="text-xs bg-blue-900 text-blue-300 px-2 py-0.5 rounded">JSON</span>
+                    </div>
+                </a>
+            `).join('');
+        } else {
+            recentDocs.innerHTML = '<div class="text-slate-500 text-center py-8 col-span-3">No documents found</div>';
+        }
+        
+        // Load summary stats
+        const results = await fetchApi('/api/results/summary');
+        document.getElementById('summaryCount').textContent = results.summary?.length || 0;
+        document.getElementById('testCount').textContent = results.test_summary?.length || 0;
+        
+    } catch (e) {
+        console.error('Error loading stats:', e);
+    }
+}
+
+function onModeChange() {
+    loadStats();
+}
+
+loadStats();
+</script>
+{% endblock %}

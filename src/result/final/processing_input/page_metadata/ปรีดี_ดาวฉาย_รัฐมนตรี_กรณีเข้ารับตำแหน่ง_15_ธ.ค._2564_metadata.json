@@ -1,0 +1,125 @@
+{
+  "doc_name": "ปรีดี_ดาวฉาย_รัฐมนตรี_กรณีเข้ารับตำแหน่ง_15_ธ.ค._2564",
+  "total_pages": 25,
+  "step_mappings": [
+    {
+      "step_name": "step_10",
+      "step_description": "รายละเอียดทรัพย์สินอื่น",
+      "output_csv": "asset_other_asset_info.csv + asset.csv",
+      "page_numbers": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        20,
+        25
+      ],
+      "page_types": [
+        "other_assets"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_4",
+      "step_description": "ข้อมูลบุตร (relationship_id=4)",
+      "output_csv": "relative_info.csv",
+      "page_numbers": [
+        3,
+        13
+      ],
+      "page_types": [
+        "siblings",
+        "children"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_5",
+      "step_description": "สรุปทรัพย์สิน/หนี้สิน (statement_type_id=4,5)",
+      "output_csv": "statement.csv",
+      "page_numbers": [
+        1,
+        2,
+        3,
+        4,
+        14,
+        15,
+        23,
+        25
+      ],
+      "page_types": [
+        "assets_summary",
+        "tax_info",
+        "income_expense"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_6",
+      "step_description": "สิทธิและสัมปทาน",
+      "output_csv": "asset.csv",
+      "page_numbers": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25
+      ],
+      "page_types": [
+        "investments",
+        "bank_loans",
+        "vehicles",
+        "concessions",
+        "land",
+        "other_assets",
+        "loans_given"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_7",
+      "step_description": "รายละเอียดที่ดิน",
+      "output_csv": "asset_land_info.csv + asset.csv",
+      "page_numbers": [
+        24
+      ],
+      "page_types": [
+        "land"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_9",
+      "step_description": "รายละเอียดยานพาหนะ",
+      "output_csv": "asset_vehicle_info.csv + asset.csv",
+      "page_numbers": [
+        14,
+        19,
+        25
+      ],
+      "page_types": [
+        "vehicles"
+      ],
+      "confidence": 1.0
+    }
+  ],
+  "unmapped_pages": [
+    5
+  ]
+}

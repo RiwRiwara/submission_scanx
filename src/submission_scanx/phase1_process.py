@@ -390,27 +390,132 @@ def match_pages_to_template(
 
 
 # ============================================================================
-# Main Processing: Combined Phase 1 (Page Type ID + Matching)
+# Main Processing: Simple Page Type Identification (like json_processor.py)
+# ============================================================================
+
+def process_single_file_simple(
+    input_path: Path,
+    output_path: Path,
+) -> Dict:
+    """
+    Process a single JSON file: identify page types WITHOUT template matching.
+    This approach preserves all original pages and just adds page type metadata.
+    
+    Based on pipeline_oc/file_run/json_processor.py approach.
+
+    Args:
+        input_path: Path to raw OCR JSON file
+        output_path: Path to save processed JSON
+
+    Returns:
+        Dict with processing statistics
+    """
+    # Load raw JSON
+    with open(input_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    pages = data.get('pages', [])
+
+    if not pages:
+        return {'error': 'No pages found', 'pages': 0}
+
+    # Process each page to identify page types
+    processed_pages = []
+    prev_page_type = None
+    page_type_counts = {}
+    extra_pages_count = 0
+
+    for idx, page in enumerate(pages):
+        page_type, is_continuation, is_extra = identify_page_type(page, idx, prev_page_type)
+        page_marker = extract_page_number_marker(page)
+
+        # Create processed page with metadata (like json_processor.py)
+        processed_page = {
+            'page_number': page.get('page_number', idx + 1),
+            'original_page_index': idx,
+            'width': page.get('width', 8.2639),
+            'height': page.get('height', 11.6944),
+            'unit': page.get('unit', 'inch'),
+            'lines': page.get('lines', []),
+            '_page_info': {
+                'page_type': page_type,
+                'is_continuation': is_continuation,
+                'is_extra_page': is_extra,
+                'page_marker': page_marker,
+            }
+        }
+
+        processed_pages.append(processed_page)
+        prev_page_type = page_type
+
+        type_key = f"{page_type}_cont" if is_continuation else page_type
+        page_type_counts[type_key] = page_type_counts.get(type_key, 0) + 1
+        if is_extra:
+            extra_pages_count += 1
+
+    has_extra_pages = extra_pages_count > 0 or len(processed_pages) > 37
+
+    # Build final result (preserving all original pages)
+    result = {
+        'file_name': data.get('file_name', input_path.name),
+        'content': data.get('content', ''),
+        'pages': processed_pages,
+        '_processing_info': {
+            'source_file': str(input_path),
+            'total_pages': len(processed_pages),
+            'template_standard_pages': 37,
+            'has_extra_pages': has_extra_pages,
+            'extra_pages_count': extra_pages_count,
+            'page_type_counts': page_type_counts,
+        }
+    }
+
+    # Preserve original metadata
+    if '_metadata' in data:
+        result['_metadata'] = data['_metadata']
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(output_path, 'w', encoding='utf-8') as f:
+        json.dump(result, f, ensure_ascii=False, indent=2)
+
+    return {
+        'success': True,
+        'pages': len(processed_pages),
+        'page_types': page_type_counts,
+    }
+
+
+# ============================================================================
+# Main Processing: Combined Phase 1 (Page Type ID + Matching) - LEGACY
 # ============================================================================
 
 def process_single_file(
     input_path: Path,
     template_path: Path,
     output_path: Path,
-    similarity_threshold: float = 0.3
+    similarity_threshold: float = 0.3,
+    use_simple_mode: bool = True  # Default to simple mode (like json_processor.py)
 ) -> Dict:
     """
-    Process a single JSON file: identify page types AND match to template.
-    Combines Phase 1a + Phase 1b into a single step.
+    Process a single JSON file: identify page types and optionally match to template.
 
     Args:
         input_path: Path to raw OCR JSON file
-        template_path: Path to template JSON
+        template_path: Path to template JSON (only used if use_simple_mode=False)
         output_path: Path to save processed/matched JSON
+        similarity_threshold: Minimum similarity for matching
+        use_simple_mode: If True, use simple page type identification (recommended).
+                        If False, use template matching with Hungarian algorithm.
 
     Returns:
         Dict with processing statistics
     """
+    # Use simple mode by default (like json_processor.py)
+    if use_simple_mode:
+        return process_single_file_simple(input_path, output_path)
+    
+    # Legacy template matching mode
     # Load raw JSON
     with open(input_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
@@ -573,19 +678,23 @@ def run_phase1(
     template_path: Path,
     is_final: bool = False,
     skip_existing: bool = True,
-    clean: bool = False
+    clean: bool = False,
+    use_simple_mode: bool = True  # Default to simple mode (like json_processor.py)
 ) -> Dict:
     """
-    Run Phase 1: Process raw OCR JSON files and output to extract_matched.
-    Combines page type identification + template matching in a single step.
+    Run Phase 1: Process raw OCR JSON files and output to page_matched.
+    
+    By default uses simple mode which only identifies page types and preserves
+    all original pages (like pipeline_oc/file_run/json_processor.py).
 
     Args:
         input_dir: Directory with raw OCR JSON files (extract_raw)
-        output_dir: Directory to save matched JSON files (extract_matched)
-        template_path: Path to template JSON
+        output_dir: Directory to save processed JSON files (page_matched)
+        template_path: Path to template JSON (only used if use_simple_mode=False)
         is_final: Whether processing test final data
         skip_existing: Skip files that already have output
         clean: Clean output directory before processing
+        use_simple_mode: If True, use simple page type identification (recommended).
 
     Returns:
         Processing statistics
@@ -603,18 +712,17 @@ def run_phase1(
         'total_files': len(json_files),
         'processed': 0,
         'skipped': 0,
-        'total_matched': 0,
-        'total_unmatched': 0,
+        'total_pages': 0,
         'errors': []
     }
 
     print(f"{'='*70}")
-    print("PHASE 1: JSON Processing and Page Matching")
+    print("PHASE 1: JSON Processing and Page Type Identification")
     print(f"{'='*70}")
     print(f"Mode: {'Test Final' if is_final else 'Training'}")
+    print(f"Processing: {'Simple (preserve all pages)' if use_simple_mode else 'Template matching'}")
     print(f"Input: {input_dir}")
     print(f"Output: {output_dir}")
-    print(f"Template: {template_path}")
     print(f"Total files: {len(json_files)}")
     print(f"{'='*70}")
 
@@ -630,14 +738,14 @@ def run_phase1(
             result = process_single_file(
                 json_file,
                 template_path,
-                output_file
+                output_file,
+                use_simple_mode=use_simple_mode
             )
 
             if result.get('success'):
                 stats['processed'] += 1
-                stats['total_matched'] += result.get('matched', 0)
-                stats['total_unmatched'] += result.get('unmatched', 0)
-                print(f"[{i}/{len(json_files)}] OK: {json_file.name[:40]} ({result['matched']}/{result['pages']} matched)")
+                stats['total_pages'] += result.get('pages', 0)
+                print(f"[{i}/{len(json_files)}] OK: {json_file.name[:40]} ({result['pages']} pages)")
             else:
                 stats['errors'].append((json_file.name, result.get('error', 'Unknown error')))
                 print(f"[{i}/{len(json_files)}] ERROR: {json_file.name[:40]}: {result.get('error')}")
@@ -651,7 +759,7 @@ def run_phase1(
     print(f"{'='*60}")
     print(f"Processed: {stats['processed']}/{stats['total_files']}")
     print(f"Skipped: {stats['skipped']}")
-    print(f"Total matched pages: {stats['total_matched']}")
+    print(f"Total pages: {stats['total_pages']}")
     print(f"Errors: {len(stats['errors'])}")
     print(f"{'='*60}")
 

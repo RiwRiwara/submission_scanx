@@ -7,8 +7,8 @@
       "step_description": "ข้อมูลผู้ยื่นบัญชี + ตำแหน่ง + ชื่อเดิม + บิดามารดา",
       "output_csv": "submitter_position.csv + submitter_old_name.csv + relative_info.csv",
       "page_numbers": [
-        3,
-        4
+        4,
+        5
       ],
       "page_types": [
         "personal_info"
@@ -20,7 +20,8 @@
       "step_description": "รายละเอียดทรัพย์สินอื่น",
       "output_csv": "asset_other_asset_info.csv + asset.csv",
       "page_numbers": [
-        28
+        28,
+        29
       ],
       "page_types": [
         "other_assets"
@@ -32,23 +33,26 @@
       "step_description": "ข้อมูลบุตร (relationship_id=4)",
       "output_csv": "relative_info.csv",
       "page_numbers": [
-        3,
         4,
-        6
+        5,
+        6,
+        7
       ],
       "page_types": [
         "personal_info",
+        "siblings",
         "children"
       ],
       "confidence": 1.0
     },
     {
       "step_name": "step_5",
-      "step_description": "ข้อมูลภาษี (statement_type_id=3)",
+      "step_description": "สรุปทรัพย์สิน/หนี้สิน (statement_type_id=4,5)",
       "output_csv": "statement.csv",
       "page_numbers": [
         1,
-        3,
+        2,
+        4,
         8,
         9,
         10,
@@ -58,9 +62,9 @@
         36
       ],
       "page_types": [
-        "income_expense",
+        "assets_summary",
         "tax_info",
-        "assets_summary"
+        "income_expense"
       ],
       "confidence": 1.0
     },
@@ -73,6 +77,7 @@
         10,
         12,
         13,
+        15,
         16,
         17,
         19,
@@ -84,6 +89,7 @@
         26,
         27,
         28,
+        29,
         31,
         32,
         33,
@@ -92,17 +98,18 @@
         36
       ],
       "page_types": [
-        "overdraft",
-        "bank_loans",
-        "cash",
-        "buildings",
         "investments",
-        "written_debts",
-        "concessions",
-        "loans_given",
-        "land",
+        "buildings",
+        "bank_loans",
         "vehicles",
-        "other_assets"
+        "deposits",
+        "overdraft",
+        "concessions",
+        "land",
+        "other_assets",
+        "written_debts",
+        "loans_given",
+        "cash"
       ],
       "confidence": 1.0
     },
@@ -145,10 +152,5 @@
       "confidence": 1.0
     }
   ],
-  "unmapped_pages": [
-    5,
-    7,
-    15,
-    29
-  ]
+  "unmapped_pages": []
 }

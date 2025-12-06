@@ -1,16 +1,28 @@
 {
   "doc_name": "จักพันธ์_ปิยพรไพบูลย์_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_17_ก.ค._2566",
-  "total_pages": 37,
+  "total_pages": 26,
   "step_mappings": [
     {
       "step_name": "step_1",
       "step_description": "ข้อมูลผู้ยื่นบัญชี + ตำแหน่ง + ชื่อเดิม + บิดามารดา",
       "output_csv": "submitter_position.csv + submitter_old_name.csv + relative_info.csv",
       "page_numbers": [
-        4
+        3
       ],
       "page_types": [
         "personal_info"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_10",
+      "step_description": "รายละเอียดทรัพย์สินอื่น",
+      "output_csv": "asset_other_asset_info.csv + asset.csv",
+      "page_numbers": [
+        22
+      ],
+      "page_types": [
+        "other_assets"
       ],
       "confidence": 1.0
     },
@@ -19,7 +31,7 @@
       "step_description": "ข้อมูลคู่สมรส + ตำแหน่ง + ชื่อเดิม + บิดามารดาคู่สมรส",
       "output_csv": "spouse_info.csv + spouse_old_name.csv + spouse_position.csv + relative_info.csv",
       "page_numbers": [
-        5
+        4
       ],
       "page_types": [
         "spouse_info"
@@ -31,35 +43,38 @@
       "step_description": "ข้อมูลบุตร (relationship_id=4)",
       "output_csv": "relative_info.csv",
       "page_numbers": [
+        3,
         4,
         5,
         6
       ],
       "page_types": [
-        "children",
         "personal_info",
+        "children",
+        "siblings",
         "spouse_info"
       ],
       "confidence": 1.0
     },
     {
       "step_name": "step_5",
-      "step_description": "ข้อมูลภาษี (statement_type_id=3)",
+      "step_description": "สรุปทรัพย์สิน/หนี้สิน (statement_type_id=4,5)",
       "output_csv": "statement.csv",
       "page_numbers": [
         1,
+        2,
+        7,
         8,
         9,
         10,
         11,
         12,
-        13,
-        36
+        26
       ],
       "page_types": [
-        "income_expense",
         "tax_info",
-        "assets_summary"
+        "assets_summary",
+        "income_expense"
       ],
       "confidence": 1.0
     },
@@ -68,29 +83,62 @@
       "step_description": "เงินกู้จากธนาคาร (หนี้สิน)",
       "output_csv": "asset.csv",
       "page_numbers": [
-        10,
+        9,
+        11,
         12,
         13,
+        14,
         15,
+        16,
         17,
+        18,
         19,
+        20,
+        21,
+        22,
+        23,
+        24,
         25,
-        27,
-        31,
-        33,
-        35,
-        36
+        26
       ],
       "page_types": [
-        "written_debts",
-        "cash",
-        "loans_given",
         "bank_loans",
-        "deposits",
+        "buildings",
+        "written_debts",
         "vehicles",
-        "overdraft",
+        "other_assets",
+        "deposits",
+        "land",
+        "loans_given",
         "concessions",
+        "cash",
+        "overdraft",
         "investments"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_7",
+      "step_description": "รายละเอียดที่ดิน",
+      "output_csv": "asset_land_info.csv + asset.csv",
+      "page_numbers": [
+        16,
+        17
+      ],
+      "page_types": [
+        "land"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_8",
+      "step_description": "รายละเอียดโรงเรือน/สิ่งปลูกสร้าง",
+      "output_csv": "asset_building_info.csv + asset.csv",
+      "page_numbers": [
+        18
+      ],
+      "page_types": [
+        "buildings"
       ],
       "confidence": 1.0
     },
@@ -99,7 +147,8 @@
       "step_description": "รายละเอียดยานพาหนะ",
       "output_csv": "asset_vehicle_info.csv + asset.csv",
       "page_numbers": [
-        25
+        19,
+        20
       ],
       "page_types": [
         "vehicles"
@@ -107,24 +156,5 @@
       "confidence": 1.0
     }
   ],
-  "unmapped_pages": [
-    2,
-    3,
-    7,
-    14,
-    16,
-    18,
-    20,
-    21,
-    22,
-    23,
-    24,
-    26,
-    28,
-    29,
-    30,
-    32,
-    34,
-    37
-  ]
+  "unmapped_pages": []
 }

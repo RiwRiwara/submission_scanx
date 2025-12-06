@@ -1,0 +1,161 @@
+{
+  "doc_name": "ประยุทธ์_จันทร์โอชา_นายกรัฐมนตรี_กรณีพ้นจากตำแหน่ง_24_พ.ย._2566",
+  "total_pages": 25,
+  "step_mappings": [
+    {
+      "step_name": "step_1",
+      "step_description": "ข้อมูลผู้ยื่นบัญชี + ตำแหน่ง + ชื่อเดิม + บิดามารดา",
+      "output_csv": "submitter_position.csv + submitter_old_name.csv + relative_info.csv",
+      "page_numbers": [
+        3,
+        4
+      ],
+      "page_types": [
+        "personal_info"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_10",
+      "step_description": "รายละเอียดทรัพย์สินอื่น",
+      "output_csv": "asset_other_asset_info.csv + asset.csv",
+      "page_numbers": [
+        21
+      ],
+      "page_types": [
+        "other_assets"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_3_1",
+      "step_description": "ข้อมูลคู่สมรส + ตำแหน่ง + ชื่อเดิม + บิดามารดาคู่สมรส",
+      "output_csv": "spouse_info.csv + spouse_old_name.csv + spouse_position.csv + relative_info.csv",
+      "page_numbers": [
+        5
+      ],
+      "page_types": [
+        "spouse_info"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_4",
+      "step_description": "ข้อมูลบุตร (relationship_id=4)",
+      "output_csv": "relative_info.csv",
+      "page_numbers": [
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "page_types": [
+        "personal_info",
+        "children",
+        "siblings",
+        "spouse_info"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_5",
+      "step_description": "สรุปทรัพย์สิน/หนี้สิน (statement_type_id=4,5)",
+      "output_csv": "statement.csv",
+      "page_numbers": [
+        1,
+        2,
+        3,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        15,
+        25
+      ],
+      "page_types": [
+        "tax_info",
+        "assets_summary",
+        "income_expense"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_6",
+      "step_description": "สิทธิและสัมปทาน",
+      "output_csv": "asset.csv",
+      "page_numbers": [
+        8,
+        10,
+        11,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25
+      ],
+      "page_types": [
+        "bank_loans",
+        "buildings",
+        "written_debts",
+        "vehicles",
+        "other_assets",
+        "deposits",
+        "land",
+        "loans_given",
+        "concessions",
+        "cash",
+        "overdraft",
+        "investments"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_7",
+      "step_description": "รายละเอียดที่ดิน",
+      "output_csv": "asset_land_info.csv + asset.csv",
+      "page_numbers": [
+        17
+      ],
+      "page_types": [
+        "land"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_8",
+      "step_description": "รายละเอียดโรงเรือน/สิ่งปลูกสร้าง",
+      "output_csv": "asset_building_info.csv + asset.csv",
+      "page_numbers": [
+        18
+      ],
+      "page_types": [
+        "buildings"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_9",
+      "step_description": "รายละเอียดยานพาหนะ",
+      "output_csv": "asset_vehicle_info.csv + asset.csv",
+      "page_numbers": [
+        19
+      ],
+      "page_types": [
+        "vehicles"
+      ],
+      "confidence": 1.0
+    }
+  ],
+  "unmapped_pages": []
+}
