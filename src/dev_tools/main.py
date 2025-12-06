@@ -1,5 +1,5 @@
 """
-Pipeline Dev Tools - FastAPI web application for development
+Scanx Dev Tools - FastAPI web application for development
 """
 import json
 import os
@@ -13,19 +13,33 @@ from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-# Paths
-BASE_DIR = Path(__file__).parent
-PIPELINE_DIR = BASE_DIR.parent
-PIPELINE_INPUT = PIPELINE_DIR / "pipeline_input"
-PIPELINE_OUTPUT = PIPELINE_DIR / "pipeline_output"
-FINAL_TEST_DIR = PIPELINE_DIR / "final_test"
+# Paths for submission_scanx
+BASE_DIR = Path(__file__).parent  # dev_tools
+SRC_DIR = BASE_DIR.parent  # src
 
-# Raw data directories (for viewer - original sources)
-JSON_RAW_DIR = PIPELINE_INPUT / "json_extract_raw"
-PDF_TRAINING_DIR = PIPELINE_DIR / "pdf training"
-PAGE_METADATA_DIR = PIPELINE_INPUT / "page_metadata"
+# Training mode paths
+TRAIN_RESULT_DIR = SRC_DIR / "result" / "from_train"
+TRAIN_PROCESSING = TRAIN_RESULT_DIR / "processing_input"
+TRAIN_OUTPUT = TRAIN_RESULT_DIR / "mapping_output"
+TRAIN_INPUT_DIR = SRC_DIR / "training" / "train input"
 
-app = FastAPI(title="Pipeline Dev Tools", version="0.1.0")
+# Final test mode paths
+FINAL_RESULT_DIR = SRC_DIR / "result" / "final"
+FINAL_PROCESSING = FINAL_RESULT_DIR / "processing_input"
+FINAL_OUTPUT = FINAL_RESULT_DIR / "mapping_output"
+FINAL_INPUT_DIR = SRC_DIR / "test final" / "test final input"
+
+# Raw data directories (for viewer)
+JSON_RAW_DIR = TRAIN_PROCESSING / "extract_raw"
+JSON_MATCHED_DIR = TRAIN_PROCESSING / "extract_matched"
+PDF_TRAINING_DIR = TRAIN_INPUT_DIR / "Train_pdf" / "pdf"  # PDFs are in Train_pdf/pdf/
+PAGE_METADATA_DIR = TRAIN_PROCESSING / "page_metadata"
+
+# Expected output for comparison (training ground truth)
+TRAIN_EXPECTED_OUTPUT = SRC_DIR / "training" / "train output"
+TRAIN_EXPECTED_SUMMARY = SRC_DIR / "training" / "train summary"  # Train_summary.csv
+
+app = FastAPI(title="Scanx Dev Tools", version="0.1.0")
 
 # Mount static files
 STATIC_DIR = BASE_DIR / "static"
@@ -42,16 +56,38 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 # API Routes - Data
 # ============================================================================
 
+def get_mode_paths(mode: str):
+    """Get paths based on mode (training or final)"""
+    if mode == "final":
+        return {
+            "json_raw": FINAL_PROCESSING / "extract_raw",
+            "json_matched": FINAL_PROCESSING / "extract_matched",
+            "pdf_dir": FINAL_INPUT_DIR / "Test final_pdf",  # Final test PDFs
+            "text_each_page": FINAL_PROCESSING / "text_each_page",
+            "page_metadata": FINAL_PROCESSING / "page_metadata",
+            "output": FINAL_OUTPUT,
+            "expected": None,  # No expected output for final test
+            "expected_summary": None
+        }
+    else:
+        return {
+            "json_raw": TRAIN_PROCESSING / "extract_raw",
+            "json_matched": TRAIN_PROCESSING / "extract_matched", 
+            "pdf_dir": PDF_TRAINING_DIR,  # src/training/train input/Train_pdf/pdf
+            "text_each_page": TRAIN_PROCESSING / "text_each_page",
+            "page_metadata": TRAIN_PROCESSING / "page_metadata",
+            "output": TRAIN_OUTPUT,
+            "expected": TRAIN_EXPECTED_OUTPUT,  # train output/
+            "expected_summary": TRAIN_EXPECTED_SUMMARY  # train summary/Train_summary.csv
+        }
+
+
 @app.get("/api/documents")
 async def list_documents(mode: str = "training"):
     """List all documents available"""
-    if mode == "final":
-        json_dir = FINAL_TEST_DIR / "final_json_match"
-        pdf_dir = FINAL_TEST_DIR / "final_pdf_aligner"
-    else:
-        # Use raw JSON and original training PDFs for viewer
-        json_dir = JSON_RAW_DIR
-        pdf_dir = PDF_TRAINING_DIR
+    paths = get_mode_paths(mode)
+    json_dir = paths["json_matched"]  # Use matched JSON for viewing
+    pdf_dir = paths["pdf_dir"]
     
     documents = []
     if json_dir.exists():
@@ -70,12 +106,13 @@ async def list_documents(mode: str = "training"):
 
 @app.get("/api/document/{doc_name}")
 async def get_document(doc_name: str, mode: str = "training"):
-    """Get document JSON data (raw OCR JSON for viewer)"""
-    if mode == "final":
-        json_path = FINAL_TEST_DIR / "final_json_match" / f"{doc_name}.json"
-    else:
-        # Use raw JSON for viewer
-        json_path = JSON_RAW_DIR / f"{doc_name}.json"
+    """Get document JSON data (matched JSON with page info)"""
+    paths = get_mode_paths(mode)
+    json_path = paths["json_matched"] / f"{doc_name}.json"
+    
+    if not json_path.exists():
+        # Fallback to raw JSON
+        json_path = paths["json_raw"] / f"{doc_name}.json"
     
     if not json_path.exists():
         raise HTTPException(status_code=404, detail="Document not found")
@@ -88,99 +125,106 @@ async def get_document(doc_name: str, mode: str = "training"):
 
 @app.get("/api/document/{doc_name}/page/{page_num}")
 async def get_page_content(doc_name: str, page_num: int, mode: str = "training"):
-    """Get specific page content - extract from raw JSON"""
-    if mode == "final":
-        text_dir = FINAL_TEST_DIR / "text_each_page"
-        page_file = text_dir / doc_name / f"page_{page_num:03d}.json"
-        if not page_file.exists():
-            raise HTTPException(status_code=404, detail=f"Page {page_num} not found")
+    """Get specific page content from text_each_page or extract from JSON"""
+    paths = get_mode_paths(mode)
+    text_dir = paths["text_each_page"]
+    
+    # Try individual page file first
+    page_file = text_dir / doc_name / f"page_{page_num:03d}.json"
+    if page_file.exists():
         with open(page_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
         return data
-    else:
-        # Extract from raw JSON for training mode
-        json_path = JSON_RAW_DIR / f"{doc_name}.json"
-        if not json_path.exists():
-            raise HTTPException(status_code=404, detail="Document not found")
-        
-        with open(json_path, 'r', encoding='utf-8') as f:
-            doc_data = json.load(f)
-        
-        pages = doc_data.get('pages', [])
-        if page_num < 1 or page_num > len(pages):
-            raise HTTPException(status_code=404, detail=f"Page {page_num} not found")
-        
-        page = pages[page_num - 1]
-        lines = page.get('lines', [])
-        
-        # Build content and lines data
-        content_lines = []
-        lines_data = []
-        for line in lines:
-            text = line.get('content', '')
-            polygon = line.get('polygon', [])
-            content_lines.append(text)
-            lines_data.append({
-                'text': text,
-                'polygon': polygon,
-                'x': polygon[0] if len(polygon) >= 2 else 0,
-                'y': polygon[1] if len(polygon) >= 2 else 0
-            })
-        
-        return {
-            'page_number': page_num,
-            'content': '\n'.join(content_lines),
-            'lines': lines_data
-        }
+    
+    # Fallback: extract from matched JSON
+    json_path = paths["json_matched"] / f"{doc_name}.json"
+    if not json_path.exists():
+        json_path = paths["json_raw"] / f"{doc_name}.json"
+    
+    if not json_path.exists():
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    with open(json_path, 'r', encoding='utf-8') as f:
+        doc_data = json.load(f)
+    
+    pages = doc_data.get('pages', [])
+    if page_num < 1 or page_num > len(pages):
+        raise HTTPException(status_code=404, detail=f"Page {page_num} not found")
+    
+    page = pages[page_num - 1]
+    lines = page.get('lines', [])
+    
+    # Build content and lines data
+    content_lines = []
+    lines_data = []
+    for line in lines:
+        text = line.get('content', '')
+        polygon = line.get('polygon', [])
+        content_lines.append(text)
+        lines_data.append({
+            'text': text,
+            'polygon': polygon,
+            'x': polygon[0] if len(polygon) >= 2 else 0,
+            'y': polygon[1] if len(polygon) >= 2 else 0
+        })
+    
+    return {
+        'page_number': page_num,
+        'content': '\n'.join(content_lines),
+        'lines': lines_data,
+        '_page_info': page.get('_page_info', {})
+    }
 
 
 @app.get("/api/document/{doc_name}/combined")
 async def get_combined_document(doc_name: str, mode: str = "training"):
-    """Get combined document (all pages) - extract from raw JSON"""
-    if mode == "final":
-        text_dir = FINAL_TEST_DIR / "text_each_page"
-        combined_file = text_dir / f"{doc_name}.json"
-        if not combined_file.exists():
-            raise HTTPException(status_code=404, detail="Combined document not found")
+    """Get combined document (all pages)"""
+    paths = get_mode_paths(mode)
+    text_dir = paths["text_each_page"]
+    
+    # Try combined file first
+    combined_file = text_dir / f"{doc_name}.json"
+    if combined_file.exists():
         with open(combined_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
         return data
-    else:
-        # Build combined from raw JSON for training mode
-        json_path = JSON_RAW_DIR / f"{doc_name}.json"
-        if not json_path.exists():
-            raise HTTPException(status_code=404, detail="Document not found")
-        
-        with open(json_path, 'r', encoding='utf-8') as f:
-            doc_data = json.load(f)
-        
-        pages = doc_data.get('pages', [])
-        combined_pages = []
-        
-        for i, page in enumerate(pages):
-            lines = page.get('lines', [])
-            content = '\n'.join([line.get('content', '') for line in lines])
-            combined_pages.append({
-                'page_number': i + 1,
-                'content': content,
-                'lines_count': len(lines)
-            })
-        
-        return {
-            'doc_name': doc_name,
-            'total_pages': len(pages),
-            'pages': combined_pages
-        }
+    
+    # Fallback: build from matched JSON
+    json_path = paths["json_matched"] / f"{doc_name}.json"
+    if not json_path.exists():
+        json_path = paths["json_raw"] / f"{doc_name}.json"
+    
+    if not json_path.exists():
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    with open(json_path, 'r', encoding='utf-8') as f:
+        doc_data = json.load(f)
+    
+    pages = doc_data.get('pages', [])
+    combined_pages = []
+    
+    for i, page in enumerate(pages):
+        lines = page.get('lines', [])
+        content = '\n'.join([line.get('content', '') for line in lines])
+        combined_pages.append({
+            'page_number': page.get('page_number', i + 1),
+            'content': content,
+            'lines_count': len(lines),
+            '_page_info': page.get('_page_info', {})
+        })
+    
+    return {
+        'doc_name': doc_name,
+        'total_pages': len(pages),
+        'pages': combined_pages
+    }
 
 
 @app.get("/api/pdf/{doc_name}")
 async def get_pdf(doc_name: str, mode: str = "training"):
-    """Serve PDF file (original training PDFs for viewer)"""
-    if mode == "final":
-        pdf_path = FINAL_TEST_DIR / "final_pdf_aligner" / f"{doc_name}.pdf"
-    else:
-        # Use original training PDFs
-        pdf_path = PDF_TRAINING_DIR / f"{doc_name}.pdf"
+    """Serve PDF file"""
+    paths = get_mode_paths(mode)
+    pdf_path = paths["pdf_dir"] / f"{doc_name}.pdf"
     
     if not pdf_path.exists():
         raise HTTPException(status_code=404, detail="PDF not found")
@@ -193,62 +237,71 @@ async def get_pdf(doc_name: str, mode: str = "training"):
 # ============================================================================
 
 @app.get("/api/results/summary")
-async def get_summary():
+async def get_summary(mode: str = "training"):
     """Get pipeline output summary"""
-    summary_path = PIPELINE_OUTPUT / "summary.csv"
-    test_summary_path = PIPELINE_OUTPUT / "test_result" / "test_summary.csv"
+    paths = get_mode_paths(mode)
+    summary_path = paths["output"] / "summary.csv"
+    # Expected summary is in train summary/Train_summary.csv
+    expected_path = paths["expected_summary"] / "Train_summary.csv" if paths["expected_summary"] else None
     
-    result = {"summary": None, "test_summary": None}
+    result = {"summary": None, "expected_summary": None}
     
     if summary_path.exists():
         import pandas as pd
         df = pd.read_csv(summary_path)
         result["summary"] = df.to_dict(orient="records")
     
-    if test_summary_path.exists():
+    if expected_path and expected_path.exists():
         import pandas as pd
-        df = pd.read_csv(test_summary_path)
-        result["test_summary"] = df.to_dict(orient="records")
+        df = pd.read_csv(expected_path)
+        result["expected_summary"] = df.to_dict(orient="records")
     
     return result
 
 
 @app.get("/api/results/accuracy")
 async def get_accuracy():
-    """Get accuracy metrics from compare_results"""
+    """Get accuracy metrics - compare generated vs expected"""
+    # Use scanx CLI instead of old compare_results.py
     try:
-        # Run compare_results.py and capture output
-        compare_script = PIPELINE_DIR / "step" / "compare_results.py"
-        if not compare_script.exists():
-            return {"error": f"compare_results.py not found at {compare_script}"}
-        
         result = subprocess.run(
-            [sys.executable, str(compare_script)],
+            ["poetry", "run", "scanx", "--help"],
             capture_output=True,
             text=True,
-            cwd=str(PIPELINE_DIR),
-            timeout=60
+            cwd=str(SRC_DIR.parent),  # submission_scanx root
+            timeout=30
         )
         return {
-            "output": result.stdout,
-            "error": result.stderr,
-            "returncode": result.returncode
+            "message": "Use 'poetry run scanx --phase 1 --all' to run pipeline",
+            "scanx_help": result.stdout,
         }
-    except subprocess.TimeoutExpired:
-        return {"error": "Timeout running compare_results.py"}
     except Exception as e:
         return {"error": str(e)}
 
 
 @app.get("/api/results/csv/{filename}")
-async def get_csv_file(filename: str):
-    """Get any CSV file from pipeline_output"""
-    csv_path = PIPELINE_OUTPUT / filename
-    if not csv_path.exists():
-        csv_path = PIPELINE_OUTPUT / "test_result" / filename
+async def get_csv_file(filename: str, mode: str = "training", source: str = "generated"):
+    """Get any CSV file from mapping_output or expected output
     
-    if not csv_path.exists():
-        raise HTTPException(status_code=404, detail="CSV not found")
+    Args:
+        filename: CSV filename (e.g., summary.csv, asset.csv)
+        mode: training or final
+        source: 'generated' for pipeline output, 'expected' for ground truth
+    """
+    paths = get_mode_paths(mode)
+    
+    if source == "expected":
+        # Expected files have Train_ prefix
+        expected_filename = f"Train_{filename}"
+        if filename == "summary.csv":
+            csv_path = paths["expected_summary"] / "Train_summary.csv" if paths["expected_summary"] else None
+        else:
+            csv_path = paths["expected"] / expected_filename if paths["expected"] else None
+    else:
+        csv_path = paths["output"] / filename
+    
+    if not csv_path or not csv_path.exists():
+        raise HTTPException(status_code=404, detail=f"CSV not found: {filename}")
     
     import pandas as pd
     import math
@@ -265,24 +318,19 @@ async def get_csv_file(filename: str):
 
 
 @app.post("/api/pipeline/run")
-async def run_pipeline(step: Optional[str] = None):
-    """Run pipeline (or specific step)"""
+async def run_pipeline(phase: str = "1", is_final: bool = False):
+    """Run scanx pipeline"""
     try:
-        if step:
-            script = PIPELINE_DIR / "step" / f"{step}.py"
-            if not script.exists():
-                raise HTTPException(status_code=404, detail=f"Step {step} not found")
-            cmd = [sys.executable, str(script)]
-        else:
-            # Run main.py in step folder
-            cmd = [sys.executable, str(PIPELINE_DIR / "step" / "main.py")]
+        cmd = ["poetry", "run", "scanx", "--phase", phase]
+        if is_final:
+            cmd.append("--final")
         
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
-            cwd=str(PIPELINE_DIR / "step"),
-            timeout=300
+            cwd=str(SRC_DIR.parent),  # submission_scanx root
+            timeout=600
         )
         return {
             "output": result.stdout,
@@ -290,7 +338,7 @@ async def run_pipeline(step: Optional[str] = None):
             "returncode": result.returncode
         }
     except subprocess.TimeoutExpired:
-        return {"error": "Pipeline timeout (5 min)"}
+        return {"error": "Pipeline timeout (10 min)"}
     except Exception as e:
         return {"error": str(e)}
 
@@ -352,14 +400,24 @@ def compare_values(generated, expected, tolerance: float = 0.05):
 
 
 @app.post("/api/compare/csv")
-async def compare_csv_files(req: CompareRequest):
+async def compare_csv_files(req: CompareRequest, mode: str = "training"):
     """Compare two CSV files and return detailed results"""
     import pandas as pd
     import math
     
     # Resolve paths
-    gen_path = PIPELINE_OUTPUT / req.generated
-    exp_path = PIPELINE_OUTPUT / "test_result" / req.expected
+    paths = get_mode_paths(mode)
+    gen_path = paths["output"] / req.generated
+    
+    # Expected files have Train_ prefix
+    if req.expected == "summary.csv":
+        exp_path = paths["expected_summary"] / "Train_summary.csv" if paths["expected_summary"] else None
+    else:
+        expected_filename = f"Train_{req.expected}"
+        exp_path = paths["expected"] / expected_filename if paths["expected"] else None
+    
+    if not exp_path:
+        return {"error": "No expected output available for this mode"}
     
     if not gen_path.exists():
         return {"error": f"Generated file not found: {req.generated}"}
@@ -561,9 +619,10 @@ async def pages_viewer(request: Request):
 # ============================================================================
 
 @app.get("/api/page-metadata")
-async def get_page_metadata_index():
+async def get_page_metadata_index(mode: str = "training"):
     """Get page metadata index - all documents with their step mappings"""
-    index_path = PAGE_METADATA_DIR / "index.json"
+    paths = get_mode_paths(mode)
+    index_path = paths["page_metadata"] / "index.json"
     if not index_path.exists():
         return {"error": "Page metadata index not found", "documents": []}
     
@@ -574,9 +633,10 @@ async def get_page_metadata_index():
 
 
 @app.get("/api/page-metadata/{doc_name}")
-async def get_document_page_metadata(doc_name: str):
+async def get_document_page_metadata(doc_name: str, mode: str = "training"):
     """Get detailed page metadata for a specific document"""
-    metadata_path = PAGE_METADATA_DIR / f"{doc_name}_metadata.json"
+    paths = get_mode_paths(mode)
+    metadata_path = paths["page_metadata"] / f"{doc_name}_metadata.json"
     if not metadata_path.exists():
         raise HTTPException(status_code=404, detail="Document metadata not found")
     
@@ -610,29 +670,15 @@ async def get_steps():
 
 
 # ============================================================================
-# API Routes - Page Text with Polygon Data
+# API Routes - Page Text with Polygon Data (alternate endpoint)
 # ============================================================================
 
-# Text each page directories
-TEXT_EACH_PAGE_TRAINING = PIPELINE_INPUT / "text_each_page"
-TEXT_EACH_PAGE_FINAL = FINAL_TEST_DIR / "text_each_page"
-
-# JSON extract directories (for polygon data)
-JSON_EXTRACT_TRAINING = PIPELINE_INPUT / "json_extract"
-JSON_EXTRACT_FINAL = FINAL_TEST_DIR / "final_json_match"
-
-
-def get_mode_dirs(mode: str):
-    """Get appropriate directories based on mode"""
-    if mode == "final":
-        return TEXT_EACH_PAGE_FINAL, JSON_EXTRACT_FINAL
-    return TEXT_EACH_PAGE_TRAINING, JSON_EXTRACT_TRAINING
-
-
-@app.get("/api/document/{doc_name}/page/{page_num}")
+@app.get("/api/document/{doc_name}/page-detail/{page_num}")
 async def get_page_text_data(doc_name: str, page_num: int, mode: str = "training"):
-    """Get text content and polygon data for a specific page"""
-    text_dir, json_dir = get_mode_dirs(mode)
+    """Get text content and polygon data for a specific page (detailed)"""
+    paths = get_mode_paths(mode)
+    text_dir = paths["text_each_page"]
+    json_dir = paths["json_matched"]
     
     # Load combined text file for document
     combined_path = text_dir / f"{doc_name}.json"
@@ -744,10 +790,13 @@ async def get_document_text(doc_name: str, mode: str = "training"):
 # ============================================================================
 
 @app.get("/api/search/submitter/{submitter_id}")
-async def search_by_submitter(submitter_id: str):
+async def search_by_submitter(submitter_id: str, mode: str = "training"):
     """Search all data for a submitter_id across all CSV files"""
     import pandas as pd
     import math
+    
+    paths = get_mode_paths(mode)
+    output_dir = paths["output"]
     
     results = {}
     csv_files = [
@@ -768,7 +817,7 @@ async def search_by_submitter(submitter_id: str):
     ]
     
     for filename in csv_files:
-        csv_path = PIPELINE_OUTPUT / filename
+        csv_path = output_dir / filename
         if not csv_path.exists():
             continue
         
@@ -806,11 +855,12 @@ async def search_by_submitter(submitter_id: str):
 
 
 @app.get("/api/search/submitters")
-async def list_submitters():
+async def list_submitters(mode: str = "training"):
     """List all submitter_ids from summary.csv"""
     import pandas as pd
     
-    summary_path = PIPELINE_OUTPUT / "summary.csv"
+    paths = get_mode_paths(mode)
+    summary_path = paths["output"] / "summary.csv"
     if not summary_path.exists():
         return {"submitters": []}
     
@@ -835,7 +885,7 @@ def run():
     """Run the server"""
     import uvicorn
     print("=" * 50)
-    print("Pipeline Dev Tools")
+    print("Scanx Dev Tools")
     print("=" * 50)
     print("Server: http://localhost:8888")
     print("=" * 50)

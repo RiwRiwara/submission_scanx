@@ -1,6 +1,6 @@
-# Pipeline Dev Tools
+# Scanx Dev Tools
 
-เครื่องมือพัฒนาสำหรับ NACC Asset Declaration Pipeline
+เครื่องมือพัฒนาสำหรับ Submission Scanx Pipeline
 
 ## Features
 
@@ -18,26 +18,37 @@
 
 ### 3. Dashboard (`/dashboard`)
 - ดู accuracy metrics
-- รัน pipeline และ evaluation
+- รัน scanx pipeline
 - ดู CSV output files
 - Console output
+
+### 4. Search (`/search`)
+- ค้นหาข้อมูลตาม submitter_id
+- ดูข้อมูลจากทุก CSV files
+
+### 5. Pages Viewer (`/pages`)
+- ดู page metadata จาก phase 1d
+- ดู page type และ step mappings
 
 ## Installation
 
 ```bash
-cd dev_tools
+cd src/dev_tools
 
-# Install with poetry
+# Install dependencies (uses main project's poetry)
+cd ../..
 poetry install
 
-# Or with pip
-pip install -r requirements.txt
+# Or install dev_tools separately
+cd src/dev_tools
+poetry install
 ```
 
 ## Usage
 
 ```bash
-# Run with poetry
+# From dev_tools directory
+cd src/dev_tools
 poetry run python main.py
 
 # Or directly
@@ -56,12 +67,39 @@ Server จะรันที่ http://localhost:8888
 - `GET /api/pdf/{name}?mode=...` - Get PDF file
 
 ### Results
-- `GET /api/results/summary` - Get summary and test_summary
-- `GET /api/results/accuracy` - Run compare_results.py
-- `GET /api/results/csv/{filename}` - Get CSV file
+- `GET /api/results/summary?mode=...` - Get summary CSV
+- `GET /api/results/csv/{filename}?mode=...` - Get any CSV file
 
 ### Pipeline
-- `POST /api/pipeline/run?step=...` - Run pipeline or specific step
+- `POST /api/pipeline/run?phase=1&is_final=false` - Run scanx pipeline
+
+### Search
+- `GET /api/search/submitters?mode=...` - List all submitter IDs
+- `GET /api/search/submitter/{id}?mode=...` - Search by submitter ID
+
+## Directory Structure (submission_scanx)
+
+```
+submission_scanx/
+├── src/
+│   ├── dev_tools/           # This tool
+│   │   ├── main.py          # FastAPI application
+│   │   ├── templates/       # HTML templates
+│   │   └── static/          # Static files
+│   ├── result/
+│   │   ├── from_train/      # Training results
+│   │   │   ├── processing_input/
+│   │   │   │   ├── extract_raw/
+│   │   │   │   ├── extract_matched/
+│   │   │   │   ├── text_each_page/
+│   │   │   │   └── page_metadata/
+│   │   │   └── mapping_output/  # CSV outputs
+│   │   └── final/           # Final test results
+│   ├── training/
+│   │   └── train input/     # Training CSVs and PDFs
+│   └── test final/
+│       └── test final input/  # Final test data
+```
 
 ## Tech Stack
 
@@ -69,19 +107,3 @@ Server จะรันที่ http://localhost:8888
 - **Frontend**: Tailwind CSS + Vanilla JS
 - **PDF**: PDF.js
 - **Data**: Pandas
-
-## Directory Structure
-
-```
-dev_tools/
-├── main.py              # FastAPI application
-├── pyproject.toml       # Poetry config
-├── README.md
-├── templates/
-│   ├── base.html        # Base template
-│   ├── index.html       # Home page
-│   ├── viewer.html      # PDF/JSON viewer
-│   ├── content.html     # Content browser
-│   └── dashboard.html   # Dashboard
-└── static/              # Static files (auto-created)
-```

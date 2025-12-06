@@ -49,13 +49,31 @@
         </div>
     </div>
 
-    <!-- Field Accuracy -->
+    <!-- Field Accuracy (Collapsible) -->
     <div id="fieldAccuracyPanel" class="bg-slate-800 rounded-xl border border-slate-700 hidden">
-        <div class="p-3 border-b border-slate-700 flex justify-between items-center">
-            <h2 class="font-semibold text-sm">Field Accuracy</h2>
+        <div class="p-3 border-b border-slate-700 flex justify-between items-center cursor-pointer" onclick="toggleFieldAccuracy()">
+            <div class="flex items-center gap-2">
+                <svg id="fieldAccuracyArrow" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+                <h2 class="font-semibold text-sm">Field Accuracy</h2>
+            </div>
             <span id="fieldCount" class="text-xs text-slate-400"></span>
         </div>
-        <div id="fieldAccuracy" class="p-3 grid grid-cols-3 md:grid-cols-6 lg:grid-cols-8 gap-2 max-h-48 overflow-y-auto">
+        <div id="fieldAccuracyContent" class="p-3 grid grid-cols-3 md:grid-cols-6 lg:grid-cols-8 gap-2 max-h-48 overflow-y-auto">
+        </div>
+    </div>
+
+    <!-- All Files Summary -->
+    <div id="allFilesSummary" class="bg-slate-800 rounded-xl border border-slate-700">
+        <div class="p-3 border-b border-slate-700 flex justify-between items-center">
+            <h2 class="font-semibold text-sm">📊 All Files Accuracy Summary</h2>
+            <button onclick="runAllComparisons()" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 rounded text-xs font-medium">
+                Compare All 13 Files
+            </button>
+        </div>
+        <div id="allFilesContent" class="p-3">
+            <div class="text-slate-400 text-sm text-center py-4">Click "Compare All 13 Files" to see accuracy for all CSV files</div>
         </div>
     </div>
 
@@ -110,25 +128,139 @@
 {% block scripts %}
 <script>
 // Presets matching compare_csv.py - with submitter_id as primary key where applicable
+// NOTE: expected filenames should NOT include "Train_" prefix - the API adds it automatically
 const PRESETS = {
-    'summary': { generated: 'summary.csv', expected: 'test_summary.csv', key: ['id'], primary: null },
-    'statement': { generated: 'statement.csv', expected: 'Train_statement.csv', key: ['submitter_id', 'nacc_id', 'statement_type_id'], primary: 'submitter_id' },
-    'statement_detail': { generated: 'statement_detail.csv', expected: 'Train_statement_detail.csv', key: ['submitter_id', 'nacc_id', 'statement_detail_type_id', 'index'], primary: 'submitter_id' },
-    'relative': { generated: 'relative_info.csv', expected: 'Train_relative_info.csv', key: ['submitter_id', 'nacc_id', 'index', 'relationship_id'], primary: 'submitter_id' },
-    'spouse_info': { generated: 'spouse_info.csv', expected: 'Train_spouse_info.csv', key: ['submitter_id', 'nacc_id'], primary: 'submitter_id' },
-    'spouse_old_name': { generated: 'spouse_old_name.csv', expected: 'Train_spouse_old_name.csv', key: ['submitter_id', 'nacc_id', 'index'], primary: 'submitter_id' },
-    'spouse_position': { generated: 'spouse_position.csv', expected: 'Train_spouse_position.csv', key: ['submitter_id', 'nacc_id', 'position_period_type_id', 'index'], primary: 'submitter_id' },
-    'submitter_old_name': { generated: 'submitter_old_name.csv', expected: 'Train_submitter_old_name.csv', key: ['submitter_id', 'nacc_id', 'index'], primary: 'submitter_id' },
-    'submitter_position': { generated: 'submitter_position.csv', expected: 'Train_submitter_position.csv', key: ['submitter_id', 'nacc_id', 'position_period_type_id', 'index'], primary: 'submitter_id' },
-    'asset': { generated: 'asset.csv', expected: 'Train_asset.csv', key: ['submitter_id', 'nacc_id', 'index', 'asset_type_id'], primary: 'submitter_id' },
-    'asset_land': { generated: 'asset_land_info.csv', expected: 'Train_asset_land_info.csv', key: ['submitter_id', 'nacc_id', 'asset_id'], primary: 'submitter_id' },
-    'asset_building': { generated: 'asset_building_info.csv', expected: 'Train_asset_building_info.csv', key: ['submitter_id', 'nacc_id', 'asset_id'], primary: 'submitter_id' },
-    'asset_vehicle': { generated: 'asset_vehicle_info.csv', expected: 'Train_asset_vehicle_info.csv', key: ['submitter_id', 'nacc_id', 'asset_id'], primary: 'submitter_id' },
-    'asset_other': { generated: 'asset_other_asset_info.csv', expected: 'Train_asset_other_asset_info.csv', key: ['submitter_id', 'nacc_id', 'asset_id'], primary: 'submitter_id' },
+    'summary': { generated: 'summary.csv', expected: 'summary.csv', key: ['id'], primary: null },
+    'statement': { generated: 'statement.csv', expected: 'statement.csv', key: ['submitter_id', 'nacc_id', 'statement_type_id'], primary: 'submitter_id' },
+    'statement_detail': { generated: 'statement_detail.csv', expected: 'statement_detail.csv', key: ['submitter_id', 'nacc_id', 'statement_detail_type_id', 'index'], primary: 'submitter_id' },
+    'relative': { generated: 'relative_info.csv', expected: 'relative_info.csv', key: ['submitter_id', 'nacc_id', 'index', 'relationship_id'], primary: 'submitter_id' },
+    'spouse_info': { generated: 'spouse_info.csv', expected: 'spouse_info.csv', key: ['submitter_id', 'nacc_id'], primary: 'submitter_id' },
+    'spouse_old_name': { generated: 'spouse_old_name.csv', expected: 'spouse_old_name.csv', key: ['submitter_id', 'nacc_id', 'index'], primary: 'submitter_id' },
+    'spouse_position': { generated: 'spouse_position.csv', expected: 'spouse_position.csv', key: ['submitter_id', 'nacc_id', 'position_period_type_id', 'index'], primary: 'submitter_id' },
+    'submitter_old_name': { generated: 'submitter_old_name.csv', expected: 'submitter_old_name.csv', key: ['submitter_id', 'nacc_id', 'index'], primary: 'submitter_id' },
+    'submitter_position': { generated: 'submitter_position.csv', expected: 'submitter_position.csv', key: ['submitter_id', 'nacc_id', 'position_period_type_id', 'index'], primary: 'submitter_id' },
+    'asset': { generated: 'asset.csv', expected: 'asset.csv', key: ['submitter_id', 'nacc_id', 'index', 'asset_type_id'], primary: 'submitter_id' },
+    'asset_land': { generated: 'asset_land_info.csv', expected: 'asset_land_info.csv', key: ['submitter_id', 'nacc_id', 'asset_id'], primary: 'submitter_id' },
+    'asset_building': { generated: 'asset_building_info.csv', expected: 'asset_building_info.csv', key: ['submitter_id', 'nacc_id', 'asset_id'], primary: 'submitter_id' },
+    'asset_vehicle': { generated: 'asset_vehicle_info.csv', expected: 'asset_vehicle_info.csv', key: ['submitter_id', 'nacc_id', 'asset_id'], primary: 'submitter_id' },
+    'asset_other': { generated: 'asset_other_asset_info.csv', expected: 'asset_other_asset_info.csv', key: ['submitter_id', 'nacc_id', 'asset_id'], primary: 'submitter_id' },
 };
 
 let currentData = null;
 let viewMode = 'interleaved';
+let fieldAccuracyCollapsed = false;
+let allFilesResults = {};
+
+// Toggle Field Accuracy panel
+function toggleFieldAccuracy() {
+    fieldAccuracyCollapsed = !fieldAccuracyCollapsed;
+    const content = document.getElementById('fieldAccuracyContent');
+    const arrow = document.getElementById('fieldAccuracyArrow');
+    
+    if (fieldAccuracyCollapsed) {
+        content.classList.add('hidden');
+        arrow.style.transform = 'rotate(-90deg)';
+    } else {
+        content.classList.remove('hidden');
+        arrow.style.transform = 'rotate(0deg)';
+    }
+}
+
+// Run comparisons for all 13 files
+async function runAllComparisons() {
+    const container = document.getElementById('allFilesContent');
+    container.innerHTML = '<div class="text-cyan-400 text-sm text-center py-4">Comparing all files... Please wait...</div>';
+    
+    allFilesResults = {};
+    const presetNames = Object.keys(PRESETS);
+    let completed = 0;
+    
+    for (const name of presetNames) {
+        const config = PRESETS[name];
+        try {
+            const response = await fetch('/api/compare/csv', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    generated: config.generated,
+                    expected: config.expected,
+                    key_fields: config.key,
+                    primary_key: config.primary
+                })
+            });
+            const data = await response.json();
+            allFilesResults[name] = data;
+        } catch (e) {
+            allFilesResults[name] = { error: e.message };
+        }
+        completed++;
+        container.innerHTML = `<div class="text-cyan-400 text-sm text-center py-4">Comparing... ${completed}/${presetNames.length}</div>`;
+    }
+    
+    renderAllFilesSummary();
+}
+
+function renderAllFilesSummary() {
+    const container = document.getElementById('allFilesContent');
+    const results = Object.entries(allFilesResults);
+    
+    // Calculate overall stats
+    let totalAccuracy = 0;
+    let validCount = 0;
+    
+    results.forEach(([name, data]) => {
+        if (data.stats && !data.error) {
+            totalAccuracy += data.stats.accuracy || 0;
+            validCount++;
+        }
+    });
+    
+    const avgAccuracy = validCount > 0 ? (totalAccuracy / validCount).toFixed(1) : 0;
+    
+    container.innerHTML = `
+        <div class="mb-4 p-3 bg-slate-700/50 rounded-lg text-center">
+            <div class="text-3xl font-bold ${avgAccuracy >= 80 ? 'text-green-400' : avgAccuracy >= 50 ? 'text-yellow-400' : 'text-red-400'}">${avgAccuracy}%</div>
+            <div class="text-xs text-slate-400">Average Accuracy (${validCount} files)</div>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+            ${results.map(([name, data]) => {
+                if (data.error) {
+                    return `
+                        <div class="bg-slate-700/30 rounded p-2 border border-red-500/30">
+                            <div class="text-xs font-medium text-slate-300 truncate" title="${name}">${name}</div>
+                            <div class="text-sm text-red-400">Error</div>
+                            <div class="text-xs text-slate-500 truncate">${data.error}</div>
+                        </div>
+                    `;
+                }
+                const stats = data.stats || {};
+                const acc = (stats.accuracy || 0).toFixed(1);
+                const matched = stats.common_rows || 0;
+                const total = stats.total_expected || 0;
+                const color = acc >= 80 ? 'text-green-400' : acc >= 50 ? 'text-yellow-400' : 'text-red-400';
+                const borderColor = acc >= 80 ? 'border-green-500/30' : acc >= 50 ? 'border-yellow-500/30' : 'border-red-500/30';
+                
+                return `
+                    <div class="bg-slate-700/30 rounded p-2 cursor-pointer hover:bg-slate-700/50 border ${borderColor}" onclick="selectPreset('${name}')">
+                        <div class="text-xs font-medium text-slate-300 truncate" title="${PRESETS[name].generated}">${name}</div>
+                        <div class="text-lg font-bold ${color}">${acc}%</div>
+                        <div class="text-xs text-slate-500">${matched}/${total} rows</div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
+function selectPreset(name) {
+    document.getElementById('fileSelect').value = name;
+    if (allFilesResults[name] && !allFilesResults[name].error) {
+        currentData = allFilesResults[name];
+        renderResults(currentData);
+    } else {
+        runCompare();
+    }
+}
 
 function setViewMode(mode) {
     viewMode = mode;
@@ -253,7 +385,7 @@ function renderResults(data) {
     const fieldNames = Object.keys(fields);
     document.getElementById('fieldCount').textContent = `${fieldNames.length} fields`;
     
-    document.getElementById('fieldAccuracy').innerHTML = fieldNames.map(f => {
+    document.getElementById('fieldAccuracyContent').innerHTML = fieldNames.map(f => {
         const fa = fields[f];
         const acc = fa.total > 0 ? ((fa.exact + fa.close + fa.empty) / fa.total * 100) : 0;
         const color = acc >= 90 ? 'text-green-400' : acc >= 70 ? 'text-yellow-400' : 'text-red-400';
