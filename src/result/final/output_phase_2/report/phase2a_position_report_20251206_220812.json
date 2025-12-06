@@ -1,0 +1,12 @@
+{
+  "timestamp": "20251206_220812",
+  "input_file": "/Users/riwara/work/hackaton/submission_scanx/src/result/final/mapping_output/submitter_position.csv",
+  "output_file": "/Users/riwara/work/hackaton/submission_scanx/src/result/final/mapping_output/submitter_position.csv",
+  "statistics": {
+    "total_rows": 41,
+    "rows_changed": 0,
+    "rows_with_errors": 0,
+    "rows_unchanged": 41
+  },
+  "changes": []
+}

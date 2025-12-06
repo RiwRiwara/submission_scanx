@@ -253,6 +253,48 @@ def run_phase2a(
     )
 
 
+def run_phase2b(
+    is_final: bool = False,
+    batch_size: int = 5
+):
+    """Run Phase 2b: LLM-based statement data correction."""
+    from .phase2_subtask.phase2b_statement_fix import run_phase2b as run_phase2b_fix
+
+    paths = get_paths(is_final)
+
+    # Determine CSV input directory
+    src_dir = Path(__file__).parent.parent
+    if is_final:
+        csv_dir = src_dir / "test final" / "test final input"
+    else:
+        csv_dir = src_dir / "training" / "train input"
+
+    statement_csv = paths['mapping_output'] / "statement.csv"
+    statement_detail_csv = paths['mapping_output'] / "statement_detail.csv"
+    text_dir = paths['base'] / "processing_input" / "text_each_page"
+    metadata_dir = paths['base'] / "processing_input" / "page_metadata"
+    report_dir = paths['phase2_report']
+
+    print("\n" + "=" * 60)
+    print("PHASE 2b: LLM Statement Data Correction")
+    print("=" * 60)
+    print(f"Statement: {statement_csv}")
+    print(f"Statement Detail: {statement_detail_csv}")
+    print(f"Text Dir: {text_dir}")
+    print(f"Metadata Dir: {metadata_dir}")
+    print(f"Report: {report_dir}\n")
+
+    return run_phase2b_fix(
+        statement_csv=statement_csv,
+        statement_detail_csv=statement_detail_csv,
+        text_dir=text_dir,
+        metadata_dir=metadata_dir,
+        csv_dir=csv_dir,
+        report_dir=report_dir,
+        batch_size=batch_size
+    )
+
+
 def run_phase1_all(is_final: bool = False):
     """Run complete Phase 1 pipeline (1a through 1e) with clean output."""
     paths = get_paths(is_final)
@@ -361,6 +403,10 @@ def run_pipeline(
     elif phases == "2a":
         results['phase2a'] = run_phase2a(is_final=is_final, batch_size=batch_size)
 
+    # Phase 2b: LLM statement fix
+    elif phases == "2b":
+        results['phase2b'] = run_phase2b(is_final=is_final, batch_size=batch_size)
+
     # "all" phases (0 + 1 complete)
     elif phases == "all":
         results['phase1_all'] = run_phase1_all(is_final=is_final)
@@ -405,14 +451,20 @@ Examples:
 
   # Run Phase 2a on final test data
   poetry run scanx --phase 2a --final
+
+  # Run Phase 2b (LLM statement fix) on training data
+  poetry run scanx --phase 2b
+
+  # Run Phase 2b on final test data
+  poetry run scanx --phase 2b --final
         """
     )
 
     parser.add_argument(
         "--phase",
-        choices=["0", "1", "1c", "1d", "1e", "2a", "all"],
+        choices=["0", "1", "1c", "1d", "1e", "2a", "2b", "all"],
         default="all",
-        help="Phase to run (0=OCR, 1=page processing, 1c=text, 1d=AI metadata, 1e=data mapping, 2a=LLM position fix)"
+        help="Phase to run (0=OCR, 1=page processing, 1c=text, 1d=AI metadata, 1e=data mapping, 2a=LLM position fix, 2b=LLM statement fix)"
     )
     parser.add_argument(
         "--all",

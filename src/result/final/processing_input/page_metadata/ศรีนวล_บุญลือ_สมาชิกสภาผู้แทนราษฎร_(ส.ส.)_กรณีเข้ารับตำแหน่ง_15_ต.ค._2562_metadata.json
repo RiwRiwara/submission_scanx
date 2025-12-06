@@ -44,8 +44,8 @@
         16
       ],
       "page_types": [
-        "assets_summary",
         "tax_info",
+        "assets_summary",
         "income_expense"
       ],
       "confidence": 1.0
@@ -66,11 +66,11 @@
       ],
       "page_types": [
         "concessions",
-        "vehicles",
-        "bank_loans",
-        "other_assets",
         "investments",
         "loans_given",
+        "other_assets",
+        "bank_loans",
+        "vehicles",
         "land"
       ],
       "confidence": 1.0
