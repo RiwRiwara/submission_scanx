@@ -341,13 +341,18 @@ def extract_vehicle_info(pages: List[Tuple[int, Dict]], nacc_id: str, submitter_
                 # Registration number (x ~3.0-4.2)
                 if 3.0 <= cx <= 4.2:
                     reg_text = clean_text(content)
+                    # Skip invalid patterns like "หมายเหตุ:", notes, dates
+                    if 'หมายเหตุ' in reg_text or len(reg_text) > 30:
+                        continue
                     # Extract registration pattern from potentially merged text
                     # Patterns: กก1234, 1กก1234, กก 1234, 12-2660
                     # Also handles merged text like "ศศ909กรุงเทพมหานคร"
-                    reg_match = re.match(r'^(\d?[ก-ฮ]{1,3}\s*[\d]{1,4})', reg_text)
+                    reg_match = re.match(r'^[\(\[]?(\d?[ก-ฮ]{1,3}\s*[\d]{1,4}[A-Z]?)[\)\]]?', reg_text)
                     if reg_match:
                         reg_clean = reg_match.group(1).replace(' ', '').replace('.', '')
-                        current_item['registration_number'] = reg_clean
+                        # Skip if too long (probably not a registration)
+                        if len(reg_clean) <= 10:
+                            current_item['registration_number'] = reg_clean
                     elif re.match(r'^\d{1,2}[\-]\d{4}$', reg_text):
                         current_item['registration_number'] = reg_text
                     # Fallback: if Thai chars + digits anywhere
@@ -355,7 +360,7 @@ def extract_vehicle_info(pages: List[Tuple[int, Dict]], nacc_id: str, submitter_
                         reg_clean = reg_text.replace(' ', '').replace('.', '')
                         # Try to extract just the registration part (stop at Thai province chars)
                         parts = re.split(r'(กรุงเทพ|กทม|นนทบุรี|ปทุมธานี|\d{1,2}/\d{1,2}/)', reg_clean)
-                        if parts:
+                        if parts and len(parts[0]) <= 10:
                             current_item['registration_number'] = parts[0]
 
                 # Province (x ~4.0-5.2)
@@ -364,11 +369,9 @@ def extract_vehicle_info(pages: List[Tuple[int, Dict]], nacc_id: str, submitter_
                     # Skip if it's a date or number
                     if '/' in prov_text or re.match(r'^[\d,\.]+$', prov_text):
                         continue
-                    if 'กรุงเทพ' in prov_text or 'กทม' in prov_text:
+                    # Only set province if it's a valid province name
+                    if is_valid_province(prov_text):
                         current_item['province'] = prov_text
-                    elif len(prov_text) > 2 and re.search(r'[ก-ฮ]', prov_text):
-                        if not any(kw in prov_text for kw in ['วัน', 'เดือน', 'ปี', 'บาท', 'ก.ย.', 'ม.ค.']):
-                            current_item['province'] = prov_text
 
             # Set vehicle model - clean up by removing type prefixes
             if model_parts:
