@@ -5,7 +5,7 @@
     {
       "step_name": "step_10",
       "step_description": "รายละเอียดทรัพย์สินอื่น",
-      "output_csv": "asset_other_asset_info.csv + asset.csv",
+      "output_csv": "asset_other_asset_info.csv",
       "page_numbers": [
         13
       ],
@@ -16,22 +16,22 @@
     },
     {
       "step_name": "step_4",
-      "step_description": "ข้อมูลบุตร (relationship_id=4)",
+      "step_description": "ข้อมูลญาติ (บิดา มารดา บุตร พี่น้อง)",
       "output_csv": "relative_info.csv",
       "page_numbers": [
         3,
         6
       ],
       "page_types": [
-        "siblings",
-        "children"
+        "children",
+        "siblings"
       ],
       "confidence": 1.0
     },
     {
       "step_name": "step_5",
-      "step_description": "สรุปทรัพย์สิน/หนี้สิน (statement_type_id=4,5)",
-      "output_csv": "statement.csv",
+      "step_description": "รายได้/รายจ่าย/ภาษี/สรุป",
+      "output_csv": "statement.csv + statement_detail.csv",
       "page_numbers": [
         1,
         2,
@@ -43,15 +43,15 @@
         15
       ],
       "page_types": [
-        "tax_info",
         "income_expense",
+        "tax_info",
         "assets_summary"
       ],
       "confidence": 1.0
     },
     {
       "step_name": "step_6",
-      "step_description": "เงินกู้จากธนาคาร (หนี้สิน)",
+      "step_description": "รายการทรัพย์สินและหนี้สิน",
       "output_csv": "asset.csv",
       "page_numbers": [
         8,
@@ -63,18 +63,18 @@
         15
       ],
       "page_types": [
-        "concessions",
         "vehicles",
         "bank_loans",
         "loans_given",
-        "other_assets"
+        "other_assets",
+        "concessions"
       ],
       "confidence": 1.0
     },
     {
       "step_name": "step_9",
       "step_description": "รายละเอียดยานพาหนะ",
-      "output_csv": "asset_vehicle_info.csv + asset.csv",
+      "output_csv": "asset_vehicle_info.csv",
       "page_numbers": [
         11,
         12

@@ -4,8 +4,8 @@
   "step_mappings": [
     {
       "step_name": "step_1",
-      "step_description": "ข้อมูลผู้ยื่นบัญชี + ตำแหน่ง + ชื่อเดิม + บิดามารดา",
-      "output_csv": "submitter_position.csv + submitter_old_name.csv + relative_info.csv",
+      "step_description": "ตำแหน่งผู้ยื่นบัญชี",
+      "output_csv": "submitter_position.csv",
       "page_numbers": [
         3
       ],
@@ -17,7 +17,7 @@
     {
       "step_name": "step_10",
       "step_description": "รายละเอียดทรัพย์สินอื่น",
-      "output_csv": "asset_other_asset_info.csv + asset.csv",
+      "output_csv": "asset_other_asset_info.csv",
       "page_numbers": [
         20
       ],
@@ -27,9 +27,45 @@
       "confidence": 1.0
     },
     {
+      "step_name": "step_2",
+      "step_description": "ชื่อเดิมผู้ยื่นบัญชี",
+      "output_csv": "submitter_old_name.csv",
+      "page_numbers": [
+        3
+      ],
+      "page_types": [
+        "personal_info"
+      ],
+      "confidence": 1.0
+    },
+    {
       "step_name": "step_3_1",
-      "step_description": "ข้อมูลคู่สมรส + ตำแหน่ง + ชื่อเดิม + บิดามารดาคู่สมรส",
-      "output_csv": "spouse_info.csv + spouse_old_name.csv + spouse_position.csv + relative_info.csv",
+      "step_description": "ข้อมูลคู่สมรส",
+      "output_csv": "spouse_info.csv",
+      "page_numbers": [
+        4
+      ],
+      "page_types": [
+        "spouse_info"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_3_2",
+      "step_description": "ชื่อเดิมคู่สมรส",
+      "output_csv": "spouse_old_name.csv",
+      "page_numbers": [
+        4
+      ],
+      "page_types": [
+        "spouse_info"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_3_3",
+      "step_description": "ตำแหน่งคู่สมรส",
+      "output_csv": "spouse_position.csv",
       "page_numbers": [
         4
       ],
@@ -40,7 +76,7 @@
     },
     {
       "step_name": "step_4",
-      "step_description": "ข้อมูลบุตร (relationship_id=4)",
+      "step_description": "ข้อมูลญาติ (บิดา มารดา บุตร พี่น้อง)",
       "output_csv": "relative_info.csv",
       "page_numbers": [
         3,
@@ -49,17 +85,17 @@
         6
       ],
       "page_types": [
-        "spouse_info",
-        "personal_info",
+        "children",
         "siblings",
-        "children"
+        "personal_info",
+        "spouse_info"
       ],
       "confidence": 1.0
     },
     {
       "step_name": "step_5",
-      "step_description": "สรุปทรัพย์สิน/หนี้สิน (statement_type_id=4,5)",
-      "output_csv": "statement.csv",
+      "step_description": "รายได้/รายจ่าย/ภาษี/สรุป",
+      "output_csv": "statement.csv + statement_detail.csv",
       "page_numbers": [
         1,
         2,
@@ -72,15 +108,15 @@
         24
       ],
       "page_types": [
-        "tax_info",
         "income_expense",
+        "tax_info",
         "assets_summary"
       ],
       "confidence": 1.0
     },
     {
       "step_name": "step_6",
-      "step_description": "เงินกู้จากธนาคาร (หนี้สิน)",
+      "step_description": "รายการทรัพย์สินและหนี้สิน",
       "output_csv": "asset.csv",
       "page_numbers": [
         9,
@@ -100,25 +136,25 @@
         24
       ],
       "page_types": [
-        "overdraft",
-        "written_debts",
-        "concessions",
+        "deposits",
         "vehicles",
+        "bank_loans",
+        "loans_given",
         "investments",
         "land",
-        "bank_loans",
-        "buildings",
-        "loans_given",
         "other_assets",
-        "deposits",
-        "cash"
+        "buildings",
+        "written_debts",
+        "cash",
+        "overdraft",
+        "concessions"
       ],
       "confidence": 1.0
     },
     {
       "step_name": "step_7",
       "step_description": "รายละเอียดที่ดิน",
-      "output_csv": "asset_land_info.csv + asset.csv",
+      "output_csv": "asset_land_info.csv",
       "page_numbers": [
         16
       ],
@@ -130,7 +166,7 @@
     {
       "step_name": "step_8",
       "step_description": "รายละเอียดโรงเรือน/สิ่งปลูกสร้าง",
-      "output_csv": "asset_building_info.csv + asset.csv",
+      "output_csv": "asset_building_info.csv",
       "page_numbers": [
         17
       ],
@@ -142,7 +178,7 @@
     {
       "step_name": "step_9",
       "step_description": "รายละเอียดยานพาหนะ",
-      "output_csv": "asset_vehicle_info.csv + asset.csv",
+      "output_csv": "asset_vehicle_info.csv",
       "page_numbers": [
         12,
         18

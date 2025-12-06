@@ -252,6 +252,10 @@ def find_statement_pages(pages: List[Dict]) -> Dict[str, List[int]]:
 def extract_values_from_row(lines: List[Dict], y_target: float, y_tolerance: float = 0.25) -> Dict:
     """Extract submitter, spouse, child values from a row at specific y position.
 
+    Uses position-based assignment: values are sorted left-to-right and assigned
+    to submitter, spouse, child in that order. This is more reliable than fixed
+    X-coordinate boundaries since document layouts can vary.
+
     Handles OCR-split numbers where decimal parts appear as separate text elements.
     """
     values = {'submitter': None, 'spouse': None, 'child': None}
@@ -270,27 +274,21 @@ def extract_values_from_row(lines: List[Dict], y_target: float, y_tolerance: flo
     # Sort by x position for left-to-right processing
     row_lines.sort(key=lambda l: l.get('x', 0))
 
-    # Process each line, looking for decimal fragments to merge
+    # Extract numeric values with their x positions
+    extracted_values = []
     i = 0
     while i < len(row_lines):
         item = row_lines[i]
         content = item.get('content', '')
         x = item.get('x', 0)
 
-        # Determine which column this belongs to
-        column = None
-        if SUBMITTER_X_MIN <= x <= SUBMITTER_X_MAX:
-            column = 'submitter'
-        elif SPOUSE_X_MIN <= x <= SPOUSE_X_MAX:
-            column = 'spouse'
-        elif CHILD_X_MIN <= x <= CHILD_X_MAX:
-            column = 'child'
-
-        if column is None:
+        # Skip if x is too far left (likely labels, not values)
+        # Values typically start from x > 2.5
+        if x < 2.5:
             i += 1
             continue
 
-        # Look for potential decimal fragment in next element (within same column range)
+        # Look for potential decimal fragment in next element
         decimal_fragment = None
         if i + 1 < len(row_lines):
             next_item = row_lines[i + 1]
@@ -307,10 +305,58 @@ def extract_values_from_row(lines: List[Dict], y_target: float, y_tolerance: flo
 
         # Try to extract value, merging decimal fragment if found
         value = clean_number_with_decimal_fragment(content, decimal_fragment)
-        if value is not None and values[column] is None:
-            values[column] = value
+        if value is not None:
+            extracted_values.append({'value': value, 'x': x})
 
         i += 1
+
+    # Sort extracted values by x position (left to right)
+    extracted_values.sort(key=lambda v: v['x'])
+
+    # Remove duplicates that are too close together (within 0.5 x units)
+    unique_values = []
+    for val in extracted_values:
+        if not unique_values or abs(val['x'] - unique_values[-1]['x']) > 0.5:
+            unique_values.append(val)
+
+    # Assign values based on position: 1st=submitter, 2nd=spouse, 3rd=child
+    # Use X-coordinate ranges to help distinguish columns when there are gaps
+    column_order = ['submitter', 'spouse', 'child']
+    
+    if len(unique_values) == 1:
+        # Only one value - use X position to determine column
+        x = unique_values[0]['x']
+        if x < 4.5:
+            values['submitter'] = unique_values[0]['value']
+        elif x < 6.5:
+            values['spouse'] = unique_values[0]['value']
+        else:
+            values['child'] = unique_values[0]['value']
+    elif len(unique_values) == 2:
+        # Two values - check if they're adjacent columns or have a gap
+        x1, x2 = unique_values[0]['x'], unique_values[1]['x']
+        gap = x2 - x1
+        
+        if gap > 3.0:
+            # Large gap - likely submitter and child (spouse missing)
+            values['submitter'] = unique_values[0]['value']
+            values['child'] = unique_values[1]['value']
+        elif x1 < 4.5 and x2 < 6.5:
+            # Both in left/middle area - submitter and spouse
+            values['submitter'] = unique_values[0]['value']
+            values['spouse'] = unique_values[1]['value']
+        elif x1 >= 4.5:
+            # Both in middle/right area - spouse and child
+            values['spouse'] = unique_values[0]['value']
+            values['child'] = unique_values[1]['value']
+        else:
+            # Default: assume submitter and spouse
+            values['submitter'] = unique_values[0]['value']
+            values['spouse'] = unique_values[1]['value']
+    else:
+        # Three or more values - assign in order
+        for idx, val in enumerate(unique_values[:3]):
+            values[column_order[idx]] = val['value']
 
     return values
 

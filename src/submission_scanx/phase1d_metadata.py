@@ -497,6 +497,71 @@ PAGE_PATTERNS = {
     },
 }
 
+# Step definitions for additional_steps that don't have their own page patterns
+# This maps step names to their output CSV and description
+STEP_DEFINITIONS = {
+    'step_1': {
+        'output_csv': 'submitter_position.csv',
+        'description': 'ตำแหน่งผู้ยื่นบัญชี',
+    },
+    'step_2': {
+        'output_csv': 'submitter_old_name.csv',
+        'description': 'ชื่อเดิมผู้ยื่นบัญชี',
+    },
+    'step_3_1': {
+        'output_csv': 'spouse_info.csv',
+        'description': 'ข้อมูลคู่สมรส',
+    },
+    'step_3_2': {
+        'output_csv': 'spouse_old_name.csv',
+        'description': 'ชื่อเดิมคู่สมรส',
+    },
+    'step_3_3': {
+        'output_csv': 'spouse_position.csv',
+        'description': 'ตำแหน่งคู่สมรส',
+    },
+    'step_4': {
+        'output_csv': 'relative_info.csv',
+        'description': 'ข้อมูลญาติ (บิดา มารดา บุตร พี่น้อง)',
+    },
+    'step_5': {
+        'output_csv': 'statement.csv + statement_detail.csv',
+        'description': 'รายได้/รายจ่าย/ภาษี/สรุป',
+    },
+    'step_6': {
+        'output_csv': 'asset.csv',
+        'description': 'รายการทรัพย์สินและหนี้สิน',
+    },
+    'step_7': {
+        'output_csv': 'asset_land_info.csv',
+        'description': 'รายละเอียดที่ดิน',
+    },
+    'step_8': {
+        'output_csv': 'asset_building_info.csv',
+        'description': 'รายละเอียดโรงเรือน/สิ่งปลูกสร้าง',
+    },
+    'step_9': {
+        'output_csv': 'asset_vehicle_info.csv',
+        'description': 'รายละเอียดยานพาหนะ',
+    },
+    'step_10': {
+        'output_csv': 'asset_other_asset_info.csv',
+        'description': 'รายละเอียดทรัพย์สินอื่น',
+    },
+    'step_11': {
+        'output_csv': 'summary.csv',
+        'description': 'สรุปรวม',
+    },
+}
+
+
+def get_step_info(step_name: str) -> Tuple[str, str]:
+    """Get output_csv and description for a step name."""
+    if step_name in STEP_DEFINITIONS:
+        info = STEP_DEFINITIONS[step_name]
+        return info['output_csv'], info['description']
+    return '', ''
+
 
 def get_page_text(page: Dict, num_lines: int = 50) -> str:
     """Extract text from a page's first N lines."""
@@ -820,19 +885,23 @@ def map_document_pages_hybrid(
             config = PAGE_PATTERNS.get(page_type, {})
             step = config.get('step')
             additional_steps = config.get('additional_steps', [])
-            output_csv = config.get('output_csv', '')
-            description = config.get('description', '')
 
             # Collect all steps to add this page to
             all_steps = []
             if step:
-                all_steps.append((step, output_csv, description))
+                # Get step info from STEP_DEFINITIONS
+                csv_output, desc = get_step_info(step)
+                if not csv_output:
+                    csv_output = config.get('output_csv', '')
+                if not desc:
+                    desc = config.get('description', '')
+                all_steps.append((step, csv_output, desc))
+            
+            # Add all additional_steps using STEP_DEFINITIONS
             for add_step in additional_steps:
-                # Get output_csv for additional step
-                for _, pt_config in PAGE_PATTERNS.items():
-                    if pt_config.get('step') == add_step:
-                        all_steps.append((add_step, pt_config.get('output_csv', ''), pt_config.get('description', '')))
-                        break
+                add_csv, add_desc = get_step_info(add_step)
+                if add_csv:  # Only add if step is defined
+                    all_steps.append((add_step, add_csv, add_desc))
 
             for current_step, csv_output, desc in all_steps:
                 if current_step not in step_pages:
