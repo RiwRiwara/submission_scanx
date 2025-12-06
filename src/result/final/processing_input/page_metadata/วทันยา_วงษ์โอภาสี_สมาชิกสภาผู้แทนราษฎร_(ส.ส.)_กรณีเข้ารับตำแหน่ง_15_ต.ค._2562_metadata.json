@@ -46,8 +46,8 @@
         7
       ],
       "page_types": [
-        "siblings",
-        "children"
+        "children",
+        "siblings"
       ],
       "confidence": 1.0
     },
@@ -98,14 +98,14 @@
         29
       ],
       "page_types": [
-        "investments",
-        "bank_loans",
-        "vehicles",
-        "deposits",
-        "concessions",
         "land",
+        "loans_given",
+        "concessions",
         "other_assets",
-        "loans_given"
+        "deposits",
+        "vehicles",
+        "investments",
+        "bank_loans"
       ],
       "confidence": 1.0
     },

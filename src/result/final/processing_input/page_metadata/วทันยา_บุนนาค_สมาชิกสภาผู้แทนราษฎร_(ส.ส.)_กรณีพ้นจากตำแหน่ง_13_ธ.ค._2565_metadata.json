@@ -54,10 +54,10 @@
         7
       ],
       "page_types": [
-        "personal_info",
-        "siblings",
         "spouse_info",
-        "children"
+        "children",
+        "siblings",
+        "personal_info"
       ],
       "confidence": 1.0
     },
@@ -115,18 +115,18 @@
         34
       ],
       "page_types": [
-        "investments",
-        "buildings",
-        "bank_loans",
-        "vehicles",
-        "deposits",
-        "overdraft",
-        "concessions",
         "land",
-        "other_assets",
-        "written_debts",
+        "buildings",
         "loans_given",
-        "cash"
+        "concessions",
+        "other_assets",
+        "deposits",
+        "written_debts",
+        "overdraft",
+        "vehicles",
+        "cash",
+        "investments",
+        "bank_loans"
       ],
       "confidence": 1.0
     },

@@ -8,8 +8,7 @@
       "output_csv": "submitter_position.csv + submitter_old_name.csv + relative_info.csv",
       "page_numbers": [
         4,
-        5,
-        6
+        5
       ],
       "page_types": [
         "personal_info"
@@ -21,6 +20,7 @@
       "step_description": "รายละเอียดทรัพย์สินอื่น",
       "output_csv": "asset_other_asset_info.csv + asset.csv",
       "page_numbers": [
+        6,
         24
       ],
       "page_types": [
@@ -47,16 +47,15 @@
       "page_numbers": [
         4,
         5,
-        6,
         8,
         9,
         10
       ],
       "page_types": [
+        "spouse_info",
         "personal_info",
-        "children",
         "siblings",
-        "spouse_info"
+        "children"
       ],
       "confidence": 1.0
     },
@@ -78,16 +77,17 @@
       ],
       "page_types": [
         "tax_info",
-        "assets_summary",
-        "income_expense"
+        "income_expense",
+        "assets_summary"
       ],
       "confidence": 1.0
     },
     {
       "step_name": "step_6",
-      "step_description": "สิทธิและสัมปทาน",
+      "step_description": "เงินสด",
       "output_csv": "asset.csv",
       "page_numbers": [
+        6,
         7,
         11,
         13,
@@ -107,18 +107,18 @@
         28
       ],
       "page_types": [
+        "overdraft",
+        "written_debts",
+        "concessions",
+        "investments",
+        "vehicles",
+        "land",
         "bank_loans",
         "buildings",
-        "written_debts",
-        "vehicles",
+        "loans_given",
         "other_assets",
         "deposits",
-        "land",
-        "loans_given",
-        "concessions",
-        "cash",
-        "overdraft",
-        "investments"
+        "cash"
       ],
       "confidence": 1.0
     },

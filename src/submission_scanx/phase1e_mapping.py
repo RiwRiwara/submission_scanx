@@ -52,7 +52,7 @@ def run_phase1e(
     input_dir: Path,
     output_dir: Path,
     csv_dir: Optional[Path] = None,
-    skip_existing: bool = True,
+    skip_existing: bool = False,
     clean: bool = False
 ) -> dict:
     """
@@ -231,7 +231,7 @@ def process_phase1e(
     input_dir: Path,
     output_dir: Path,
     csv_dir: Optional[Path] = None,
-    skip_existing: bool = True,
+    skip_existing: bool = False,
     clean: bool = False
 ) -> dict:
     """

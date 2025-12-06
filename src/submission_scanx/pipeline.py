@@ -176,7 +176,7 @@ def run_phase1d(
 
 def run_phase1e(
     is_final: bool = False,
-    skip_existing: bool = True,
+    skip_existing: bool = False,
     clean: bool = False,
     input_dir: Optional[Path] = None,
     output_dir: Optional[Path] = None,
@@ -257,7 +257,7 @@ def run_pipeline(
     phases: str = "all",
     is_final: bool = False,
     limit: Optional[int] = None,
-    skip_existing: bool = True,
+    skip_existing: bool = False,
     run_all: bool = False,
     include_1d: bool = False
 ):
@@ -385,9 +385,9 @@ Examples:
         help="Maximum number of PDFs to process in Phase 0"
     )
     parser.add_argument(
-        "--no-skip",
+        "--skip",
         action="store_true",
-        help="Don't skip existing files, reprocess all"
+        help="Skip existing files (default: always regenerate)"
     )
 
     args = parser.parse_args()
@@ -396,7 +396,7 @@ Examples:
         phases=args.phase,
         is_final=args.final,
         limit=args.limit,
-        skip_existing=not args.no_skip,
+        skip_existing=args.skip,
         run_all=args.run_all,
         include_1d=args.include_1d
     )

@@ -64,6 +64,12 @@ env_path = Path(__file__).parent / ".env"
 load_dotenv(env_path)
 
 
+def should_use_llm() -> bool:
+    """Check if LLM should be used based on environment variable."""
+    use_llm_env = os.getenv("USE_LLM", "TRUE").upper().strip()
+    return use_llm_env not in ("FALSE", "0", "NO", "OFF", "DISABLED")
+
+
 @dataclass
 class StepMapping:
     """Mapping of a step to its pages."""
@@ -98,6 +104,10 @@ PAGE_PATTERNS = {
             r'สถานภาพ\s+โสด\s+สมรส',
             r'คู่สมรสเสียชีวิต',
             r'หย่า\s+เมื่อวันที่',
+            r'ชื่อเดิม\s*\(ถ้ามี\)',  # Old name section
+            r'ที่อยู่ที่ติดต่อได้',  # Contact address
+            r'หมายเลขโทรศัพท์',  # Phone number
+            r'E-mail',  # Email field
         ],
         'negative_patterns': [
             r'หน้า\s*2\b',
@@ -105,6 +115,7 @@ PAGE_PATTERNS = {
             r'กรณีมีคู่สมรสมากกว่าหนึ่งคน',
             r'กรณีคู่สมรสเป็นคนต่างด้าว',
             r'สถานภาพการสมรส',  # Spouse-only field (not on personal_info page)
+            r'คู่สมรส\s*:',  # Spouse label
         ],
         'step': 'step_1',
         'additional_steps': ['step_2', 'step_4'],
@@ -142,11 +153,16 @@ PAGE_PATTERNS = {
             r'อยู่กินกันฉันสามีภริยา\s+ตามที่คณะกรรมการ',
             r'บิดา\s*:\s*ชื่อและชื่อสกุล',
             r'มารดา\s*:\s*ชื่อและชื่อสกุล',
+            r'คู่สมรส\s*:',  # Spouse label (required for this page)
+            r'เลขประจำตัวประชาชน\s*คู่สมรส',  # Spouse ID number
+            r'ประวัติการทำงาน\s*คู่สมรส',  # Spouse work history
+            r'อาชีพ\s*คู่สมรส',  # Spouse occupation
         ],
         'negative_patterns': [
             r'หน้า\s*1\b',
             r'ข้?อมูลส่วนบุคคล',  # Handle OCR variation ขอ vs ข้อ
             r'สถานภาพ\s+โสด\s+สมรส',  # This is submitter's marital status checkbox
+            r'ผู้ยื่นบัญชี\s*:',  # Submitter label (not on spouse page)
         ],
         'step': 'step_3_1',
         'additional_steps': ['step_3_2', 'step_3_3', 'step_4'],
@@ -716,6 +732,8 @@ def map_document_pages_hybrid(
     Map pages using hybrid regex + LLM approach.
 
     Uses regex patterns with priorities first, then LLM for uncertain cases.
+    In regex-only mode (USE_LLM=FALSE), uses enhanced pattern matching with
+    lower thresholds and better continuation detection.
     """
     with open(json_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
@@ -726,6 +744,9 @@ def map_document_pages_hybrid(
     # Detect page types
     page_types = []
     prev_type = None
+    
+    # Lower threshold for regex-only mode
+    llm_threshold = 0.4 if use_llm else 0.2
 
     for i, page in enumerate(pages):
         page_num = i + 1
@@ -733,9 +754,18 @@ def map_document_pages_hybrid(
 
         # First try regex pattern matching
         regex_type, regex_conf = detect_page_type_with_regex(page)
+        
+        # In regex-only mode, try to get multiple matches and pick best
+        if not use_llm and regex_conf < 0.3:
+            # Try all page types to find best match
+            all_matches = detect_all_page_types(page, threshold=0.15)
+            if all_matches:
+                # Pick the one with highest priority * score
+                best_match = all_matches[0]  # Already sorted by priority then score
+                regex_type, regex_conf = best_match[0], best_match[1]
 
         # Use LLM if regex confidence is low and LLM is available
-        if regex_conf < 0.4 and use_llm and client:
+        if regex_conf < llm_threshold and use_llm and client:
             llm_type, llm_conf = detect_page_type_with_llm(client, deployment, page_text)
             if llm_conf > regex_conf:
                 page_type, confidence = llm_type, llm_conf
@@ -858,7 +888,7 @@ def process_phase1d(
     output_dir: Path,
     skip_existing: bool = False,
     clean: bool = False,
-    use_llm: bool = True
+    use_llm: bool = None  # None means check env variable
 ) -> Dict[str, Any]:
     """
     Process all matched JSON files and create metadata mappings.
@@ -868,11 +898,15 @@ def process_phase1d(
         output_dir: Directory to save metadata output
         skip_existing: Skip if output already exists
         clean: Clean output directory before processing
-        use_llm: Use LLM for uncertain page detection
+        use_llm: Use LLM for uncertain page detection (None=check USE_LLM env var)
 
     Returns:
         Dict with processing statistics
     """
+    # Check USE_LLM environment variable if not explicitly set
+    if use_llm is None:
+        use_llm = should_use_llm()
+    
     # Clean output directory if requested
     if clean and output_dir.exists():
         print(f"Cleaning output directory: {output_dir}")
@@ -881,11 +915,15 @@ def process_phase1d(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print("=" * 60)
-    print("Phase 1d: Page Metadata Mapping (Hybrid Regex + AI)")
+    if use_llm:
+        print("Phase 1d: Page Metadata Mapping (Hybrid Regex + AI)")
+    else:
+        print("Phase 1d: Page Metadata Mapping (Regex-Only Mode)")
     print("=" * 60)
     print(f"Input:  {input_dir}")
     print(f"Output: {output_dir}")
-    print(f"Use LLM: {use_llm}")
+    print(f"USE_LLM env: {os.getenv('USE_LLM', 'TRUE')}")
+    print(f"LLM Enabled: {use_llm}")
     print()
 
     if not input_dir.exists():
@@ -902,6 +940,8 @@ def process_phase1d(
             print(f"Warning: Could not initialize Azure OpenAI: {e}")
             print("Falling back to regex-only mode")
             use_llm = False
+    else:
+        print("Using regex-only mode (USE_LLM=FALSE or --no-llm flag)")
 
     json_files = list(input_dir.glob('*.json'))
 
@@ -1049,12 +1089,18 @@ def main():
     else:
         output_dir = src_dir / "result" / "from_train" / "processing_input" / "page_metadata"
 
+    # Determine LLM usage: --no-llm flag overrides env variable
+    if args.no_llm:
+        use_llm = False
+    else:
+        use_llm = None  # Let process_phase1d check USE_LLM env var
+    
     process_phase1d(
         input_dir=input_dir,
         output_dir=output_dir,
         skip_existing=args.skip,
         clean=args.clean,
-        use_llm=not args.no_llm
+        use_llm=use_llm
     )
 
 

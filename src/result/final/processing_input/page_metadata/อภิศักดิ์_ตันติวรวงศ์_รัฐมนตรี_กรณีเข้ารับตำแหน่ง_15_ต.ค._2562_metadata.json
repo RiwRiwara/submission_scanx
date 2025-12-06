@@ -60,11 +60,11 @@
         15
       ],
       "page_types": [
-        "bank_loans",
-        "vehicles",
+        "loans_given",
         "concessions",
         "other_assets",
-        "loans_given"
+        "vehicles",
+        "bank_loans"
       ],
       "confidence": 1.0
     },
