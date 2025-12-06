@@ -574,7 +574,7 @@
         "original_page_number": 2
       },
       "_page_info": {
-        "page_type": "cover",
+        "page_type": "tax_info",
         "is_continuation": false,
         "is_extra_page": false,
         "page_marker": null
@@ -1665,7 +1665,7 @@
         "original_page_number": 4
       },
       "_page_info": {
-        "page_type": "personal_info",
+        "page_type": "tax_info",
         "is_continuation": false,
         "is_extra_page": false,
         "page_marker": null
@@ -6160,7 +6160,7 @@
         "original_page_number": 11
       },
       "_page_info": {
-        "page_type": "income_expense",
+        "page_type": "tax_info",
         "is_continuation": false,
         "is_extra_page": false,
         "page_marker": "หน้า 6"
@@ -15252,12 +15252,13 @@
     "extra_pages_count": 0,
     "page_type_counts": {
       "summary": 1,
-      "cover": 4,
-      "personal_info": 2,
+      "tax_info": 3,
+      "cover": 3,
+      "personal_info": 1,
       "spouse_info": 1,
       "children": 1,
       "siblings": 1,
-      "income_expense": 2,
+      "income_expense": 1,
       "assets_summary": 1,
       "unknown": 12,
       "attachments": 1,

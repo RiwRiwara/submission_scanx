@@ -39,8 +39,8 @@
       "page_types": [
         "siblings",
         "personal_info",
-        "spouse_info",
-        "children"
+        "children",
+        "spouse_info"
       ],
       "confidence": 1.0
     },
@@ -58,9 +58,9 @@
         36
       ],
       "page_types": [
+        "income_expense",
         "tax_info",
-        "assets_summary",
-        "income_expense"
+        "assets_summary"
       ],
       "confidence": 1.0
     },
@@ -79,11 +79,11 @@
       ],
       "page_types": [
         "overdraft",
-        "concessions",
-        "loans_given",
-        "written_debts",
         "bank_loans",
-        "cash"
+        "cash",
+        "written_debts",
+        "concessions",
+        "loans_given"
       ],
       "confidence": 1.0
     }

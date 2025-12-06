@@ -37,7 +37,7 @@ def get_paths(is_final: bool = False) -> dict:
         'base': base,
         'input_csv': input_csv,
         'extract_raw': base / "processing_input" / "extract_raw",
-        'page_matched': base / "processing_input" / "page_matched",
+        'page_matched': base / "processing_input" / "extract_matched",  # Consistent with phase1_process.py
         'text_each_page': base / "processing_input" / "text_each_page",
         'page_metadata': base / "processing_input" / "page_metadata",
         'mapping_output': base / "mapping_output",

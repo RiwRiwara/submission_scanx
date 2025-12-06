@@ -1126,7 +1126,7 @@
         "original_page_number": 4
       },
       "_page_info": {
-        "page_type": "personal_info",
+        "page_type": "tax_info",
         "is_continuation": false,
         "is_extra_page": false,
         "page_marker": null
@@ -2224,7 +2224,7 @@
         "original_page_number": 5
       },
       "_page_info": {
-        "page_type": "personal_info",
+        "page_type": "documents_list",
         "is_continuation": false,
         "is_extra_page": false,
         "page_marker": "หน้า 1"
@@ -3140,7 +3140,7 @@
         "original_page_number": 8
       },
       "_page_info": {
-        "page_type": "spouse_info",
+        "page_type": "documents_list",
         "is_continuation": false,
         "is_extra_page": false,
         "page_marker": "หน้า 2"
@@ -4030,7 +4030,7 @@
         "original_page_number": 11
       },
       "_page_info": {
-        "page_type": "children",
+        "page_type": "documents_list",
         "is_continuation": false,
         "is_extra_page": false,
         "page_marker": "หน้า 3"
@@ -4686,7 +4686,7 @@
         "original_page_number": 12
       },
       "_page_info": {
-        "page_type": "siblings",
+        "page_type": "documents_list",
         "is_continuation": false,
         "is_extra_page": false,
         "page_marker": "หน้า 4"
@@ -5290,7 +5290,7 @@
         "original_page_number": 13
       },
       "_page_info": {
-        "page_type": "income_expense",
+        "page_type": "documents_list",
         "is_continuation": false,
         "is_extra_page": false,
         "page_marker": "หน้า 5"
@@ -5998,7 +5998,7 @@
         "original_page_number": 15
       },
       "_page_info": {
-        "page_type": "unknown",
+        "page_type": "documents_list",
         "is_continuation": false,
         "is_extra_page": false,
         "page_marker": "หน้า 6"
@@ -6693,7 +6693,7 @@
         "original_page_number": 17
       },
       "_page_info": {
-        "page_type": "assets_summary",
+        "page_type": "documents_list",
         "is_continuation": false,
         "is_extra_page": false,
         "page_marker": "หน้า 7"
@@ -8856,7 +8856,7 @@
         "original_page_number": 23
       },
       "_page_info": {
-        "page_type": "unknown",
+        "page_type": "documents_list",
         "is_continuation": false,
         "is_extra_page": false,
         "page_marker": null
@@ -9135,7 +9135,7 @@
         "original_page_number": 26
       },
       "_page_info": {
-        "page_type": "unknown",
+        "page_type": "documents_list",
         "is_continuation": false,
         "is_extra_page": false,
         "page_marker": null
@@ -9784,7 +9784,7 @@
         "original_page_number": 28
       },
       "_page_info": {
-        "page_type": "unknown",
+        "page_type": "documents_list",
         "is_continuation": false,
         "is_extra_page": false,
         "page_marker": null
@@ -10862,7 +10862,7 @@
         "original_page_number": 34
       },
       "_page_info": {
-        "page_type": "unknown",
+        "page_type": "documents_list",
         "is_continuation": false,
         "is_extra_page": false,
         "page_marker": null
@@ -11901,7 +11901,7 @@
         "original_page_number": 37
       },
       "_page_info": {
-        "page_type": "unknown",
+        "page_type": "documents_list",
         "is_continuation": false,
         "is_extra_page": false,
         "page_marker": null
@@ -12297,7 +12297,7 @@
         "original_page_number": 42
       },
       "_page_info": {
-        "page_type": "unknown",
+        "page_type": "documents_list",
         "is_continuation": false,
         "is_extra_page": false,
         "page_marker": null
@@ -12628,7 +12628,7 @@
         "original_page_number": 45
       },
       "_page_info": {
-        "page_type": "unknown",
+        "page_type": "documents_list",
         "is_continuation": false,
         "is_extra_page": false,
         "page_marker": null
@@ -12998,7 +12998,7 @@
         "original_page_number": 53
       },
       "_page_info": {
-        "page_type": "unknown",
+        "page_type": "documents_list",
         "is_continuation": false,
         "is_extra_page": false,
         "page_marker": null
@@ -13316,7 +13316,7 @@
         "original_page_number": 56
       },
       "_page_info": {
-        "page_type": "unknown",
+        "page_type": "documents_list",
         "is_continuation": false,
         "is_extra_page": false,
         "page_marker": null
@@ -14355,7 +14355,7 @@
         "original_page_number": 59
       },
       "_page_info": {
-        "page_type": "unknown",
+        "page_type": "documents_list",
         "is_continuation": false,
         "is_extra_page": false,
         "page_marker": null
@@ -15948,15 +15948,9 @@
     "extra_pages_count": 0,
     "page_type_counts": {
       "summary": 1,
-      "cover": 3,
-      "personal_info": 2,
-      "work_history": 2,
-      "spouse_info": 2,
-      "children": 2,
-      "siblings": 1,
-      "income_expense": 2,
-      "unknown": 11,
-      "assets_summary": 2,
+      "tax_info": 2,
+      "cover": 2,
+      "documents_list": 24,
       "attachments": 1,
       "cash": 1,
       "deposits": 3,
@@ -15969,8 +15963,7 @@
       "other_assets": 7,
       "overdraft": 2,
       "bank_loans": 2,
-      "written_debts": 1,
-      "documents_list": 1
+      "written_debts": 1
     }
   },
   "_matching_info": {

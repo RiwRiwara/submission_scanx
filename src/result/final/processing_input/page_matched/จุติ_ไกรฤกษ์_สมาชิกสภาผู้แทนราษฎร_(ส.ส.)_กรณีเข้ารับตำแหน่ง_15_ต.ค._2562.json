@@ -1213,11 +1213,12 @@
     "extra_pages_count": 0,
     "page_type_counts": {
       "summary": 1,
-      "unknown": 8,
+      "unknown": 7,
       "work_history": 1,
       "children": 1,
       "assets_summary": 1,
       "unknown_cont": 1,
+      "attachments": 1,
       "documents_list": 1
     }
   },

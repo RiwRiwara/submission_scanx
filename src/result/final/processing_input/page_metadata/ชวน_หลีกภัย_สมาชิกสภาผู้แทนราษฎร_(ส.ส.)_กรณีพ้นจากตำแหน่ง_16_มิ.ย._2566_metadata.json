@@ -58,9 +58,9 @@
         36
       ],
       "page_types": [
+        "income_expense",
         "tax_info",
-        "assets_summary",
-        "income_expense"
+        "assets_summary"
       ],
       "confidence": 1.0
     },
@@ -93,16 +93,16 @@
       ],
       "page_types": [
         "overdraft",
-        "concessions",
-        "loans_given",
-        "investments",
-        "written_debts",
         "bank_loans",
         "cash",
+        "buildings",
+        "investments",
+        "written_debts",
+        "concessions",
+        "loans_given",
         "land",
-        "other_assets",
         "vehicles",
-        "buildings"
+        "other_assets"
       ],
       "confidence": 1.0
     },

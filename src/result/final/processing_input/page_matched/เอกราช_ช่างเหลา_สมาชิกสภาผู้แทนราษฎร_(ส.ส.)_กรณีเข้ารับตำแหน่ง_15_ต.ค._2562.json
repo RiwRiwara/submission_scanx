@@ -561,7 +561,7 @@
         "original_page_number": 2
       },
       "_page_info": {
-        "page_type": "cover",
+        "page_type": "tax_info",
         "is_continuation": false,
         "is_extra_page": false,
         "page_marker": null
@@ -1018,11 +1018,12 @@
     "extra_pages_count": 0,
     "page_type_counts": {
       "summary": 1,
-      "cover": 1,
-      "unknown": 9,
+      "tax_info": 1,
+      "unknown": 8,
       "work_history": 1,
       "children": 1,
       "assets_summary": 1,
+      "attachments": 1,
       "documents_list": 1
     }
   },

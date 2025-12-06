@@ -37,8 +37,8 @@
       ],
       "page_types": [
         "children",
-        "spouse_info",
-        "personal_info"
+        "personal_info",
+        "spouse_info"
       ],
       "confidence": 1.0
     },
@@ -54,8 +54,8 @@
         36
       ],
       "page_types": [
-        "tax_info",
         "income_expense",
+        "tax_info",
         "assets_summary"
       ],
       "confidence": 1.0
@@ -78,13 +78,13 @@
       ],
       "page_types": [
         "cash",
-        "land",
-        "buildings",
-        "concessions",
-        "investments",
         "loans_given",
+        "bank_loans",
+        "land",
         "overdraft",
-        "bank_loans"
+        "concessions",
+        "buildings",
+        "investments"
       ],
       "confidence": 1.0
     },

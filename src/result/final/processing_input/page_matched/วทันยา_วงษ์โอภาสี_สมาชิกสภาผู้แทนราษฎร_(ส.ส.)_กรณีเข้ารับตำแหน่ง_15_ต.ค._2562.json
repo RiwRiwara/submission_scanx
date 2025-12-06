@@ -574,7 +574,7 @@
         "original_page_number": 2
       },
       "_page_info": {
-        "page_type": "cover",
+        "page_type": "tax_info",
         "is_continuation": false,
         "is_extra_page": false,
         "page_marker": null
@@ -1027,17 +1027,18 @@
     "source_file": "/Users/riwara/work/hackaton/submission_scanx/src/result/final/processing_input/extract_raw/วทันยา_วงษ์โอภาสี_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีเข้ารับตำแหน่ง_15_ต.ค._2562.json",
     "total_pages": 30,
     "template_standard_pages": 37,
-    "has_extra_pages": false,
-    "extra_pages_count": 0,
+    "has_extra_pages": true,
+    "extra_pages_count": 1,
     "page_type_counts": {
       "summary": 1,
-      "cover": 1,
-      "unknown": 18,
+      "tax_info": 1,
+      "unknown": 16,
       "work_history": 1,
-      "children": 1,
+      "children": 2,
       "assets_summary": 1,
-      "unknown_cont": 6,
-      "documents_list": 1
+      "children_cont": 1,
+      "unknown_cont": 5,
+      "documents_list": 2
     }
   },
   "_matching_info": {

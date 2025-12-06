@@ -3,7 +3,7 @@
   "page_number": 8,
   "page_index": 7,
   "total_pages": 37,
-  "page_type": "income_expense",
+  "page_type": "documents_list",
   "is_continuation": false,
   "is_extra_page": false,
   "matched_template_page": null,
