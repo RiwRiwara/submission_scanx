@@ -14,5 +14,15 @@ Modules:
 
 __version__ = "0.1.0"
 
-from .pipeline import run_pipeline, run_phase0, run_phase1
-from .phase1_process import process_phase1c, process_phase1d
+from .pipeline import (
+    run_pipeline,
+    run_phase0,
+    run_phase1ab,
+    run_phase1c,
+    run_phase1d,
+    run_phase1e,
+    run_phase1_all,
+    get_paths,
+)
+from .phase1_process import process_phase1c
+from .phase1e_mapping import process_phase1e

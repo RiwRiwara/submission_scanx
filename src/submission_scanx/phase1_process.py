@@ -1,17 +1,19 @@
 """
 Phase 1: JSON Processing and Page Matching
 
-This module handles:
-1. Sub-phase 1a: JSON Processing - Identify page types from raw OCR JSON
-2. Sub-phase 1b: Page Matching - Match pages to template using layout similarity
-3. Sub-phase 1c: Text Extraction - Extract text content for each page
-4. Sub-phase 1d: Metadata Mapping - Map pages to extraction steps
+This module handles the complete Phase 1 processing in a single step:
+- Reads raw OCR JSON from extract_raw
+- Identifies page types by content markers
+- Matches pages to template using layout similarity
+- Outputs to extract_matched (single output folder)
 
-Adapted from pipeline_oc json_processor.py and page_matcher.py
+Simplified from original two-step approach (1a + 1b).
+Based on pipeline_oc/file_run/json_processor.py
 """
 
 import json
 import re
+import shutil
 import argparse
 import numpy as np
 from pathlib import Path
@@ -70,42 +72,65 @@ TEMPLATE_PAGE_MAP = {
 }
 
 # Page type identification patterns - ordered by priority
+# Each entry: (page_type, positive_patterns, is_unique, negative_patterns)
+# Patterns handle OCR variations (e.g., ข้อ vs ขอ, missing tone marks)
 PAGE_PATTERNS_ORDERED = [
     # Asset detail pages - most specific patterns first
-    ('cash', [r'รายละเอียดประกอบรายการเงินสด'], True),
-    ('deposits', [r'รายละเอียดประกอบรายการเงินฝาก'], True),
-    ('investments', [r'รายละเอียดประกอบรายการเงินลงทุน'], True),
-    ('loans_given', [r'รายละเอียดประกอบรายการเงินให้กู้ยืม'], True),
-    ('land', [r'รายละเอียดประกอบรายการที่ดิน'], True),
-    ('buildings', [r'รายละเอียดประกอบรายการโรงเรือน'], True),
-    ('vehicles', [r'รายละเอียดประกอบรายการยานพาหนะ'], True),
-    ('concessions', [r'รายละเอียดประกอบรายการสิทธิและสัมปทาน'], True),
-    ('other_assets', [r'รายละเอียดประกอบรายการทรัพย์สินอื่น'], True),
-    ('overdraft', [r'รายละเอียดประกอบรายการเงินเบิกเกินบัญชี'], True),
-    ('bank_loans', [r'รายละเอียดประกอบรายการเงินกู้จากธนาคาร'], True),
-    ('written_debts', [r'รายละเอียดประกอบรายการหนี้สินที่มีหลักฐาน', r'รายละเอียดประกอบรายการหนี้สินอื่น'], True),
-    ('documents_list', [r'รายละเอียดของเอกสารประกอบ', r'รายการเอกสาร'], True),
+    ('cash', [r'รายละเอียดประกอบรายการเงินสด'], True, []),
+    ('deposits', [r'รายละเอียดประกอบรายการเงินฝาก'], True, []),
+    ('investments', [r'รายละเอียดประกอบรายการเงินลงทุน'], True, []),
+    ('loans_given', [r'รายละเอียดประกอบรายการเงินให้กู้ยืม'], True, []),
+    ('land', [r'รายละเอียดประกอบรายการที่ดิน'], True, []),
+    ('buildings', [r'รายละเอียดประกอบรายการโรงเรือน'], True, []),
+    ('vehicles', [r'รายละเอียดประกอบรายการยานพาหนะ'], True, []),
+    ('concessions', [r'รายละเอียดประกอบรายการสิทธิและสัมปทาน'], True, []),
+    ('other_assets', [r'รายละเอียดประกอบรายการทรัพย์สินอื่น'], True, []),
+    ('overdraft', [r'รายละเอียดประกอบรายการเงินเบิกเกินบัญชี'], True, []),
+    ('bank_loans', [r'รายละเอียดประกอบรายการเงินกู้จากธนาคาร'], True, []),
+    ('written_debts', [r'รายละเอียดประกอบรายการหนี้สินที่มีหลักฐาน', r'รายละเอียดประกอบรายการหนี้สินอื่น'], True, []),
+    ('documents_list', [r'รายละเอียดของเอกสารประกอบ', r'รายการเอกสาร'], True, []),
 
     # Summary and info pages
-    ('assets_summary', [r'ข้อมูลรายการทรัพย์สินและหนี้สิน', r'ขอแสดงรายการทรัพย์สิน'], True),
-    ('attachments', [r'คำรับรอง', r'แนบเอกสารประกอบ'], True),
-    ('tax_info', [r'ข้อมูลการเสียภาษี', r'ภาษีเงินได้บุคคลธรรมดา'], True),
-    ('income_expense', [r'ข้อมูลรายได้ต่อปี', r'รายจ่ายต่อปี.*โดยประมาณ'], True),
+    ('assets_summary', [r'ข้?อมูลรายการทรัพย์สินและหนี้สิน', r'ข้?อแสดงรายการทรัพย์สิน'], True, []),
+    ('attachments', [r'คำรับรอง', r'แนบเอกสารประกอบ'], True, []),
+    ('tax_info', [r'ข้?อมูลการเสียภาษี', r'ภาษีเงินได้บุคคลธรรมดา'], True, []),
+    ('income_expense', [r'ข้?อมูลรายได้ต่อปี', r'รายจ่ายต่อปี.*โดยประมาณ'], True, []),
 
     # Family pages
-    ('children', [r'บุตรโดยชอบด้วยกฎหมาย', r'หน้า\s*3.*บุตร', r'^.*บุตร.*ลำดับที่'], True),
-    ('siblings', [r'พี่น้องร่วมบิดามารดา', r'หน้า\s*4.*พี่น้อง'], True),
+    ('children', [r'บุตรโดยชอบด้วยกฎหมาย', r'หน้า\s*3.*บุตร', r'บุตร.*ลำดับที่'], True, []),
+    ('siblings', [r'พี่น้องร่วมบิดามารดา', r'หน้า\s*4.*พี่น้อง'], True, []),
 
-    # Personal pages
-    ('personal_info', [r'หน้า\s*1.*ข้อมูลส่วนบุคคล', r'ข้อมูลส่วนบุคคล.*เลขประจำตัวประชาชน'], True),
-    ('spouse_info', [r'หน้า\s*2.*คู่สมรส', r'หน้า\s*2.*เลขประจำตัวประชาชน'], True),
+    # Personal pages - with negative patterns to exclude spouse pages
+    # Uses ข้? to match both ข้อ and ขอ (OCR variations)
+    ('personal_info', [
+        r'หน้า\s*1\b.*ข้?อมูลส่วนบุคคล',  # หน้า 1 with personal info header
+        r'หน้า\s*1\b.*เลขประจำตัวประชาชน.*ผู้ยื่นบัญชี',  # หน้า 1 with submitter ID
+        r'ข้?อมูลส่วนบุคคล.*เลขประจำตัวประชาชน.*ผู้ยื่นบัญชี',  # Personal info header with submitter
+        r'ข้?อมูลส่วนบุคคล\s*\*',  # ข้อมูลส่วนบุคคล followed by asterisk
+    ], True, [
+        r'หน้า\s*2\b',  # Spouse page marker
+        r'ที่อยู่เดียวกันกับผู้ยื่นบัญชี',  # Spouse-only field
+        r'กรณีคู่สมรสเป็นคนต่างด้าว',  # Spouse-only field
+        r'สถานภาพการสมรส',  # Spouse-only field (registration status)
+    ]),
+
+    # Spouse pages - with negative patterns to exclude personal info
+    ('spouse_info', [
+        r'หน้า\s*2\b',  # หน้า 2 marker
+        r'ที่อยู่เดียวกันกับผู้ยื่นบัญชี',  # Spouse-specific field
+        r'กรณีคู่สมรสเป็นคนต่างด้าว',  # Spouse-specific field
+        r'สถานภาพการสมรส.*จดทะเบียน',  # Marriage registration status
+    ], True, [
+        r'หน้า\s*1\b',  # Personal info page marker
+        r'ข้?อมูลส่วนบุคคล',  # Personal info header (not on spouse page)
+    ]),
 
     # Work history
-    ('work_history', [r'ประวัติการทำงาน', r'หน่วยงาน.*ที่ตั้ง'], False),
+    ('work_history', [r'ประวัติการทำงาน', r'หน่วยงาน.*ที่ตั้ง'], False, []),
 
     # Cover pages
-    ('cover', [r'บัญชีทรัพย์สินและหนี้สิน', r'กรณีที่ยื่น'], False),
-    ('summary', [r'สำเนา.*พ้นจากตำแหน่ง', r'สำนักตรวจสอบทรัพย์สิน'], False),
+    ('cover', [r'บัญชีทรัพย์สินและหนี้สิน', r'กรณีที่ยื่น'], False, []),
+    ('summary', [r'สำเนา.*พ้นจากตำแหน่ง', r'สำนักตรวจสอบทรัพย์สิน'], False, []),
 ]
 
 CONTINUATION_PATTERNS = [
@@ -116,7 +141,7 @@ CONTINUATION_PATTERNS = [
 
 
 # ============================================================================
-# Phase 1a: JSON Processing (Page Type Identification)
+# Helper Functions
 # ============================================================================
 
 def get_page_text(page: Dict) -> str:
@@ -141,6 +166,9 @@ def identify_page_type(
     """
     Identify the type of a page based on its content.
 
+    Uses positive patterns to identify page types and negative patterns
+    to exclude false positives (e.g., personal_info vs spouse_info).
+
     Args:
         page: Page dict with 'lines'
         page_index: 0-based index of the page
@@ -150,6 +178,7 @@ def identify_page_type(
         Tuple of (page_type, is_continuation, is_extra_page)
     """
     header_text = get_header_text(page, 15)
+    full_text = get_page_text(page)  # Use full text for negative pattern matching
 
     # Check for continuation page markers
     is_continuation = False
@@ -163,10 +192,28 @@ def identify_page_type(
         is_extra = prev_page_type in EXTRA_PAGE_TYPES
         return prev_page_type, True, is_extra
 
-    # Check patterns in priority order
-    for page_type, patterns, is_unique in PAGE_PATTERNS_ORDERED:
+    # Check patterns in priority order with negative pattern support
+    for entry in PAGE_PATTERNS_ORDERED:
+        # Handle both old format (3-tuple) and new format (4-tuple)
+        if len(entry) == 4:
+            page_type, patterns, is_unique, negative_patterns = entry
+        else:
+            page_type, patterns, is_unique = entry
+            negative_patterns = []
+
+        # First check if any negative pattern matches - if so, skip this page type
+        has_negative_match = False
+        for neg_pattern in negative_patterns:
+            if re.search(neg_pattern, full_text):
+                has_negative_match = True
+                break
+
+        if has_negative_match:
+            continue
+
+        # Check positive patterns
         for pattern in patterns:
-            if re.search(pattern, header_text):
+            if re.search(pattern, full_text):
                 is_extra = page_type in EXTRA_PAGE_TYPES and is_continuation
                 return page_type, is_continuation, is_extra
 
@@ -186,94 +233,6 @@ def extract_page_number_marker(page: Dict) -> Optional[str]:
         return match.group(0)
     return None
 
-
-def process_json_file_phase1a(input_path: Path, output_path: Path) -> Dict:
-    """
-    Phase 1a: Process a single JSON file to identify page types.
-
-    Args:
-        input_path: Path to raw OCR JSON file
-        output_path: Path to save processed JSON
-
-    Returns:
-        Dict with processing statistics
-    """
-    with open(input_path, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-
-    pages = data.get('pages', [])
-
-    if not pages:
-        return {'error': 'No pages found', 'pages': 0}
-
-    # Process each page
-    processed_pages = []
-    prev_page_type = None
-    page_type_counts = {}
-    extra_pages_count = 0
-
-    for idx, page in enumerate(pages):
-        page_type, is_continuation, is_extra = identify_page_type(page, idx, prev_page_type)
-        page_marker = extract_page_number_marker(page)
-
-        processed_page = {
-            'page_number': page.get('page_number', idx + 1),
-            'original_page_index': idx,
-            'width': page.get('width', 8.2639),
-            'height': page.get('height', 11.6944),
-            'unit': page.get('unit', 'inch'),
-            'lines': page.get('lines', []),
-            '_page_info': {
-                'page_type': page_type,
-                'is_continuation': is_continuation,
-                'is_extra_page': is_extra,
-                'page_marker': page_marker,
-            }
-        }
-
-        processed_pages.append(processed_page)
-        prev_page_type = page_type
-
-        type_key = f"{page_type}_cont" if is_continuation else page_type
-        page_type_counts[type_key] = page_type_counts.get(type_key, 0) + 1
-        if is_extra:
-            extra_pages_count += 1
-
-    has_extra_pages = extra_pages_count > 0 or len(processed_pages) > 37
-
-    output_data = {
-        'file_name': data.get('file_name', input_path.name),
-        'content': data.get('content', ''),
-        'pages': processed_pages,
-        '_processing_info': {
-            'source_file': str(input_path),
-            'total_pages': len(processed_pages),
-            'template_standard_pages': 37,
-            'has_extra_pages': has_extra_pages,
-            'extra_pages_count': extra_pages_count,
-            'page_type_counts': page_type_counts,
-        }
-    }
-
-    # Preserve metadata if present
-    if '_metadata' in data:
-        output_data['_metadata'] = data['_metadata']
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    with open(output_path, 'w', encoding='utf-8') as f:
-        json.dump(output_data, f, ensure_ascii=False, indent=2)
-
-    return {
-        'success': True,
-        'pages': len(processed_pages),
-        'page_types': page_type_counts,
-    }
-
-
-# ============================================================================
-# Phase 1b: Page Matching
-# ============================================================================
 
 def extract_polygons_from_page(page: Dict) -> List:
     """Extract all polygons from a page's lines."""
@@ -320,6 +279,10 @@ def text_similarity(text_a: str, text_b: str) -> float:
 
     return len(intersection) / len(union) if union else 0
 
+
+# ============================================================================
+# Page Matching Functions
+# ============================================================================
 
 def compute_similarity_matrix(
     data_pages: List[Dict],
@@ -405,7 +368,6 @@ def match_pages_to_template(
     row_ind, col_ind = linear_sum_assignment(cost_matrix)
 
     results = []
-    data_page_nums = [p.get('page_number', i+1) for i, p in enumerate(data_pages)]
     template_page_nums = [p.get('page_number', i+1) for i, p in enumerate(template_pages)]
 
     for i, data_page in enumerate(data_pages):
@@ -427,33 +389,79 @@ def match_pages_to_template(
     return results
 
 
-def create_matched_json(
-    data_path: Path,
+# ============================================================================
+# Main Processing: Combined Phase 1 (Page Type ID + Matching)
+# ============================================================================
+
+def process_single_file(
+    input_path: Path,
     template_path: Path,
     output_path: Path,
     similarity_threshold: float = 0.3
 ) -> Dict:
     """
-    Create matched JSON with pages aligned to template structure.
+    Process a single JSON file: identify page types AND match to template.
+    Combines Phase 1a + Phase 1b into a single step.
 
     Args:
-        data_path: Path to processed JSON file (from Phase 1a)
+        input_path: Path to raw OCR JSON file
         template_path: Path to template JSON
-        output_path: Path to save matched JSON
+        output_path: Path to save processed/matched JSON
 
     Returns:
-        Dict with matching statistics
+        Dict with processing statistics
     """
-    with open(data_path, 'r', encoding='utf-8') as f:
+    # Load raw JSON
+    with open(input_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
+    # Load template
     with open(template_path, 'r', encoding='utf-8') as f:
         template = json.load(f)
 
-    data_pages = data.get('pages', [])
+    pages = data.get('pages', [])
     template_pages = template.get('pages', [])
 
-    matches = match_pages_to_template(data_pages, template_pages, similarity_threshold)
+    if not pages:
+        return {'error': 'No pages found', 'pages': 0}
+
+    # Step 1: Process each page to identify page types (like Phase 1a)
+    processed_pages = []
+    prev_page_type = None
+    page_type_counts = {}
+    extra_pages_count = 0
+
+    for idx, page in enumerate(pages):
+        page_type, is_continuation, is_extra = identify_page_type(page, idx, prev_page_type)
+        page_marker = extract_page_number_marker(page)
+
+        processed_page = {
+            'page_number': page.get('page_number', idx + 1),
+            'original_page_index': idx,
+            'width': page.get('width', 8.2639),
+            'height': page.get('height', 11.6944),
+            'unit': page.get('unit', 'inch'),
+            'lines': page.get('lines', []),
+            '_page_info': {
+                'page_type': page_type,
+                'is_continuation': is_continuation,
+                'is_extra_page': is_extra,
+                'page_marker': page_marker,
+            }
+        }
+
+        processed_pages.append(processed_page)
+        prev_page_type = page_type
+
+        type_key = f"{page_type}_cont" if is_continuation else page_type
+        page_type_counts[type_key] = page_type_counts.get(type_key, 0) + 1
+        if is_extra:
+            extra_pages_count += 1
+
+    has_extra_pages = extra_pages_count > 0 or len(processed_pages) > 37
+
+    # Step 2: Match pages to template (like Phase 1b)
+    matches = match_pages_to_template(processed_pages, template_pages, similarity_threshold)
 
     # Create mapping from template page to data page
     template_to_data = {}
@@ -462,7 +470,7 @@ def create_matched_json(
     for data_page_num, template_page_num, similarity in matches:
         if template_page_num is not None:
             data_page = next(
-                (p for p in data_pages if p.get('page_number') == data_page_num),
+                (p for p in processed_pages if p.get('page_number') == data_page_num),
                 None
             )
             if data_page:
@@ -473,7 +481,7 @@ def create_matched_json(
                 }
         else:
             data_page = next(
-                (p for p in data_pages if p.get('page_number') == data_page_num),
+                (p for p in processed_pages if p.get('page_number') == data_page_num),
                 None
             )
             if data_page:
@@ -500,11 +508,9 @@ def create_matched_json(
                     'matched': True,
                     'similarity': matched['similarity'],
                     'original_page_number': matched['original_page_num']
-                }
+                },
+                '_page_info': matched['page'].get('_page_info', {})
             }
-            # Preserve page_info if present
-            if '_page_info' in matched['page']:
-                result_page['_page_info'] = matched['page']['_page_info']
         else:
             result_page = {
                 'page_number': template_page_num,
@@ -516,28 +522,36 @@ def create_matched_json(
                     'matched': False,
                     'similarity': 0,
                     'original_page_number': None
-                }
+                },
+                '_page_info': {}
             }
 
         result_pages.append(result_page)
 
+    # Build final result
     result = {
-        'file_name': data.get('file_name', ''),
+        'file_name': data.get('file_name', input_path.name),
         'content': data.get('content', ''),
         'pages': result_pages,
+        '_processing_info': {
+            'source_file': str(input_path),
+            'total_pages': len(processed_pages),
+            'template_standard_pages': 37,
+            'has_extra_pages': has_extra_pages,
+            'extra_pages_count': extra_pages_count,
+            'page_type_counts': page_type_counts,
+        },
         '_matching_info': {
             'template_total_pages': len(template_pages),
-            'data_total_pages': len(data_pages),
+            'data_total_pages': len(processed_pages),
             'matched_pages': len(template_to_data),
             'unmatched_data_pages': [p['original_page_num'] for p in unmatched_data_pages]
         }
     }
 
-    # Preserve metadata
+    # Preserve original metadata
     if '_metadata' in data:
         result['_metadata'] = data['_metadata']
-    if '_processing_info' in data:
-        result['_processing_info'] = data['_processing_info']
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -545,94 +559,42 @@ def create_matched_json(
         json.dump(result, f, ensure_ascii=False, indent=2)
 
     return {
+        'success': True,
+        'pages': len(processed_pages),
+        'page_types': page_type_counts,
         'matched': len(template_to_data),
         'unmatched': len(unmatched_data_pages),
-        'total_data': len(data_pages),
-        'total_template': len(template_pages)
     }
 
 
-# ============================================================================
-# Main Processing Functions
-# ============================================================================
-
-def process_phase1a(
-    input_dir: Path,
-    output_dir: Path,
-    skip_existing: bool = True
-) -> Dict:
-    """
-    Run Phase 1a: Process all raw JSON files to identify page types.
-
-    Args:
-        input_dir: Directory with raw OCR JSON files
-        output_dir: Directory to save processed JSON files
-
-    Returns:
-        Processing statistics
-    """
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    json_files = list(input_dir.glob('*.json'))
-
-    stats = {
-        'total_files': len(json_files),
-        'processed': 0,
-        'skipped': 0,
-        'errors': []
-    }
-
-    print(f"{'='*60}")
-    print("Phase 1a: JSON Processing (Page Type Identification)")
-    print(f"{'='*60}")
-    print(f"Input: {input_dir}")
-    print(f"Output: {output_dir}")
-    print(f"Total files: {len(json_files)}")
-    print(f"{'='*60}")
-
-    for i, json_file in enumerate(sorted(json_files), 1):
-        output_file = output_dir / json_file.name
-
-        if skip_existing and output_file.exists():
-            print(f"[{i}/{len(json_files)}] SKIP: {json_file.name[:50]}...")
-            stats["skipped"] += 1
-            continue
-
-        try:
-            result = process_json_file_phase1a(json_file, output_file)
-
-            if result.get('success'):
-                stats['processed'] += 1
-                print(f"[{i}/{len(json_files)}] OK: {json_file.name[:40]} ({result['pages']} pages)")
-            else:
-                stats['errors'].append((json_file.name, result.get('error', 'Unknown error')))
-                print(f"[{i}/{len(json_files)}] ERROR: {json_file.name[:40]}: {result.get('error')}")
-
-        except Exception as e:
-            stats['errors'].append((json_file.name, str(e)))
-            print(f"[{i}/{len(json_files)}] ERROR: {json_file.name[:40]}: {e}")
-
-    return stats
-
-
-def process_phase1b(
+def run_phase1(
     input_dir: Path,
     output_dir: Path,
     template_path: Path,
-    similarity_threshold: float = 0.3,
-    skip_existing: bool = True
+    is_final: bool = False,
+    skip_existing: bool = True,
+    clean: bool = False
 ) -> Dict:
     """
-    Run Phase 1b: Match pages to template.
+    Run Phase 1: Process raw OCR JSON files and output to extract_matched.
+    Combines page type identification + template matching in a single step.
 
     Args:
-        input_dir: Directory with processed JSON files (from Phase 1a)
-        output_dir: Directory to save matched JSON files
+        input_dir: Directory with raw OCR JSON files (extract_raw)
+        output_dir: Directory to save matched JSON files (extract_matched)
         template_path: Path to template JSON
+        is_final: Whether processing test final data
+        skip_existing: Skip files that already have output
+        clean: Clean output directory before processing
 
     Returns:
         Processing statistics
     """
+    # Clean output directory if requested
+    if clean and output_dir.exists():
+        print(f"Cleaning output directory: {output_dir}")
+        shutil.rmtree(output_dir)
+
     output_dir.mkdir(parents=True, exist_ok=True)
 
     json_files = list(input_dir.glob('*.json'))
@@ -646,14 +608,15 @@ def process_phase1b(
         'errors': []
     }
 
-    print(f"{'='*60}")
-    print("Phase 1b: Page Matching")
-    print(f"{'='*60}")
+    print(f"{'='*70}")
+    print("PHASE 1: JSON Processing and Page Matching")
+    print(f"{'='*70}")
+    print(f"Mode: {'Test Final' if is_final else 'Training'}")
     print(f"Input: {input_dir}")
     print(f"Output: {output_dir}")
     print(f"Template: {template_path}")
     print(f"Total files: {len(json_files)}")
-    print(f"{'='*60}")
+    print(f"{'='*70}")
 
     for i, json_file in enumerate(sorted(json_files), 1):
         output_file = output_dir / json_file.name
@@ -664,71 +627,114 @@ def process_phase1b(
             continue
 
         try:
-            result = create_matched_json(
+            result = process_single_file(
                 json_file,
                 template_path,
-                output_file,
-                similarity_threshold
+                output_file
             )
 
-            stats['processed'] += 1
-            stats['total_matched'] += result['matched']
-            stats['total_unmatched'] += result['unmatched']
-            print(f"[{i}/{len(json_files)}] OK: {json_file.name[:40]} ({result['matched']}/{result['total_data']} matched)")
+            if result.get('success'):
+                stats['processed'] += 1
+                stats['total_matched'] += result.get('matched', 0)
+                stats['total_unmatched'] += result.get('unmatched', 0)
+                print(f"[{i}/{len(json_files)}] OK: {json_file.name[:40]} ({result['matched']}/{result['pages']} matched)")
+            else:
+                stats['errors'].append((json_file.name, result.get('error', 'Unknown error')))
+                print(f"[{i}/{len(json_files)}] ERROR: {json_file.name[:40]}: {result.get('error')}")
 
         except Exception as e:
             stats['errors'].append((json_file.name, str(e)))
             print(f"[{i}/{len(json_files)}] ERROR: {json_file.name[:40]}: {e}")
 
+    print(f"\n{'='*60}")
+    print("Phase 1 Complete")
+    print(f"{'='*60}")
+    print(f"Processed: {stats['processed']}/{stats['total_files']}")
+    print(f"Skipped: {stats['skipped']}")
+    print(f"Total matched pages: {stats['total_matched']}")
+    print(f"Errors: {len(stats['errors'])}")
+    print(f"{'='*60}")
+
     return stats
 
 
-def run_phase1(
+# Legacy function names for backward compatibility
+def process_phase1a(
+    input_dir: Path,
+    output_dir: Path,
+    skip_existing: bool = True
+) -> Dict:
+    """Legacy: Run Phase 1a only (page type identification)."""
+    print("WARNING: process_phase1a is deprecated. Use run_phase1 instead.")
+    # Just do page type identification without matching
+    output_dir.mkdir(parents=True, exist_ok=True)
+    json_files = list(input_dir.glob('*.json'))
+
+    stats = {'total_files': len(json_files), 'processed': 0, 'skipped': 0, 'errors': []}
+
+    for i, json_file in enumerate(sorted(json_files), 1):
+        output_file = output_dir / json_file.name
+        if skip_existing and output_file.exists():
+            stats["skipped"] += 1
+            continue
+
+        try:
+            with open(json_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            pages = data.get('pages', [])
+            processed_pages = []
+            prev_page_type = None
+
+            for idx, page in enumerate(pages):
+                page_type, is_continuation, is_extra = identify_page_type(page, idx, prev_page_type)
+                page_marker = extract_page_number_marker(page)
+
+                processed_page = {
+                    'page_number': page.get('page_number', idx + 1),
+                    'original_page_index': idx,
+                    'width': page.get('width', 8.2639),
+                    'height': page.get('height', 11.6944),
+                    'unit': page.get('unit', 'inch'),
+                    'lines': page.get('lines', []),
+                    '_page_info': {
+                        'page_type': page_type,
+                        'is_continuation': is_continuation,
+                        'is_extra_page': is_extra,
+                        'page_marker': page_marker,
+                    }
+                }
+                processed_pages.append(processed_page)
+                prev_page_type = page_type
+
+            output_data = {
+                'file_name': data.get('file_name', json_file.name),
+                'content': data.get('content', ''),
+                'pages': processed_pages,
+            }
+            if '_metadata' in data:
+                output_data['_metadata'] = data['_metadata']
+
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(output_data, f, ensure_ascii=False, indent=2)
+
+            stats['processed'] += 1
+        except Exception as e:
+            stats['errors'].append((json_file.name, str(e)))
+
+    return stats
+
+
+def process_phase1b(
     input_dir: Path,
     output_dir: Path,
     template_path: Path,
-    is_final: bool = False,
+    similarity_threshold: float = 0.3,
     skip_existing: bool = True
 ) -> Dict:
-    """
-    Run complete Phase 1 (1a + 1b).
-
-    Args:
-        input_dir: Directory with raw OCR JSON files
-        output_dir: Base output directory
-        template_path: Path to template JSON
-        is_final: Whether processing test final data
-
-    Returns:
-        Combined statistics
-    """
-    # Phase 1a output goes to a temp directory, then Phase 1b produces final output
-    phase1a_output = output_dir.parent / "extract_processed"
-
-    print("\n" + "="*70)
-    print("PHASE 1: JSON Processing and Page Matching")
-    print("="*70 + "\n")
-
-    # Phase 1a
-    stats_1a = process_phase1a(input_dir, phase1a_output, skip_existing)
-
-    print("\n")
-
-    # Phase 1b
-    stats_1b = process_phase1b(phase1a_output, output_dir, template_path, skip_existing=skip_existing)
-
-    print("\n" + "="*60)
-    print("Phase 1 Complete")
-    print("="*60)
-    print(f"Phase 1a: {stats_1a['processed']} processed, {stats_1a['skipped']} skipped, {len(stats_1a['errors'])} errors")
-    print(f"Phase 1b: {stats_1b['processed']} processed, {stats_1b['skipped']} skipped, {len(stats_1b['errors'])} errors")
-    print(f"Total matched pages: {stats_1b['total_matched']}")
-    print("="*60)
-
-    return {
-        'phase1a': stats_1a,
-        'phase1b': stats_1b
-    }
+    """Legacy: Run Phase 1b only (page matching)."""
+    print("WARNING: process_phase1b is deprecated. Use run_phase1 instead.")
+    return run_phase1(input_dir, output_dir, template_path, skip_existing=skip_existing)
 
 
 def process_phase1c(
@@ -773,18 +779,41 @@ def process_phase1d(
 def main():
     """Main entry point for Phase 1."""
     parser = argparse.ArgumentParser(
-        description="Phase 1: JSON Processing and Page Matching"
+        description="Phase 1: JSON Processing and Page Matching",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Run Phase 1 on training data (extract_raw -> extract_matched)
+  poetry run scanx-process
+
+  # Run Phase 1 with clean (delete old output first)
+  poetry run scanx-process --clean
+
+  # Run Phase 1 on test final data
+  poetry run scanx-process --final
+
+  # Run Phase 1c (text extraction from extract_matched)
+  poetry run scanx-process --phase 1c
+
+  # Run Phase 1d (metadata mapping from extract_matched)
+  poetry run scanx-process --phase 1d
+        """
     )
     parser.add_argument(
         "--phase",
-        choices=["1a", "1b", "1c", "1d", "all"],
+        choices=["1", "1c", "1d", "all"],
         default="all",
-        help="Which phase to run (1a=page ID, 1b=matching, 1c=text extract, 1d=metadata, all=1a+1b)"
+        help="Which phase to run (1/all=process+match, 1c=text extract, 1d=metadata)"
     )
     parser.add_argument(
         "--final",
         action="store_true",
         help="Process test final data instead of training data"
+    )
+    parser.add_argument(
+        "--clean",
+        action="store_true",
+        help="Clean output directory before processing"
     )
     parser.add_argument(
         "--no-skip",
@@ -838,7 +867,7 @@ def main():
         else:
             output_dir = src_dir / "result" / "from_train" / "processing_input" / "text_each_page"
 
-        process_phase1c(input_dir, output_dir, clean=not skip_existing, skip_existing=skip_existing)
+        process_phase1c(input_dir, output_dir, clean=args.clean, skip_existing=skip_existing)
 
     elif args.phase == "1d":
         # Phase 1d reads from extract_matched, outputs to page_metadata
@@ -859,7 +888,7 @@ def main():
         process_phase1d(input_dir, output_dir, skip_existing=skip_existing)
 
     else:
-        # Phases 1a, 1b, all
+        # Phase 1 or all: extract_raw -> extract_matched (combined processing)
         if args.input_dir:
             input_dir = Path(args.input_dir)
         elif args.final:
@@ -874,12 +903,7 @@ def main():
         else:
             output_dir = src_dir / "result" / "from_train" / "processing_input" / "extract_matched"
 
-        if args.phase == "1a":
-            process_phase1a(input_dir, output_dir, skip_existing)
-        elif args.phase == "1b":
-            process_phase1b(input_dir, output_dir, template_path, skip_existing=skip_existing)
-        else:
-            run_phase1(input_dir, output_dir, template_path, args.final, skip_existing)
+        run_phase1(input_dir, output_dir, template_path, args.final, skip_existing, clean=args.clean)
 
 
 if __name__ == "__main__":

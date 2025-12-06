@@ -4,11 +4,59 @@ Main Pipeline Runner for Submission ScanX
 This module provides a unified CLI to run the complete extraction pipeline:
 - Phase 0: PDF to OCR using Azure Document Intelligence
 - Phase 1: JSON processing and page matching
+  - 1a+1b: Page type identification and matching -> page_matched/
+  - 1c: Text extraction -> text_each_page/
+  - 1d: Page metadata (AI) -> page_metadata/
+  - 1e: Data mapping to CSV -> mapping_output/
+
+Usage:
+  poetry run scanx --phase 1 --all           # Run all Phase 1 (clean + 1a-1e)
+  poetry run scanx --phase 1 --final --all   # Run all Phase 1 on final data
+  poetry run scanx --phase 1e                # Run only Phase 1e
 """
 
 import argparse
+import shutil
 from pathlib import Path
 from typing import Optional
+
+
+def get_paths(is_final: bool = False) -> dict:
+    """Get standard paths for pipeline processing."""
+    src_dir = Path(__file__).parent.parent
+
+    if is_final:
+        base = src_dir / "result" / "final"
+        input_csv = src_dir / "test final" / "test final input"
+    else:
+        base = src_dir / "result" / "from_train"
+        input_csv = src_dir / "training" / "train input"
+
+    return {
+        'src_dir': src_dir,
+        'base': base,
+        'input_csv': input_csv,
+        'extract_raw': base / "processing_input" / "extract_raw",
+        'page_matched': base / "processing_input" / "page_matched",
+        'text_each_page': base / "processing_input" / "text_each_page",
+        'page_metadata': base / "processing_input" / "page_metadata",
+        'mapping_output': base / "mapping_output",
+        'utils_dir': src_dir / "utils",
+    }
+
+
+def clean_output_folders(paths: dict, phases: list = None):
+    """Clean output folders before processing."""
+    if phases is None:
+        phases = ['page_matched', 'text_each_page', 'page_metadata', 'mapping_output']
+
+    for phase in phases:
+        folder = paths.get(phase)
+        if folder and folder.exists():
+            print(f"  Cleaning {folder.name}/...")
+            shutil.rmtree(folder)
+        if folder:
+            folder.mkdir(parents=True, exist_ok=True)
 
 
 def run_phase0(
@@ -21,19 +69,16 @@ def run_phase0(
     """Run Phase 0: PDF to OCR extraction."""
     from .phase0_ocr import process_pdfs
 
-    src_dir = Path(__file__).parent.parent
+    paths = get_paths(is_final)
 
     if input_dir is None:
         if is_final:
-            input_dir = src_dir / "test final" / "test final input"
+            input_dir = paths['src_dir'] / "test final" / "test final input"
         else:
-            input_dir = src_dir / "training" / "train input"
+            input_dir = paths['src_dir'] / "training" / "train input"
 
     if output_dir is None:
-        if is_final:
-            output_dir = src_dir / "result" / "final" / "processing_input" / "extract_raw"
-        else:
-            output_dir = src_dir / "result" / "from_train" / "processing_input" / "extract_raw"
+        output_dir = paths['extract_raw']
 
     return process_pdfs(
         input_dir=input_dir,
@@ -44,99 +89,168 @@ def run_phase0(
     )
 
 
-def run_phase1(
+def run_phase1ab(
     is_final: bool = False,
-    phase: str = "all",
     skip_existing: bool = True,
+    clean: bool = False,
     input_dir: Optional[Path] = None,
     output_dir: Optional[Path] = None,
     template_path: Optional[Path] = None
 ):
-    """Run Phase 1: JSON processing and page matching."""
-    from .phase1_process import (
-        process_phase1a,
-        process_phase1b,
-        process_phase1c,
-        run_phase1 as run_full_phase1
-    )
-    from .phase1d_metadata import process_phase1d
+    """Run Phase 1a+1b: Page type identification and matching."""
+    from .phase1_process import run_phase1 as run_full_phase1
 
-    src_dir = Path(__file__).parent.parent
-    utils_dir = src_dir / "utils"
+    paths = get_paths(is_final)
 
     if template_path is None:
-        template_path = utils_dir / "template-docs_raw.json"
+        template_path = paths['utils_dir'] / "template-docs_raw.json"
 
-    # Phase 1c only: text_each_page
-    if phase == "1c":
-        if input_dir is None:
-            if is_final:
-                input_dir = src_dir / "result" / "final" / "processing_input" / "extract_matched"
-            else:
-                input_dir = src_dir / "result" / "from_train" / "processing_input" / "extract_matched"
-
-        if output_dir is None:
-            if is_final:
-                output_dir = src_dir / "result" / "final" / "processing_input" / "text_each_page"
-            else:
-                output_dir = src_dir / "result" / "from_train" / "processing_input" / "text_each_page"
-
-        return process_phase1c(input_dir, output_dir, clean=not skip_existing, skip_existing=skip_existing)
-
-    # Phase 1d only: page_metadata
-    if phase == "1d":
-        if input_dir is None:
-            if is_final:
-                input_dir = src_dir / "result" / "final" / "processing_input" / "extract_matched"
-            else:
-                input_dir = src_dir / "result" / "from_train" / "processing_input" / "extract_matched"
-
-        if output_dir is None:
-            if is_final:
-                output_dir = src_dir / "result" / "final" / "processing_input" / "page_metadata"
-            else:
-                output_dir = src_dir / "result" / "from_train" / "processing_input" / "page_metadata"
-
-        return process_phase1d(input_dir, output_dir, skip_existing=False, clean=True)
-
-    # Phases 1a, 1b
     if input_dir is None:
-        if is_final:
-            input_dir = src_dir / "result" / "final" / "processing_input" / "extract_raw"
-        else:
-            input_dir = src_dir / "result" / "from_train" / "processing_input" / "extract_raw"
+        input_dir = paths['extract_raw']
 
     if output_dir is None:
-        if is_final:
-            output_dir = src_dir / "result" / "final" / "processing_input" / "extract_matched"
-        else:
-            output_dir = src_dir / "result" / "from_train" / "processing_input" / "extract_matched"
+        output_dir = paths['page_matched']
 
-    if phase == "1a":
-        return process_phase1a(input_dir, output_dir, skip_existing)
-    elif phase == "1b":
-        return process_phase1b(input_dir, output_dir, template_path, skip_existing=skip_existing)
-    else:
-        # Run phases: 1a + 1b + 1c (not 1d by default)
-        results = {}
+    print("\n" + "="*60)
+    print("PHASE 1a+1b: Page Type ID + Matching")
+    print("="*60)
+    print(f"Input: {input_dir}")
+    print(f"Output: {output_dir}\n")
 
-        # Phase 1a + 1b
-        results['phase1ab'] = run_full_phase1(input_dir, output_dir, template_path, is_final, skip_existing)
+    return run_full_phase1(input_dir, output_dir, template_path, is_final, skip_existing, clean=clean)
 
-        # Phase 1c: text_each_page (reads from extract_matched)
-        if is_final:
-            text_input = src_dir / "result" / "final" / "processing_input" / "extract_matched"
-            text_output = src_dir / "result" / "final" / "processing_input" / "text_each_page"
-        else:
-            text_input = src_dir / "result" / "from_train" / "processing_input" / "extract_matched"
-            text_output = src_dir / "result" / "from_train" / "processing_input" / "text_each_page"
 
-        print("\n" + "="*60)
-        print("PHASE 1c: Text Extraction")
-        print("="*60 + "\n")
-        results['phase1c'] = process_phase1c(text_input, text_output, clean=not skip_existing, skip_existing=skip_existing)
+def run_phase1c(
+    is_final: bool = False,
+    skip_existing: bool = True,
+    clean: bool = False,
+    input_dir: Optional[Path] = None,
+    output_dir: Optional[Path] = None
+):
+    """Run Phase 1c: Text extraction from matched pages."""
+    from .phase1_process import process_phase1c
 
-        return results
+    paths = get_paths(is_final)
+
+    if input_dir is None:
+        input_dir = paths['page_matched']
+
+    if output_dir is None:
+        output_dir = paths['text_each_page']
+
+    print("\n" + "="*60)
+    print("PHASE 1c: Text Extraction")
+    print("="*60)
+    print(f"Input: {input_dir}")
+    print(f"Output: {output_dir}\n")
+
+    return process_phase1c(input_dir, output_dir, clean=clean, skip_existing=skip_existing)
+
+
+def run_phase1d(
+    is_final: bool = False,
+    skip_existing: bool = True,
+    clean: bool = False,
+    input_dir: Optional[Path] = None,
+    output_dir: Optional[Path] = None
+):
+    """Run Phase 1d: Page metadata extraction (AI-based)."""
+    from .phase1d_metadata import process_phase1d
+
+    paths = get_paths(is_final)
+
+    if input_dir is None:
+        input_dir = paths['page_matched']
+
+    if output_dir is None:
+        output_dir = paths['page_metadata']
+
+    print("\n" + "="*60)
+    print("PHASE 1d: Page Metadata Mapping (AI)")
+    print("="*60)
+    print(f"Input: {input_dir}")
+    print(f"Output: {output_dir}\n")
+
+    return process_phase1d(input_dir, output_dir, skip_existing=skip_existing, clean=clean)
+
+
+def run_phase1e(
+    is_final: bool = False,
+    skip_existing: bool = True,
+    clean: bool = False,
+    input_dir: Optional[Path] = None,
+    output_dir: Optional[Path] = None,
+    csv_dir: Optional[Path] = None
+):
+    """Run Phase 1e: Data mapping and extraction to CSV."""
+    from .phase1e_mapping import process_phase1e
+
+    paths = get_paths(is_final)
+
+    if input_dir is None:
+        input_dir = paths['page_matched']
+
+    if output_dir is None:
+        output_dir = paths['mapping_output']
+
+    if csv_dir is None:
+        csv_dir = paths['input_csv']
+
+    print("\n" + "="*60)
+    print("PHASE 1e: Data Mapping and Extraction")
+    print("="*60)
+    print(f"Input JSON: {input_dir}")
+    print(f"Input CSV: {csv_dir}")
+    print(f"Output: {output_dir}\n")
+
+    return process_phase1e(
+        input_dir=input_dir,
+        output_dir=output_dir,
+        csv_dir=csv_dir,
+        skip_existing=skip_existing,
+        clean=clean
+    )
+
+
+def run_phase1_all(is_final: bool = False):
+    """Run complete Phase 1 pipeline (1a through 1e) with clean output."""
+    paths = get_paths(is_final)
+
+    print("="*70)
+    print("PHASE 1 COMPLETE: Running all sub-phases (1a-1e)")
+    print("="*70)
+    print(f"Mode: {'Test Final' if is_final else 'Training'}")
+    print("="*70)
+
+    # Clean all output folders first
+    print("\n[Clean] Removing existing output folders...")
+    clean_output_folders(paths)
+
+    results = {}
+
+    # Phase 1a+1b: Page matching
+    results['phase1ab'] = run_phase1ab(is_final=is_final, skip_existing=False, clean=False)
+
+    # Phase 1c: Text extraction
+    results['phase1c'] = run_phase1c(is_final=is_final, skip_existing=False, clean=False)
+
+    # Phase 1d: Page metadata (AI)
+    results['phase1d'] = run_phase1d(is_final=is_final, skip_existing=False, clean=False)
+
+    # Phase 1e: Data mapping
+    results['phase1e'] = run_phase1e(is_final=is_final, skip_existing=False, clean=False)
+
+    print("\n" + "="*70)
+    print("PHASE 1 COMPLETE: All sub-phases finished!")
+    print("="*70)
+    print(f"Output folders:")
+    print(f"  - page_matched: {paths['page_matched']}")
+    print(f"  - text_each_page: {paths['text_each_page']}")
+    print(f"  - page_metadata: {paths['page_metadata']}")
+    print(f"  - mapping_output: {paths['mapping_output']}")
+    print("="*70)
+
+    return results
 
 
 def run_pipeline(
@@ -144,30 +258,30 @@ def run_pipeline(
     is_final: bool = False,
     limit: Optional[int] = None,
     skip_existing: bool = True,
+    run_all: bool = False,
     include_1d: bool = False
 ):
     """
     Run the complete pipeline or selected phases.
 
     Args:
-        phases: Which phases to run ("0", "1", "1a", "1b", "1c", "1d", "all")
+        phases: Which phases to run ("0", "1", "1c", "1d", "1e", "all")
         is_final: Process test final data instead of training
         limit: Maximum number of PDFs to process (Phase 0)
         skip_existing: Skip already processed files
-        include_1d: Also run Phase 1d (metadata mapping with AI)
+        run_all: Run complete Phase 1 (1a-1e) with clean
+        include_1d: Also run Phase 1d when running phase 1
     """
-    from .phase1d_metadata import process_phase1d
-
     print("="*70)
     print("Submission ScanX - Document Extraction Pipeline")
     print("="*70)
     print(f"Mode: {'Test Final' if is_final else 'Training'}")
-    print(f"Phases: {phases}" + (" + 1d" if include_1d and phases == "1" else ""))
+    print(f"Phases: {phases}" + (" --all" if run_all else ""))
     print("="*70 + "\n")
 
     results = {}
-    src_dir = Path(__file__).parent.parent
 
+    # Phase 0: OCR
     if phases in ("0", "all"):
         print("\n" + "="*70)
         print("PHASE 0: PDF to OCR Extraction")
@@ -178,27 +292,31 @@ def run_pipeline(
             skip_existing=skip_existing
         )
 
-    if phases in ("1", "1a", "1b", "1c", "1d", "all"):
-        phase_arg = phases if phases in ("1a", "1b", "1c", "1d") else "all"
-        results['phase1'] = run_phase1(
-            is_final=is_final,
-            phase=phase_arg,
-            skip_existing=skip_existing
-        )
+    # Phase 1 with --all flag: run complete pipeline
+    if phases == "1" and run_all:
+        results['phase1_all'] = run_phase1_all(is_final=is_final)
 
-    # Run Phase 1d if --1d flag is set (only when running phase 1 or all)
-    if include_1d and phases in ("1", "all"):
-        if is_final:
-            meta_input = src_dir / "result" / "final" / "processing_input" / "extract_matched"
-            meta_output = src_dir / "result" / "final" / "processing_input" / "page_metadata"
-        else:
-            meta_input = src_dir / "result" / "from_train" / "processing_input" / "extract_matched"
-            meta_output = src_dir / "result" / "from_train" / "processing_input" / "page_metadata"
+    # Phase 1 without --all: run 1a+1b+1c (default behavior)
+    elif phases == "1" and not run_all:
+        results['phase1ab'] = run_phase1ab(is_final=is_final, skip_existing=skip_existing)
+        results['phase1c'] = run_phase1c(is_final=is_final, skip_existing=skip_existing)
 
-        print("\n" + "="*60)
-        print("PHASE 1d: Page Metadata Mapping (AI)")
-        print("="*60 + "\n")
-        results['phase1d'] = process_phase1d(meta_input, meta_output, skip_existing=False, clean=True)
+        if include_1d:
+            results['phase1d'] = run_phase1d(is_final=is_final, skip_existing=skip_existing)
+
+    # Individual phase runs
+    elif phases == "1c":
+        results['phase1c'] = run_phase1c(is_final=is_final, skip_existing=skip_existing)
+
+    elif phases == "1d":
+        results['phase1d'] = run_phase1d(is_final=is_final, skip_existing=skip_existing)
+
+    elif phases == "1e":
+        results['phase1e'] = run_phase1e(is_final=is_final, skip_existing=skip_existing)
+
+    # "all" phases (0 + 1 complete)
+    elif phases == "all":
+        results['phase1_all'] = run_phase1_all(is_final=is_final)
 
     print("\n" + "="*70)
     print("Pipeline Complete")
@@ -214,43 +332,46 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Run complete pipeline on training data
-  python -m submission_scanx.pipeline
+  # Run Phase 1 complete (clean + 1a-1e) on training data
+  poetry run scanx --phase 1 --all
 
-  # Run only Phase 0 (OCR extraction)
-  python -m submission_scanx.pipeline --phase 0
+  # Run Phase 1 complete on final test data
+  poetry run scanx --phase 1 --final --all
 
-  # Run only Phase 1 (1a + 1b + 1c)
-  python -m submission_scanx.pipeline --phase 1
+  # Run only Phase 1e (data mapping)
+  poetry run scanx --phase 1e
 
-  # Run Phase 1 with AI metadata mapping (1a + 1b + 1c + 1d)
-  python -m submission_scanx.pipeline --phase 1 --1d
+  # Run Phase 1d only (AI metadata)
+  poetry run scanx --phase 1d
 
-  # Run Phase 1d only (AI metadata mapping)
-  python -m submission_scanx.pipeline --phase 1d
+  # Run Phase 0 (OCR extraction)
+  poetry run scanx --phase 0
 
-  # Run on test final data
-  python -m submission_scanx.pipeline --final
+  # Run complete pipeline (Phase 0 + Phase 1 all)
+  poetry run scanx
 
-  # Process only first 5 PDFs (for testing)
-  python -m submission_scanx.pipeline --phase 0 --limit 5
-
-  # Reprocess all files (don't skip existing)
-  python -m submission_scanx.pipeline --no-skip
+  # Process only first 5 PDFs
+  poetry run scanx --phase 0 --limit 5
         """
     )
 
     parser.add_argument(
         "--phase",
-        choices=["0", "1", "1a", "1b", "1c", "1d", "all"],
+        choices=["0", "1", "1c", "1d", "1e", "all"],
         default="all",
-        help="Phase to run (0=OCR, 1=1a+1b+1c, 1a=page ID, 1b=matching, 1c=text, 1d=AI metadata)"
+        help="Phase to run (0=OCR, 1=page processing, 1c=text, 1d=AI metadata, 1e=data mapping)"
+    )
+    parser.add_argument(
+        "--all",
+        dest="run_all",
+        action="store_true",
+        help="Run complete Phase 1 (1a-1e) with clean output folders"
     )
     parser.add_argument(
         "--1d",
         dest="include_1d",
         action="store_true",
-        help="Also run Phase 1d (AI metadata mapping) when running phase 1"
+        help="Also run Phase 1d when running --phase 1 (without --all)"
     )
     parser.add_argument(
         "--final",
@@ -276,6 +397,7 @@ Examples:
         is_final=args.final,
         limit=args.limit,
         skip_existing=not args.no_skip,
+        run_all=args.run_all,
         include_1d=args.include_1d
     )
 

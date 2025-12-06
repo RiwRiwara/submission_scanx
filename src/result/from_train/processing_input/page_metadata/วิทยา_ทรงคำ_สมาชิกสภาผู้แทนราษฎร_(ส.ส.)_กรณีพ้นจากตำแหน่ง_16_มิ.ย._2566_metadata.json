@@ -1,0 +1,154 @@
+{
+  "doc_name": "วิทยา_ทรงคำ_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_16_มิ.ย._2566",
+  "total_pages": 37,
+  "step_mappings": [
+    {
+      "step_name": "step_1",
+      "step_description": "ข้อมูลผู้ยื่นบัญชี + ตำแหน่ง + ชื่อเดิม + บิดามารดา",
+      "output_csv": "submitter_position.csv + submitter_old_name.csv + relative_info.csv",
+      "page_numbers": [
+        4
+      ],
+      "page_types": [
+        "personal_info"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_10",
+      "step_description": "รายละเอียดทรัพย์สินอื่น",
+      "output_csv": "asset_other_asset_info.csv + asset.csv",
+      "page_numbers": [
+        29
+      ],
+      "page_types": [
+        "other_assets"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_3_1",
+      "step_description": "ข้อมูลคู่สมรส + ตำแหน่ง + ชื่อเดิม + บิดามารดาคู่สมรส",
+      "output_csv": "spouse_info.csv + spouse_old_name.csv + spouse_position.csv + relative_info.csv",
+      "page_numbers": [
+        5
+      ],
+      "page_types": [
+        "spouse_info"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_4",
+      "step_description": "ข้อมูลบุตร (relationship_id=4)",
+      "output_csv": "relative_info.csv",
+      "page_numbers": [
+        4,
+        5,
+        6
+      ],
+      "page_types": [
+        "children",
+        "personal_info",
+        "spouse_info"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_5",
+      "step_description": "ข้อมูลภาษี (statement_type_id=3)",
+      "output_csv": "statement.csv",
+      "page_numbers": [
+        1,
+        8,
+        9,
+        10,
+        12,
+        13,
+        36
+      ],
+      "page_types": [
+        "assets_summary",
+        "income_expense",
+        "tax_info"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_6",
+      "step_description": "เงินกู้จากธนาคาร (หนี้สิน)",
+      "output_csv": "asset.csv",
+      "page_numbers": [
+        10,
+        12,
+        13,
+        19,
+        23,
+        25,
+        29,
+        31,
+        33,
+        35,
+        36
+      ],
+      "page_types": [
+        "vehicles",
+        "written_debts",
+        "overdraft",
+        "concessions",
+        "other_assets",
+        "bank_loans",
+        "cash",
+        "buildings",
+        "loans_given"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_8",
+      "step_description": "รายละเอียดโรงเรือน/สิ่งปลูกสร้าง",
+      "output_csv": "asset_building_info.csv + asset.csv",
+      "page_numbers": [
+        23
+      ],
+      "page_types": [
+        "buildings"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_9",
+      "step_description": "รายละเอียดยานพาหนะ",
+      "output_csv": "asset_vehicle_info.csv + asset.csv",
+      "page_numbers": [
+        25
+      ],
+      "page_types": [
+        "vehicles"
+      ],
+      "confidence": 1.0
+    }
+  ],
+  "unmapped_pages": [
+    2,
+    3,
+    7,
+    11,
+    14,
+    15,
+    16,
+    17,
+    18,
+    20,
+    21,
+    22,
+    24,
+    26,
+    27,
+    28,
+    30,
+    32,
+    34,
+    37
+  ]
+}

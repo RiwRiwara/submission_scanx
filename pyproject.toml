@@ -25,6 +25,7 @@ scanx-ocr = "submission_scanx.phase0_ocr:main"
 scanx-process = "submission_scanx.phase1_process:main"
 scanx-text = "submission_scanx.phase1c_text_extract:main"
 scanx-meta = "submission_scanx.phase1d_metadata:main"
+scanx-mapping = "submission_scanx.phase1e_mapping:main"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

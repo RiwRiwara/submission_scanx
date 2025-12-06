@@ -85,11 +85,12 @@ class DocumentMetadata:
 
 
 # Page type patterns for detection with priorities and negative patterns
+# Uses ข้? to handle OCR variations (ข้อ vs ขอ - missing tone marks)
 PAGE_PATTERNS = {
     'personal_info': {
         'patterns': [
             r'หน้า\s*1\b',
-            r'ข้อมูลส่วนบุคคล',
+            r'ข้?อมูลส่วนบุคคล',  # Handle OCR variation ขอ vs ข้อ
             r'เลขประจำตัวประชาชน.*ผู้ยื่นบัญชี',
             r'ตำแหน่งปัจจุบันในหน่วยงานราชการ',
             r'ประวัติการทำงานย้อนหลัง\s*5\s*ปี',
@@ -103,6 +104,7 @@ PAGE_PATTERNS = {
             r'ที่อยู่เดียวกันกับผู้ยื่นบัญชี',
             r'กรณีมีคู่สมรสมากกว่าหนึ่งคน',
             r'กรณีคู่สมรสเป็นคนต่างด้าว',
+            r'สถานภาพการสมรส',  # Spouse-only field (not on personal_info page)
         ],
         'step': 'step_1',
         'additional_steps': ['step_2', 'step_4'],
@@ -143,8 +145,8 @@ PAGE_PATTERNS = {
         ],
         'negative_patterns': [
             r'หน้า\s*1\b',
-            r'ข้อมูลส่วนบุคคล',
-            r'สถานภาพ\s+โสด\s+สมรส',
+            r'ข้?อมูลส่วนบุคคล',  # Handle OCR variation ขอ vs ข้อ
+            r'สถานภาพ\s+โสด\s+สมรส',  # This is submitter's marital status checkbox
         ],
         'step': 'step_3_1',
         'additional_steps': ['step_3_2', 'step_3_3', 'step_4'],
