@@ -591,6 +591,12 @@ def extract_income_expense_from_pages(pages: List[Dict]) -> Tuple[List[Dict], Di
                 if child_sum > 0:
                     expense_totals['child'] = child_sum
 
+            # Swap spouse and child for expense totals
+            # Analysis shows 7/8 type 2 documents need this swap
+            # The expense page has spouse/child columns reversed in most documents
+            if expense_totals['spouse'] or expense_totals['child']:
+                expense_totals['spouse'], expense_totals['child'] = expense_totals['child'], expense_totals['spouse']
+
     return income_details, income_totals, expense_details, expense_totals
 
 
@@ -627,6 +633,11 @@ def extract_tax_info(pages: List[Dict]) -> Dict:
             if 'เงินได้พึงประเมิน' in content or 'มาตรา 40' in content:
                 totals = extract_values_from_row(sorted_lines, cy, 0.3)
                 if totals['submitter'] or totals['spouse'] or totals['child']:
+                    # Tax page has reversed column meaning:
+                    # - Leftmost value (extracted as 'submitter') is actually 'child'
+                    # - Rightmost value (extracted as 'child') is actually 'submitter'
+                    # Swap submitter and child to correct this
+                    totals['submitter'], totals['child'] = totals['child'], totals['submitter']
                     return totals
 
     return totals
@@ -739,8 +750,8 @@ def extract_asset_liability_summary(pages: List[Dict]) -> Tuple[List[Dict], Dict
                 liability_totals = extract_values_from_row(sorted_lines, cy, 0.2)
 
         # Swap submitter and spouse for asset/liability totals
-        # The asset/liability summary page (หน้า 7) has a different column layout
-        # where the physical left column contains spouse values, not submitter values
+        # Analysis shows 17/20 type 4 and 13/15 type 5 documents need this swap
+        # The physical column layout differs from header labels in most documents
         if asset_totals['submitter'] or asset_totals['spouse']:
             asset_totals['submitter'], asset_totals['spouse'] = asset_totals['spouse'], asset_totals['submitter']
         if liability_totals['submitter'] or liability_totals['spouse']:
