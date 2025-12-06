@@ -45,13 +45,52 @@ def convert_thai_numerals(text: str) -> str:
     return text
 
 
-# Vehicle type keywords
+# Vehicle type keywords - to be removed from model names
 VEHICLE_TYPE_KEYWORDS = ['รถยนต์', 'รถจักรยานยนต์', 'รถบรรทุก', 'รถตู้', 'รถกระบะ',
-                          'เรือ', 'เครื่องบิน', 'รถพ่วง', 'รถไถ', 'ยานพาหนะ']
+                          'เรือ', 'เครื่องบิน', 'รถพ่วง', 'รถไถ', 'ยานพาหนะ',
+                          'รถเก๋ง', 'รถนั่ง', 'จักรยานยนต์', 'มอเตอร์ไซค์']
 
 # Province names (common ones for validation)
 PROVINCE_KEYWORDS = ['กรุงเทพ', 'กทม', 'นนทบุรี', 'ปทุมธานี', 'สมุทรปราการ',
-                     'นครราชสีมา', 'เชียงใหม่', 'ขอนแก่น', 'ชลบุรี', 'ภูเก็ต']
+                     'นครราชสีมา', 'เชียงใหม่', 'ขอนแก่น', 'ชลบุรี', 'ภูเก็ต',
+                     'เชียงราย', 'นครปฐม', 'สุพรรณบุรี', 'ระยอง', 'พิษณุโลก',
+                     'อุดรธานี', 'สงขลา', 'นครสวรรค์', 'พระนครศรีอยุธยา']
+
+
+def clean_vehicle_model(model: str) -> str:
+    """Remove vehicle type prefixes from model name."""
+    if not model:
+        return ''
+    result = model.strip()
+    # Remove vehicle type prefixes
+    for keyword in VEHICLE_TYPE_KEYWORDS:
+        result = re.sub(rf'^{keyword}\s*', '', result, flags=re.IGNORECASE)
+        result = re.sub(rf'\s+{keyword}\s+', ' ', result, flags=re.IGNORECASE)
+    # Clean up extra spaces
+    result = re.sub(r'\s+', ' ', result).strip()
+    # Skip if only vehicle type remains
+    if result.lower() in [k.lower() for k in VEHICLE_TYPE_KEYWORDS]:
+        return ''
+    return result
+
+
+def is_valid_province(text: str) -> bool:
+    """Check if text looks like a valid province name (not a date)."""
+    if not text:
+        return False
+    text = text.strip()
+    # Check if it's a date pattern
+    if re.search(r'\d{1,2}\s*[/\.\-]\s*\d{1,2}', text):
+        return False
+    if re.search(r'(ม\.ค\.|ก\.พ\.|มี\.ค\.|เม\.ย\.|พ\.ค\.|มิ\.ย\.|ก\.ค\.|ส\.ค\.|ก\.ย\.|ต\.ค\.|พ\.ย\.|ธ\.ค\.)', text):
+        return False
+    if re.search(r'(มกราคม|กุมภาพันธ์|มีนาคม|เมษายน|พฤษภาคม|มิถุนายน|กรกฎาคม|สิงหาคม|กันยายน|ตุลาคม|พฤศจิกายน|ธันวาคม)', text):
+        return False
+    # Check if it contains province keywords
+    for prov in PROVINCE_KEYWORDS:
+        if prov in text:
+            return True
+    return False
 
 
 def find_vehicle_pages(pages: List[Dict]) -> List[Tuple[int, Dict]]:
@@ -331,9 +370,14 @@ def extract_vehicle_info(pages: List[Tuple[int, Dict]], nacc_id: str, submitter_
                         if not any(kw in prov_text for kw in ['วัน', 'เดือน', 'ปี', 'บาท', 'ก.ย.', 'ม.ค.']):
                             current_item['province'] = prov_text
 
-            # Set vehicle model
+            # Set vehicle model - clean up by removing type prefixes
             if model_parts:
-                current_item['vehicle_model'] = ' '.join(model_parts)
+                raw_model = ' '.join(model_parts)
+                current_item['vehicle_model'] = clean_vehicle_model(raw_model)
+
+            # Validate province - filter out dates
+            if current_item['province'] and not is_valid_province(current_item['province']):
+                current_item['province'] = ''
 
             # Add if we have registration number or model
             if current_item['registration_number'] or current_item['vehicle_model']:
