@@ -1,0 +1,20 @@
+{
+  "timestamp": "20251206_233131",
+  "input_files": {
+    "statement_csv": "/Users/riwara/work/hackaton/submission_scanx/src/result/from_train/mapping_output/statement.csv",
+    "statement_detail_csv": "/Users/riwara/work/hackaton/submission_scanx/src/result/from_train/mapping_output/statement_detail.csv"
+  },
+  "statistics": {
+    "statement": {
+      "total": 214,
+      "changed": 0,
+      "errors": 0
+    },
+    "statement_detail": {
+      "total": 779,
+      "changed": 0,
+      "errors": 3
+    }
+  },
+  "changes": []
+}
