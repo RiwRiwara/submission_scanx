@@ -56,6 +56,7 @@ from .asset_types import (
     detect_vehicle_type,
     detect_rights_type,
     detect_other_type,
+    is_invalid_asset_content,
     LAND_PATTERNS,
     BUILDING_PATTERNS,
     VEHICLE_PATTERNS,
@@ -65,6 +66,74 @@ from .asset_types import (
 
 # Import layout detector for adaptive thresholds
 from utils.layout_detector import LayoutDetector, get_detector
+
+
+def format_valuation(val) -> str:
+    """Format valuation value - remove .0 suffix for whole numbers."""
+    if val is None:
+        return ''
+    if isinstance(val, float) and val == int(val):
+        return str(int(val))
+    return str(val)
+
+
+def clean_asset_name(text: str, asset_type_id: int) -> str:
+    """
+    Clean asset name - remove invalid content like addresses, registration numbers.
+    Returns only meaningful asset descriptions.
+    """
+    if not text:
+        return ''
+    
+    text = text.strip()
+    
+    # Check if text is ONLY invalid (address, registration, etc.)
+    # But allow text that CONTAINS valid keywords alongside invalid parts
+    if is_invalid_asset_content(text):
+        # If the whole text is invalid, check if it contains any valid keywords
+        # that we should preserve
+        pass  # Will fall through to type-specific checks
+    
+    # For land types (1-9, 36), valid names include โฉนด, ส.ป.ก, etc.
+    if asset_type_id in range(1, 10) or asset_type_id == 36:
+        if re.search(r'โฉนด|ส\.?ป\.?ก|สปก|น\.?ส\.?\d|ภ\.?บ\.?ท|อ\.?ช\.?\s*\d|สัญญา|น\.?ค\.?\d', text):
+            return text[:100]
+        return 'โฉนด' if asset_type_id == 1 else ''
+    
+    # For building types (10-17, 37) - be more lenient
+    if asset_type_id in range(10, 18) or asset_type_id == 37:
+        # Accept if it has building-related keywords
+        if re.search(r'บ้าน|อาคาร|ตึก|ห้องชุด|คอนโด|หอพัก|โรง|ทาวน์เฮ|เพนท์เฮ|สิ่งปลูกสร้าง|ลานจอด|สำนักงาน', text):
+            return text[:100]
+        # If text is long enough and contains Thai, keep it
+        if len(text) >= 3 and re.search(r'[ก-ฮ]', text) and not is_invalid_asset_content(text):
+            return text[:100]
+        # Default names by type
+        default_names = {10: 'บ้าน', 11: 'อาคาร', 12: 'ตึก', 13: 'ห้องชุด', 14: 'คอนโด', 15: 'หอพัก', 16: 'ลานจอดรถ', 17: 'โรงงาน', 37: 'สิ่งปลูกสร้าง'}
+        return default_names.get(asset_type_id, '')
+    
+    # For vehicle types (18-21, 38) - return vehicle type, not registration
+    if asset_type_id in range(18, 22) or asset_type_id == 38:
+        if re.search(r'รถ|จักรยานยนต์|มอเตอร์|เรือ|เครื่องบิน|ยานพาหนะ', text):
+            return text[:100]
+        # Default names by type
+        default_names = {18: 'รถยนต์', 19: 'รถจักรยานยนต์', 20: 'เรือยนต์', 21: 'เครื่องบิน', 38: 'ยานพาหนะ'}
+        return default_names.get(asset_type_id, '')
+    
+    # For rights types (22-27, 39) - keep meaningful descriptions
+    if asset_type_id in range(22, 28) or asset_type_id == 39:
+        if not is_invalid_asset_content(text):
+            return text[:200]
+        # Default names
+        default_names = {22: 'กรมธรรม์', 23: 'สัญญา', 24: 'สมาชิก', 25: 'กองทุน', 26: 'เงินสงเคราะห์', 27: 'ป้ายประมูล', 39: 'สิทธิและสัมปทาน'}
+        return default_names.get(asset_type_id, '')
+    
+    # For other types (28-35) - keep meaningful descriptions if not invalid
+    if not is_invalid_asset_content(text):
+        return text[:200]
+    # Default names
+    default_names = {28: 'กระเป๋า', 29: 'อาวุธปืน', 30: 'นาฬิกา', 31: 'เครื่องประดับ', 32: 'วัตถุมงคล', 33: 'ทองคำ', 34: 'งานศิลปะ', 35: 'ของสะสม'}
+    return default_names.get(asset_type_id, '')
 
 
 def find_asset_pages(pages: List[Dict]) -> Dict[str, List[Tuple[int, Dict]]]:
@@ -412,7 +481,13 @@ def extract_building_assets(pages: List[Tuple[int, Dict]], all_pages: List[Dict]
 
 
 def extract_vehicle_assets(pages: List[Tuple[int, Dict]], all_pages: List[Dict]) -> List[Dict]:
-    """Extract vehicle assets from vehicle pages using adaptive layout detection"""
+    """Extract vehicle assets from vehicle pages using two-pass approach.
+    
+    First pass: identify all row numbers and their y-positions
+    Second pass: collect all content for each row
+    
+    This handles the case where row number may not be the first element in sorted order.
+    """
     assets = []
     detector = get_detector()
 
@@ -421,108 +496,145 @@ def extract_vehicle_assets(pages: List[Tuple[int, Dict]], all_pages: List[Dict])
 
         # Auto-detect layout for this page
         layout = detector.detect_page_layout(lines, 'vehicle')
+        
+        # Vehicle pages have a header section with summary info before the table
+        # Find the header row to set proper y boundary
+        header_y = layout['header_y_min']
+        for line in lines:
+            content = line.get('content', '').strip()
+            polygon = line.get('polygon', [0]*8)
+            _, cy = get_polygon_center(polygon)
+            # Look for column headers that indicate start of data table
+            if any(kw in content for kw in ['ลำดับ', 'หมายเลข', 'ทะเบียน', 'ประเภท']):
+                if 2.5 < cy < 4.0:  # Headers are typically in this range
+                    header_y = max(header_y, cy + 0.2)
 
-        sorted_lines = sorted(lines, key=lambda x: (get_polygon_center(x.get('polygon', [0]*8))[1],
-                                                     get_polygon_center(x.get('polygon', [0]*8))[0]))
+        footer_y = layout['footer_y_max']
 
-        current_asset = None
-
-        for line in sorted_lines:
+        # First pass: identify all row numbers with their y positions
+        row_info = []
+        for line in lines:
             content = line.get('content', '').strip()
             polygon = line.get('polygon', [0]*8)
             cx, cy = get_polygon_center(polygon)
 
-            # Skip headers and footers using detected boundaries
-            if cy < layout['header_y_min'] or cy > layout['footer_y_max']:
+            if cy < header_y or cy > footer_y:
                 continue
 
-            # Look for row number using detected column boundary
-            if cx < layout['row_num_x_max'] and re.match(r'^\d{1,2}$', content):
-                if current_asset and current_asset.get('valuation'):
-                    assets.append(current_asset)
+            # Look for row number - match "1", "1.", "1 .", etc.
+            row_match = re.match(r'^(\d{1,2})[\.\s]*$', content)
+            if cx < 1.2 and row_match:
+                row_info.append({'index': int(row_match.group(1)), 'y': cy})
 
-                row_num = int(content)
-                current_asset = {
-                    'index': row_num,
-                    'y_pos': cy,
-                    'asset_type_id': 18,  # Default to รถยนต์
-                    'asset_type_other': '',
-                    'asset_name': 'รถยนต์',
-                    'date_acquiring_type_id': 1,
-                    'acquiring_date': None,
-                    'acquiring_month': None,
-                    'acquiring_year': None,
-                    'date_ending_type_id': 4,
-                    'ending_date': None,
-                    'ending_month': None,
-                    'ending_year': None,
-                    'asset_acquisition_type_id': 6,
-                    'valuation': None,
-                    'owner_by_submitter': True,
-                    'owner_by_spouse': False,
-                    'owner_by_child': False
-                }
+        # Sort rows by y position
+        row_info = sorted(row_info, key=lambda x: x['y'])
 
-            if not current_asset:
+        # Build row_contents: map each row index to its contents
+        row_contents = {r['index']: {'y': r['y'], 'contents': []} for r in row_info}
+
+        # Second pass: assign each content line to its closest row
+        for line in lines:
+            content = line.get('content', '').strip()
+            polygon = line.get('polygon', [0]*8)
+            cx, cy = get_polygon_center(polygon)
+
+            if cy < header_y or cy > footer_y:
                 continue
 
-            if abs(cy - current_asset['y_pos']) > 1.5:
+            # Skip row numbers themselves
+            if cx < 1.2 and re.match(r'^(\d{1,2})[\.\s]*$', content):
                 continue
 
-            # Look for vehicle type using detected type column range
-            type_x_min, type_x_max = layout['type_col_x_range']
-            if type_x_min <= cx <= type_x_max:
-                # Skip if content is just a number
-                if re.match(r'^\d+$', content):
-                    continue
-                type_id, type_other = detect_vehicle_type(content)
-                if type_id:
-                    current_asset['asset_type_id'] = type_id
-                    current_asset['asset_type_other'] = type_other
-                    current_asset['asset_name'] = content[:100]
+            # Find the closest row for this content (within y tolerance)
+            min_dist = float('inf')
+            closest_row = None
+            for r in row_info:
+                dist = abs(cy - r['y'])
+                if dist < min_dist and dist < 2.0:  # y tolerance
+                    min_dist = dist
+                    closest_row = r['index']
 
-            # Look for date using detected date column range
-            date_x_min, date_x_max = layout['date_col_x_range']
-            if date_x_min <= cx <= date_x_max:
-                day, month, year = parse_thai_date(content)
-                if year:
-                    current_asset['acquiring_year'] = year
-                    if month:
-                        current_asset['acquiring_month'] = month
-                    if day:
-                        current_asset['acquiring_date'] = day
-                    current_asset['date_acquiring_type_id'] = 1
+            if closest_row is not None:
+                row_contents[closest_row]['contents'].append({
+                    'content': content,
+                    'cx': cx,
+                    'cy': cy
+                })
 
-            # Look for valuation using detected value column range
-            value_x_min, value_x_max = layout['value_col_x_range']
-            if value_x_min <= cx <= value_x_max:
-                val = clean_number(content)
-                if val and val >= 100:
-                    current_asset['valuation'] = val
+        # Process each row's contents
+        for row_idx, info in row_contents.items():
+            current_asset = {
+                'index': row_idx,
+                'y_pos': info['y'],
+                'asset_type_id': 18,  # Default to รถยนต์
+                'asset_type_other': '',
+                'asset_name': 'รถยนต์',
+                'date_acquiring_type_id': 1,
+                'acquiring_date': None,
+                'acquiring_month': None,
+                'acquiring_year': None,
+                'date_ending_type_id': 4,
+                'ending_date': None,
+                'ending_month': None,
+                'ending_year': None,
+                'asset_acquisition_type_id': 6,
+                'valuation': None,
+                'owner_by_submitter': True,
+                'owner_by_spouse': False,
+                'owner_by_child': False
+            }
 
-            # Check ownership using detected owner column range
-            owner_x_min, owner_x_max = layout['owner_col_x_range']
-            if owner_x_min <= cx <= owner_x_max:
-                if content in ['/', '✓', 'V', 'v', '1', 'I', 'l', '|', '✔']:
-                    owner_width = owner_x_max - owner_x_min
-                    submitter_max = owner_x_min + owner_width * 0.33
-                    spouse_max = owner_x_min + owner_width * 0.67
+            for item in info['contents']:
+                content = item['content']
+                cx = item['cx']
 
-                    if cx <= submitter_max:
-                        current_asset['owner_by_submitter'] = True
-                        current_asset['owner_by_spouse'] = False
-                        current_asset['owner_by_child'] = False
-                    elif cx <= spouse_max:
-                        current_asset['owner_by_submitter'] = False
-                        current_asset['owner_by_spouse'] = True
-                        current_asset['owner_by_child'] = False
-                    else:
-                        current_asset['owner_by_submitter'] = False
-                        current_asset['owner_by_spouse'] = False
-                        current_asset['owner_by_child'] = True
+                # Look for vehicle type (x ~1.0-3.5)
+                if 1.0 <= cx <= 3.5:
+                    # Skip if content is just a number or registration-like
+                    if re.match(r'^[\d\-]+$', content):
+                        continue
+                    type_id, type_other = detect_vehicle_type(content)
+                    if type_id:
+                        current_asset['asset_type_id'] = type_id
+                        current_asset['asset_type_other'] = type_other
+                        current_asset['asset_name'] = content[:100]
 
-        if current_asset and current_asset.get('valuation'):
-            assets.append(current_asset)
+                # Look for date (x ~4.5-5.8)
+                if 4.5 <= cx <= 5.8:
+                    day, month, year = parse_thai_date(content)
+                    if year:
+                        current_asset['acquiring_year'] = year
+                        if month:
+                            current_asset['acquiring_month'] = month
+                        if day:
+                            current_asset['acquiring_date'] = day
+                        current_asset['date_acquiring_type_id'] = 1
+
+                # Look for valuation (x ~5.8-7.2)
+                if 5.8 <= cx <= 7.2:
+                    val = clean_number(content)
+                    if val and val >= 100:
+                        current_asset['valuation'] = val
+
+                # Check ownership (x ~6.9-8.1)
+                if 6.9 <= cx <= 8.1:
+                    if content in ['/', '✓', 'V', 'v', '1', 'I', 'l', '|', '✔']:
+                        if cx <= 7.25:
+                            current_asset['owner_by_submitter'] = True
+                            current_asset['owner_by_spouse'] = False
+                            current_asset['owner_by_child'] = False
+                        elif cx <= 7.55:
+                            current_asset['owner_by_submitter'] = False
+                            current_asset['owner_by_spouse'] = True
+                            current_asset['owner_by_child'] = False
+                        else:
+                            current_asset['owner_by_submitter'] = False
+                            current_asset['owner_by_spouse'] = False
+                            current_asset['owner_by_child'] = True
+
+            # Only add if we have valuation
+            if current_asset.get('valuation'):
+                assets.append(current_asset)
 
     return assets
 
@@ -971,14 +1083,24 @@ def extract_asset_data(
         all_extracted.append(asset)
 
     for asset in all_extracted:
+        asset_type_id = asset['asset_type_id']
+        
+        # Clean asset_name based on type
+        raw_name = asset.get('asset_name', '')
+        cleaned_name = clean_asset_name(raw_name, asset_type_id)
+        
+        # Clean asset_type_other - should not contain addresses/registrations
+        raw_type_other = asset.get('asset_type_other', '')
+        cleaned_type_other = '' if is_invalid_asset_content(raw_type_other) else raw_type_other
+        
         assets.append({
             'asset_id': asset_id,
             'submitter_id': submitter_id,
             'nacc_id': nacc_id,
             'index': asset['index'],
-            'asset_type_id': asset['asset_type_id'],
-            'asset_type_other': asset.get('asset_type_other', ''),
-            'asset_name': asset.get('asset_name', ''),
+            'asset_type_id': asset_type_id,
+            'asset_type_other': cleaned_type_other,
+            'asset_name': cleaned_name,
             'date_acquiring_type_id': asset.get('date_acquiring_type_id', 4),
             'acquiring_date': asset.get('acquiring_date'),
             'acquiring_month': asset.get('acquiring_month'),
@@ -1038,13 +1160,15 @@ def run_step_6(input_dir: str, output_dir: str, data_loader: PipelineDataLoader 
         'owner_by_child', 'latest_submitted_date'
     ]
 
-    # Convert booleans to TRUE/FALSE strings
+    # Convert booleans to TRUE/FALSE strings and format valuation
     processed_assets = []
     for asset in all_assets:
         row = asset.copy()
         row['owner_by_submitter'] = 'TRUE' if row['owner_by_submitter'] else 'FALSE'
         row['owner_by_spouse'] = 'TRUE' if row['owner_by_spouse'] else 'FALSE'
         row['owner_by_child'] = 'TRUE' if row['owner_by_child'] else 'FALSE'
+        # Format valuation - remove .0 suffix for whole numbers
+        row['valuation'] = format_valuation(row.get('valuation'))
         processed_assets.append(row)
 
     writer = CSVWriter(output_dir, 'asset.csv', asset_fields)

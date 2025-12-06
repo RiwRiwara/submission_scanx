@@ -198,84 +198,147 @@ def extract_vehicle_from_page_content(page_data: Dict, nacc_id: str, submitter_i
 
 def extract_vehicle_info(pages: List[Tuple[int, Dict]], nacc_id: str, submitter_id: str,
                          latest_submitted_date: str, start_asset_id: int) -> List[Dict]:
-    """Extract vehicle asset info from vehicle pages"""
+    """Extract vehicle asset info from vehicle pages using two-pass approach.
+    
+    First pass: identify all row numbers and their y-positions
+    Second pass: collect all content for each row
+    """
     vehicle_infos = []
     asset_id = start_asset_id
 
     for _, page in pages:
         lines = page.get('lines', [])
-        sorted_lines = sorted(lines, key=lambda x: (get_polygon_center(x.get('polygon', [0]*8))[1],
-                                                     get_polygon_center(x.get('polygon', [0]*8))[0]))
+        
+        # Find header y position by looking for column headers
+        header_y = 2.5  # Default
+        footer_y = 10.5  # Default
+        for line in lines:
+            content = line.get('content', '').strip()
+            polygon = line.get('polygon', [0]*8)
+            _, cy = get_polygon_center(polygon)
+            if any(kw in content for kw in ['ลำดับ', 'หมายเลข', 'ทะเบียน', 'ประเภท', 'จังหวัด']):
+                if 2.5 < cy < 4.0:
+                    header_y = max(header_y, cy + 0.2)
+            if 'หมายเหตุ' in content and cy > 8.0:
+                footer_y = min(footer_y, cy - 0.2)
 
-        current_item = None
-        model_parts = []
-
-        for line in sorted_lines:
+        # First pass: identify all row numbers with their y positions
+        row_info = []
+        for line in lines:
             content = line.get('content', '').strip()
             polygon = line.get('polygon', [0]*8)
             cx, cy = get_polygon_center(polygon)
 
-            # Skip headers
-            if cy < 2.5:
+            if cy < header_y or cy > footer_y:
                 continue
 
-            # Look for row number
-            if cx < 1.5 and re.match(r'^\d{1,2}$', content):
-                # Save previous item
-                if current_item:
-                    if model_parts:
-                        current_item['vehicle_model'] = ' '.join(model_parts)
-                    if current_item['registration_number']:
-                        vehicle_infos.append(current_item)
-                        asset_id += 1
-                    model_parts = []
+            # Look for row number - match "1", "1.", "1 ." etc.
+            row_match = re.match(r'^(\d{1,2})[\.\s]*$', content)
+            if cx < 1.2 and row_match:
+                row_info.append({'index': int(row_match.group(1)), 'y': cy})
 
-                current_item = {
-                    'asset_id': asset_id,
-                    'submitter_id': submitter_id,
-                    'nacc_id': nacc_id,
-                    'registration_number': '',
-                    'vehicle_model': '',
-                    'province': '',
-                    'y_pos': cy,
-                    'latest_submitted_date': latest_submitted_date
-                }
+        # Sort rows by y position
+        row_info = sorted(row_info, key=lambda x: x['y'])
 
-            if not current_item:
+        # Build row_contents: map each row index to its contents
+        row_contents = {r['index']: {'y': r['y'], 'contents': []} for r in row_info}
+
+        # Second pass: assign each content line to its closest row
+        for line in lines:
+            content = line.get('content', '').strip()
+            polygon = line.get('polygon', [0]*8)
+            cx, cy = get_polygon_center(polygon)
+
+            if cy < header_y or cy > footer_y:
                 continue
 
-            # Allow content within ~2.0 y distance
-            if abs(cy - current_item['y_pos']) > 2.0:
+            # Skip row numbers themselves
+            if cx < 1.2 and re.match(r'^(\d{1,2})[\.\s]*$', content):
                 continue
 
-            # Vehicle model/brand (x ~1.0-2.6)
-            if 0.9 <= cx <= 2.7:
-                model_text = clean_text(content)
-                # Skip if it's just a number or too short
-                if len(model_text) > 2 and not re.match(r'^\d+$', model_text):
-                    model_parts.append(model_text)
+            # Find the closest row for this content (within y tolerance)
+            min_dist = float('inf')
+            closest_row = None
+            for r in row_info:
+                dist = abs(cy - r['y'])
+                if dist < min_dist and dist < 2.0:  # y tolerance
+                    min_dist = dist
+                    closest_row = r['index']
 
-            # Registration number (x ~2.6-3.4)
-            if 2.5 <= cx <= 3.5:
-                reg_text = clean_text(content)
-                # Registration pattern: Thai chars + numbers
-                if re.search(r'[ก-ฮ]', reg_text) and re.search(r'\d', reg_text):
-                    current_item['registration_number'] = reg_text.replace(' ', '')
+            if closest_row is not None:
+                row_contents[closest_row]['contents'].append({
+                    'content': content,
+                    'cx': cx,
+                    'cy': cy
+                })
 
-            # Province (x ~3.4-4.2)
-            if 3.3 <= cx <= 4.3:
-                prov_text = clean_text(content)
-                if 'กรุงเทพ' in prov_text or 'กทม' in prov_text:
-                    current_item['province'] = prov_text
-                elif len(prov_text) > 2 and re.search(r'[ก-ฮ]', prov_text):
-                    current_item['province'] = prov_text
+        # Process each row's contents
+        for row_idx, info in row_contents.items():
+            current_item = {
+                'asset_id': asset_id,
+                'submitter_id': submitter_id,
+                'nacc_id': nacc_id,
+                'registration_number': '',
+                'vehicle_model': '',
+                'province': '',
+                'y_pos': info['y'],
+                'latest_submitted_date': latest_submitted_date
+            }
+            model_parts = []
 
-        # Save last item
-        if current_item:
+            for item in info['contents']:
+                content = item['content']
+                cx = item['cx']
+
+                # Vehicle type/model/brand (x ~1.0-3.2)
+                if 1.0 <= cx <= 3.2:
+                    model_text = clean_text(content)
+                    # Skip if it's just a number or too short
+                    if len(model_text) > 1 and not re.match(r'^[\d\-\.]+$', model_text):
+                        # Skip column headers
+                        if model_text not in ['ประเภท', 'ยี่ห้อ', 'รุ่น']:
+                            model_parts.append(model_text)
+
+                # Registration number (x ~3.0-4.2)
+                if 3.0 <= cx <= 4.2:
+                    reg_text = clean_text(content)
+                    # Extract registration pattern from potentially merged text
+                    # Patterns: กก1234, 1กก1234, กก 1234, 12-2660
+                    # Also handles merged text like "ศศ909กรุงเทพมหานคร"
+                    reg_match = re.match(r'^(\d?[ก-ฮ]{1,3}\s*[\d]{1,4})', reg_text)
+                    if reg_match:
+                        reg_clean = reg_match.group(1).replace(' ', '').replace('.', '')
+                        current_item['registration_number'] = reg_clean
+                    elif re.match(r'^\d{1,2}[\-]\d{4}$', reg_text):
+                        current_item['registration_number'] = reg_text
+                    # Fallback: if Thai chars + digits anywhere
+                    elif re.search(r'[ก-ฮ]', reg_text) and re.search(r'\d', reg_text):
+                        reg_clean = reg_text.replace(' ', '').replace('.', '')
+                        # Try to extract just the registration part (stop at Thai province chars)
+                        parts = re.split(r'(กรุงเทพ|กทม|นนทบุรี|ปทุมธานี|\d{1,2}/\d{1,2}/)', reg_clean)
+                        if parts:
+                            current_item['registration_number'] = parts[0]
+
+                # Province (x ~4.0-5.2)
+                if 4.0 <= cx <= 5.2:
+                    prov_text = clean_text(content)
+                    # Skip if it's a date or number
+                    if '/' in prov_text or re.match(r'^[\d,\.]+$', prov_text):
+                        continue
+                    if 'กรุงเทพ' in prov_text or 'กทม' in prov_text:
+                        current_item['province'] = prov_text
+                    elif len(prov_text) > 2 and re.search(r'[ก-ฮ]', prov_text):
+                        if not any(kw in prov_text for kw in ['วัน', 'เดือน', 'ปี', 'บาท', 'ก.ย.', 'ม.ค.']):
+                            current_item['province'] = prov_text
+
+            # Set vehicle model
             if model_parts:
                 current_item['vehicle_model'] = ' '.join(model_parts)
-            if current_item['registration_number']:
+
+            # Add if we have registration number or model
+            if current_item['registration_number'] or current_item['vehicle_model']:
                 vehicle_infos.append(current_item)
+                asset_id += 1
 
     return vehicle_infos
 

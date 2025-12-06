@@ -1,0 +1,79 @@
+{
+  "timestamp": "20251206_215036",
+  "input_file": "/Users/riwara/work/hackaton/submission_scanx/src/result/from_train/mapping_output/submitter_position.csv",
+  "output_file": "/Users/riwara/work/hackaton/submission_scanx/src/result/from_train/mapping_output/submitter_position.csv",
+  "statistics": {
+    "total_rows": 167,
+    "rows_changed": 6,
+    "rows_with_errors": 146,
+    "rows_unchanged": 15
+  },
+  "changes": [
+    {
+      "row_index": 31,
+      "submitter_id": "92",
+      "nacc_id": "354",
+      "changes": {
+        "workplace": {
+          "original": "โสภา",
+          "corrected": "รัฐสภา"
+        }
+      }
+    },
+    {
+      "row_index": 81,
+      "submitter_id": "109",
+      "nacc_id": "790",
+      "changes": {
+        "workplace": {
+          "original": "รัฐสภา.",
+          "corrected": "รัฐสภา"
+        }
+      }
+    },
+    {
+      "row_index": 108,
+      "submitter_id": "119",
+      "nacc_id": "898",
+      "changes": {
+        "position": {
+          "original": "สมาชิกสภาผู้แทนราษฎร. กทม.เขต 24",
+          "corrected": "สมาชิกสภาผู้แทนราษฎร กทม. เขต 24"
+        }
+      }
+    },
+    {
+      "row_index": 143,
+      "submitter_id": "128",
+      "nacc_id": "1036",
+      "changes": {
+        "position": {
+          "original": "ตำแ",
+          "corrected": "ตำแหน่ง"
+        }
+      }
+    },
+    {
+      "row_index": 152,
+      "submitter_id": "130",
+      "nacc_id": "1051",
+      "changes": {
+        "workplace": {
+          "original": "รัฐสภา .",
+          "corrected": "รัฐสภา"
+        }
+      }
+    },
+    {
+      "row_index": 167,
+      "submitter_id": "72",
+      "nacc_id": "3440",
+      "changes": {
+        "position": {
+          "original": "หัวหน้าคณะรักษาความสงบแห่งชาติ คณะรักษาความสงบแห่งชาติ",
+          "corrected": "หัวหน้าคณะรักษาความสงบแห่งชาติ"
+        }
+      }
+    }
+  ]
+}

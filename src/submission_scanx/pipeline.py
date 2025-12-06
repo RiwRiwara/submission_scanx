@@ -8,11 +8,15 @@ This module provides a unified CLI to run the complete extraction pipeline:
   - 1c: Text extraction -> text_each_page/
   - 1d: Page metadata (AI) -> page_metadata/
   - 1e: Data mapping to CSV -> mapping_output/
+- Phase 2: LLM-based data correction
+  - 2a: Fix submitter_position.csv OCR errors
 
 Usage:
   poetry run scanx --phase 1 --all           # Run all Phase 1 (clean + 1a-1e)
   poetry run scanx --phase 1 --final --all   # Run all Phase 1 on final data
   poetry run scanx --phase 1e                # Run only Phase 1e
+  poetry run scanx --phase 2a                # Run Phase 2a (position fix)
+  poetry run scanx --phase 2a --final        # Run Phase 2a on final data
 """
 
 import argparse
@@ -42,6 +46,9 @@ def get_paths(is_final: bool = False) -> dict:
         'page_metadata': base / "processing_input" / "page_metadata",
         'mapping_output': base / "mapping_output",
         'utils_dir': src_dir / "utils",
+        # Phase 2 paths
+        'phase2_output': base / "output_phase_2",
+        'phase2_report': base / "output_phase_2" / "report",
     }
 
 
@@ -212,6 +219,40 @@ def run_phase1e(
     )
 
 
+def run_phase2a(
+    is_final: bool = False,
+    input_csv: Optional[Path] = None,
+    output_csv: Optional[Path] = None,
+    batch_size: int = 10
+):
+    """Run Phase 2a: LLM-based position data correction."""
+    from .phase2_subtask.phase2a_position_fix import run_phase2a as run_phase2a_fix
+
+    paths = get_paths(is_final)
+
+    if input_csv is None:
+        input_csv = paths['mapping_output'] / "submitter_position.csv"
+
+    if output_csv is None:
+        output_csv = input_csv  # Overwrite by default
+
+    report_dir = paths['phase2_report']
+
+    print("\n" + "=" * 60)
+    print("PHASE 2a: LLM Position Data Correction")
+    print("=" * 60)
+    print(f"Input: {input_csv}")
+    print(f"Output: {output_csv}")
+    print(f"Report: {report_dir}\n")
+
+    return run_phase2a_fix(
+        input_csv=input_csv,
+        output_csv=output_csv,
+        report_dir=report_dir,
+        batch_size=batch_size
+    )
+
+
 def run_phase1_all(is_final: bool = False):
     """Run complete Phase 1 pipeline (1a through 1e) with clean output."""
     paths = get_paths(is_final)
@@ -259,18 +300,20 @@ def run_pipeline(
     limit: Optional[int] = None,
     skip_existing: bool = False,
     run_all: bool = False,
-    include_1d: bool = False
+    include_1d: bool = False,
+    batch_size: int = 10
 ):
     """
     Run the complete pipeline or selected phases.
 
     Args:
-        phases: Which phases to run ("0", "1", "1c", "1d", "1e", "all")
+        phases: Which phases to run ("0", "1", "1c", "1d", "1e", "2a", "all")
         is_final: Process test final data instead of training
         limit: Maximum number of PDFs to process (Phase 0)
         skip_existing: Skip already processed files
         run_all: Run complete Phase 1 (1a-1e) with clean
         include_1d: Also run Phase 1d when running phase 1
+        batch_size: Batch size for Phase 2 LLM processing
     """
     print("="*70)
     print("Submission ScanX - Document Extraction Pipeline")
@@ -314,6 +357,10 @@ def run_pipeline(
     elif phases == "1e":
         results['phase1e'] = run_phase1e(is_final=is_final, skip_existing=skip_existing)
 
+    # Phase 2a: LLM position fix
+    elif phases == "2a":
+        results['phase2a'] = run_phase2a(is_final=is_final, batch_size=batch_size)
+
     # "all" phases (0 + 1 complete)
     elif phases == "all":
         results['phase1_all'] = run_phase1_all(is_final=is_final)
@@ -352,14 +399,20 @@ Examples:
 
   # Process only first 5 PDFs
   poetry run scanx --phase 0 --limit 5
+
+  # Run Phase 2a (LLM position fix) on training data
+  poetry run scanx --phase 2a
+
+  # Run Phase 2a on final test data
+  poetry run scanx --phase 2a --final
         """
     )
 
     parser.add_argument(
         "--phase",
-        choices=["0", "1", "1c", "1d", "1e", "all"],
+        choices=["0", "1", "1c", "1d", "1e", "2a", "all"],
         default="all",
-        help="Phase to run (0=OCR, 1=page processing, 1c=text, 1d=AI metadata, 1e=data mapping)"
+        help="Phase to run (0=OCR, 1=page processing, 1c=text, 1d=AI metadata, 1e=data mapping, 2a=LLM position fix)"
     )
     parser.add_argument(
         "--all",
@@ -389,6 +442,12 @@ Examples:
         action="store_true",
         help="Skip existing files (default: always regenerate)"
     )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=10,
+        help="Batch size for Phase 2 LLM processing (default: 10)"
+    )
 
     args = parser.parse_args()
 
@@ -398,7 +457,8 @@ Examples:
         limit=args.limit,
         skip_existing=args.skip,
         run_all=args.run_all,
-        include_1d=args.include_1d
+        include_1d=args.include_1d,
+        batch_size=args.batch_size
     )
 
 

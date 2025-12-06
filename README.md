@@ -120,6 +120,10 @@ Extracts structured data from pages and outputs to CSV files.
 cd submission_scanx
 poetry install
 
+# first OCR step (run once )
+poetry run scanx --phase 0   
+poetry run scanx --phase 0  --final
+
 # Run complete pipeline on training data
 poetry run scanx --phase 1 --all
 
