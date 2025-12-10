@@ -1,30 +1,31 @@
 """
-ScanX Tools - Modern Document Processing Panel
-A user-friendly web interface for document processing pipeline
+ScanX Tools - Document Processing Panel
+A clean web interface for the ScanX extraction pipeline
 """
 import asyncio
 import json
-import os
 import shutil
 import sys
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Dict
 from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import FastAPI, Request, HTTPException, UploadFile, File, BackgroundTasks
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 # Paths
-BASE_DIR = Path(__file__).parent  # scanx-tools
-SRC_DIR = BASE_DIR.parent  # src
-PROJECT_ROOT = SRC_DIR.parent  # submission_scanx
+BASE_DIR = Path(__file__).parent
+SRC_DIR = BASE_DIR.parent
+PROJECT_ROOT = SRC_DIR.parent
 
-# Add submission_scanx to path for imports
-sys.path.insert(0, str(SRC_DIR))
+# Add src to path for imports
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
 # Storage paths
 UPLOADS_DIR = BASE_DIR / "uploads"
@@ -32,29 +33,10 @@ JOBS_DIR = BASE_DIR / "jobs"
 UPLOADS_DIR.mkdir(exist_ok=True)
 JOBS_DIR.mkdir(exist_ok=True)
 
-# Pipeline paths
-PIPELINE_MODULE = SRC_DIR / "submission_scanx"
-
-app = FastAPI(title="ScanX Tools", version="1.0.0")
-
-# Static files
-STATIC_DIR = BASE_DIR / "static"
-STATIC_DIR.mkdir(exist_ok=True)
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-
-# Templates
-TEMPLATES_DIR = BASE_DIR / "templates"
-TEMPLATES_DIR.mkdir(exist_ok=True)
-templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
-
-# In-memory job storage (in production, use Redis/DB)
+# In-memory job storage
 jobs: Dict[str, Dict] = {}
 executor = ThreadPoolExecutor(max_workers=2)
 
-
-# ============================================================================
-# Helper Functions
-# ============================================================================
 
 def load_jobs():
     """Load jobs from disk"""
@@ -80,15 +62,13 @@ def delete_job_files(job_id: str):
     job_file = JOBS_DIR / f"{job_id}.json"
     if job_file.exists():
         job_file.unlink()
-    
-    # Delete uploaded PDF
+
     job = jobs.get(job_id)
     if job:
         pdf_path = Path(job.get('pdf_path', ''))
         if pdf_path.exists():
             pdf_path.unlink()
-        
-        # Delete output directory
+
         output_dir = JOBS_DIR / job_id
         if output_dir.exists():
             shutil.rmtree(output_dir)
@@ -97,139 +77,207 @@ def delete_job_files(job_id: str):
 def get_pdf_page_count(pdf_path: Path) -> int:
     """Get number of pages in PDF"""
     try:
-        import fitz  # PyMuPDF
-        doc = fitz.open(str(pdf_path))
-        count = len(doc)
-        doc.close()
-        return count
-    except:
+        from PyPDF2 import PdfReader
+        reader = PdfReader(str(pdf_path))
+        return len(reader.pages)
+    except Exception:
         return 0
 
-
-# ============================================================================
-# Pipeline Execution
-# ============================================================================
 
 async def run_pipeline_for_job(job_id: str):
     """Run the full pipeline for a job"""
     job = jobs.get(job_id)
     if not job:
         return
-    
+
     try:
         job['status'] = 'processing'
         job['started_at'] = datetime.now().isoformat()
         job['phase_status'] = {}
+        job['logs'] = []
         save_job(job)
-        
+
         pdf_path = Path(job['pdf_path'])
         output_dir = JOBS_DIR / job_id
         output_dir.mkdir(exist_ok=True)
-        
-        # Import pipeline functions
-        from submission_scanx.pipeline import run_phase0, run_phase1ab, run_phase1c, run_phase1d, run_phase1e
-        from submission_scanx.phase0_ocr import process_single_pdf
-        
-        phases = [
-            ('phase0', 'OCR Extraction', 20),
-            ('phase1ab', 'Page Matching', 40),
-            ('phase1c', 'Text Extraction', 60),
-            ('phase1d', 'AI Metadata', 80),
-            ('phase1e', 'Data Mapping', 100),
-        ]
-        
-        # Phase 0: OCR
-        job['current_phase'] = 'Phase 0: OCR'
-        job['phase_status']['phase0'] = 'running'
-        save_job(job)
-        
+
+        # Create subdirectories
         ocr_output = output_dir / "ocr"
-        ocr_output.mkdir(exist_ok=True)
-        
-        # Run OCR on single PDF
+        matched_output = output_dir / "matched"
+        text_output = output_dir / "text"
+        metadata_output = output_dir / "metadata"
+        mapping_output = output_dir / "mapping"
+
+        for d in [ocr_output, matched_output, text_output, metadata_output, mapping_output]:
+            d.mkdir(exist_ok=True)
+
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(
-            executor,
-            lambda: process_single_pdf(pdf_path, ocr_output)
-        )
-        
+
+        def log(msg):
+            job['logs'].append(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
+            save_job(job)
+
+        # Phase 0: OCR
+        job['current_phase'] = 'OCR Extraction'
+        job['phase_status']['phase0'] = 'running'
+        job['progress'] = 5
+        save_job(job)
+        log(f"Starting OCR for {pdf_path.name}")
+
+        try:
+            from submission_scanx.phase0_ocr import process_single_pdf
+            result = await loop.run_in_executor(
+                executor,
+                lambda: process_single_pdf(pdf_path, ocr_output, skip_existing=False)
+            )
+            if result.get('status') == 'error':
+                raise Exception(result.get('error', 'OCR failed'))
+            log(f"OCR completed: {result.get('pages', 0)} pages extracted")
+        except Exception as e:
+            log(f"OCR error: {str(e)}")
+            raise
+
         job['phase_status']['phase0'] = 'completed'
         job['progress'] = 20
         save_job(job)
-        
+
         # Phase 1ab: Page Matching
-        job['current_phase'] = 'Phase 1: Page Matching'
+        job['current_phase'] = 'Page Matching'
         job['phase_status']['phase1ab'] = 'running'
+        job['progress'] = 25
         save_job(job)
-        
-        matched_output = output_dir / "matched"
-        matched_output.mkdir(exist_ok=True)
-        
-        from submission_scanx.phase1_process import run_phase1
-        template_path = SRC_DIR / "utils" / "template-docs_raw.json"
-        
-        await loop.run_in_executor(
-            executor,
-            lambda: run_phase1(ocr_output, matched_output, template_path, is_final=False, skip_existing=False)
-        )
-        
+        log("Starting page type identification...")
+
+        try:
+            from submission_scanx.phase1_process import run_phase1
+            template_path = SRC_DIR / "utils" / "template-docs_raw.json"
+            await loop.run_in_executor(
+                executor,
+                lambda: run_phase1(ocr_output, matched_output, template_path, is_final=False, skip_existing=False)
+            )
+            log("Page matching completed")
+        except Exception as e:
+            log(f"Page matching error: {str(e)}")
+            raise
+
         job['phase_status']['phase1ab'] = 'completed'
         job['progress'] = 40
         save_job(job)
-        
+
         # Phase 1c: Text Extraction
-        job['current_phase'] = 'Phase 1c: Text Extraction'
+        job['current_phase'] = 'Text Extraction'
         job['phase_status']['phase1c'] = 'running'
+        job['progress'] = 45
         save_job(job)
-        
-        text_output = output_dir / "text"
-        text_output.mkdir(exist_ok=True)
-        
-        from submission_scanx.phase1_process import process_phase1c
-        await loop.run_in_executor(
-            executor,
-            lambda: process_phase1c(matched_output, text_output)
-        )
-        
+        log("Extracting text from pages...")
+
+        try:
+            from submission_scanx.phase1_process import process_phase1c
+            await loop.run_in_executor(
+                executor,
+                lambda: process_phase1c(matched_output, text_output, clean=False, skip_existing=False)
+            )
+            log("Text extraction completed")
+        except Exception as e:
+            log(f"Text extraction error: {str(e)}")
+            raise
+
         job['phase_status']['phase1c'] = 'completed'
         job['progress'] = 60
         save_job(job)
-        
-        # Phase 1d: AI Metadata (optional, skip for now as it needs AI)
-        job['phase_status']['phase1d'] = 'completed'
+
+        # Phase 1d: AI Metadata (optional - may fail without Azure OpenAI)
+        job['current_phase'] = 'AI Metadata'
+        job['phase_status']['phase1d'] = 'running'
+        job['progress'] = 65
+        save_job(job)
+        log("Extracting metadata with AI...")
+
+        try:
+            from submission_scanx.phase1d_metadata import process_phase1d
+            await loop.run_in_executor(
+                executor,
+                lambda: process_phase1d(matched_output, metadata_output, skip_existing=False, clean=False)
+            )
+            log("AI metadata extraction completed")
+            job['phase_status']['phase1d'] = 'completed'
+        except Exception as e:
+            log(f"AI metadata skipped: {str(e)}")
+            job['phase_status']['phase1d'] = 'skipped'
+
         job['progress'] = 80
         save_job(job)
-        
+
         # Phase 1e: Data Mapping
-        job['current_phase'] = 'Phase 1e: Data Mapping'
+        job['current_phase'] = 'Data Mapping'
         job['phase_status']['phase1e'] = 'running'
+        job['progress'] = 85
         save_job(job)
-        
-        mapping_output = output_dir / "mapping"
-        mapping_output.mkdir(exist_ok=True)
-        
-        # For now, just mark as completed
-        job['phase_status']['phase1e'] = 'completed'
+        log("Mapping extracted data to CSV...")
+
+        try:
+            from submission_scanx.phase1e_mapping import run_phase1e
+
+            # Try to find CSV dir from training data as reference
+            csv_dir = SRC_DIR / "training" / "train input"
+            if not csv_dir.exists():
+                csv_dir = matched_output
+
+            await loop.run_in_executor(
+                executor,
+                lambda: run_phase1e(matched_output, mapping_output, csv_dir=csv_dir, skip_existing=False, clean=False)
+            )
+            log("Data mapping completed")
+            job['phase_status']['phase1e'] = 'completed'
+        except Exception as e:
+            log(f"Data mapping error: {str(e)}")
+            job['phase_status']['phase1e'] = 'error'
+
         job['progress'] = 100
-        
+
         # Mark job as completed
         job['status'] = 'completed'
         job['completed_at'] = datetime.now().isoformat()
         job['current_phase'] = None
+        log("Pipeline completed successfully!")
         save_job(job)
-        
+
     except Exception as e:
         job['status'] = 'error'
         job['error'] = str(e)
         job['current_phase'] = None
+        if 'logs' in job:
+            job['logs'].append(f"[{datetime.now().strftime('%H:%M:%S')}] ERROR: {str(e)}")
         save_job(job)
         print(f"Pipeline error for job {job_id}: {e}")
 
 
-# ============================================================================
-# Page Routes
-# ============================================================================
+# Lifespan handler (replaces deprecated on_event)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    load_jobs()
+    print(f"Loaded {len(jobs)} existing jobs")
+    yield
+    # Shutdown
+    executor.shutdown(wait=False)
 
+
+# Create app with lifespan
+app = FastAPI(title="ScanX Tools", version="2.0.0", lifespan=lifespan)
+
+# Static files
+STATIC_DIR = BASE_DIR / "static"
+STATIC_DIR.mkdir(exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+# Templates
+TEMPLATES_DIR = BASE_DIR / "templates"
+TEMPLATES_DIR.mkdir(exist_ok=True)
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
+
+# Page Routes
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     """Main panel page"""
@@ -245,10 +293,7 @@ async def results_page(request: Request, job_id: str):
     return templates.TemplateResponse("results.html", {"request": request, "job": job})
 
 
-# ============================================================================
 # API Routes - Jobs
-# ============================================================================
-
 @app.get("/api/jobs")
 async def list_jobs():
     """List all jobs"""
@@ -261,20 +306,16 @@ async def upload_file(file: UploadFile = File(...)):
     """Upload a PDF file and create a job"""
     if not file.filename.lower().endswith('.pdf'):
         return {"success": False, "error": "Only PDF files are allowed"}
-    
-    # Create job
+
     job_id = str(uuid.uuid4())[:8]
-    
-    # Save uploaded file
+
     pdf_path = UPLOADS_DIR / f"{job_id}_{file.filename}"
     with open(pdf_path, 'wb') as f:
         content = await file.read()
         f.write(content)
-    
-    # Get page count
+
     pages = get_pdf_page_count(pdf_path)
-    
-    # Create job record
+
     job = {
         "id": job_id,
         "filename": file.filename,
@@ -284,15 +325,16 @@ async def upload_file(file: UploadFile = File(...)):
         "progress": 0,
         "current_phase": None,
         "phase_status": {},
+        "logs": [],
         "created_at": datetime.now().isoformat(),
         "started_at": None,
         "completed_at": None,
         "error": None
     }
-    
+
     jobs[job_id] = job
     save_job(job)
-    
+
     return {"success": True, "job_id": job_id, "job": job}
 
 
@@ -302,13 +344,12 @@ async def start_job(job_id: str, background_tasks: BackgroundTasks):
     job = jobs.get(job_id)
     if not job:
         return {"success": False, "error": "Job not found"}
-    
+
     if job['status'] != 'queued':
         return {"success": False, "error": f"Job is already {job['status']}"}
-    
-    # Start pipeline in background
+
     background_tasks.add_task(run_pipeline_for_job, job_id)
-    
+
     return {"success": True}
 
 
@@ -326,10 +367,10 @@ async def delete_job(job_id: str):
     """Delete a job"""
     if job_id not in jobs:
         return {"success": False, "error": "Job not found"}
-    
+
     delete_job_files(job_id)
     del jobs[job_id]
-    
+
     return {"success": True}
 
 
@@ -339,19 +380,17 @@ async def get_job_results(job_id: str):
     job = jobs.get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    
-    if job['status'] != 'completed':
-        return {"success": False, "error": "Job not completed"}
-    
+
     output_dir = JOBS_DIR / job_id
     results = {
         "success": True,
         "job": job,
         "ocr_data": None,
         "matched_data": None,
-        "mappings": {}
+        "text_data": None,
+        "csv_files": []
     }
-    
+
     # Load OCR data
     ocr_dir = output_dir / "ocr"
     if ocr_dir.exists():
@@ -359,7 +398,7 @@ async def get_job_results(job_id: str):
             with open(json_file, 'r', encoding='utf-8') as f:
                 results['ocr_data'] = json.load(f)
             break
-    
+
     # Load matched data
     matched_dir = output_dir / "matched"
     if matched_dir.exists():
@@ -367,8 +406,35 @@ async def get_job_results(job_id: str):
             with open(json_file, 'r', encoding='utf-8') as f:
                 results['matched_data'] = json.load(f)
             break
-    
+
+    # Load text data
+    text_dir = output_dir / "text"
+    if text_dir.exists():
+        for json_file in text_dir.glob("*_combined.json"):
+            with open(json_file, 'r', encoding='utf-8') as f:
+                results['text_data'] = json.load(f)
+            break
+
+    # List CSV files
+    mapping_dir = output_dir / "mapping"
+    if mapping_dir.exists():
+        results['csv_files'] = [f.name for f in mapping_dir.glob("*.csv")]
+
     return results
+
+
+@app.get("/api/jobs/{job_id}/csv/{filename}")
+async def get_job_csv(job_id: str, filename: str):
+    """Get a CSV file from job results"""
+    job = jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    csv_path = JOBS_DIR / job_id / "mapping" / filename
+    if not csv_path.exists():
+        raise HTTPException(status_code=404, detail="CSV file not found")
+
+    return FileResponse(csv_path, media_type="text/csv", filename=filename)
 
 
 @app.get("/api/jobs/{job_id}/pdf")
@@ -377,34 +443,33 @@ async def get_job_pdf(job_id: str):
     job = jobs.get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    
+
     pdf_path = Path(job['pdf_path'])
     if not pdf_path.exists():
         raise HTTPException(status_code=404, detail="PDF not found")
-    
+
     return FileResponse(pdf_path, media_type="application/pdf")
 
 
-# ============================================================================
-# Startup
-# ============================================================================
+@app.get("/api/jobs/{job_id}/logs")
+async def get_job_logs(job_id: str):
+    """Get job processing logs"""
+    job = jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
 
-@app.on_event("startup")
-async def startup():
-    """Load existing jobs on startup"""
-    load_jobs()
-    print(f"Loaded {len(jobs)} existing jobs")
+    return {"logs": job.get('logs', [])}
 
 
 def run():
     """Run the server"""
     import uvicorn
-    print("=" * 60)
-    print("   ScanX Tools - Document Processing Panel")
-    print("=" * 60)
-    print("   Server: http://localhost:8000")
-    print("=" * 60)
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    print("=" * 50)
+    print("  ScanX Tools - Document Processing")
+    print("=" * 50)
+    print("  Server: http://localhost:8000")
+    print("=" * 50)
+    uvicorn.run("scanx_tools.main:app", host="0.0.0.0", port=8000, reload=True)
 
 
 if __name__ == "__main__":

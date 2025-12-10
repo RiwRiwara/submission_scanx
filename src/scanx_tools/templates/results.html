@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Results - {{ job.filename }} | ScanX</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', system-ui, sans-serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .tab-active { border-bottom: 2px solid #3b82f6; color: #1e293b; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-full px-4 py-3">
+            <div class="flex items-center gap-4">
+                <a href="/" class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                </a>
+                <div class="flex-1 min-w-0">
+                    <h1 class="font-semibold text-slate-900 truncate">{{ job.filename }}</h1>
+                    <p class="text-sm text-slate-400">{{ job.pages }} pages</p>
+                </div>
+                <button onclick="exportResults()" class="px-4 py-2 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                    </svg>
+                    Export
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="flex" style="height: calc(100vh - 65px);">
+        <!-- Left: PDF Viewer -->
+        <div class="w-1/2 border-r border-slate-200 flex flex-col bg-white">
+            <div class="p-3 border-b border-slate-100 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <button onclick="prevPage()" class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                    </button>
+                    <span class="text-sm text-slate-600">
+                        <span id="currentPage">1</span> / <span id="totalPages">{{ job.pages }}</span>
+                    </span>
+                    <button onclick="nextPage()" class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="flex items-center gap-1">
+                    <button onclick="zoomOut()" class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors text-sm">-</button>
+                    <span id="zoomLevel" class="text-sm text-slate-500 w-12 text-center">100%</span>
+                    <button onclick="zoomIn()" class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors text-sm">+</button>
+                </div>
+            </div>
+            <div id="pdfContainer" class="flex-1 overflow-auto bg-slate-100 p-4 flex items-start justify-center">
+                <div id="pdfViewer" class="bg-white shadow-sm">
+                    <canvas id="pdfCanvas"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Data Panel -->
+        <div class="w-1/2 flex flex-col bg-white">
+            <!-- Tabs -->
+            <div class="border-b border-slate-200">
+                <div class="flex">
+                    <button onclick="showTab('pages')" class="tab-btn px-4 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors tab-active" data-tab="pages">
+                        Pages
+                    </button>
+                    <button onclick="showTab('data')" class="tab-btn px-4 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors" data-tab="data">
+                        Extracted Data
+                    </button>
+                    <button onclick="showTab('csv')" class="tab-btn px-4 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors" data-tab="csv">
+                        CSV Files
+                    </button>
+                    <button onclick="showTab('json')" class="tab-btn px-4 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors" data-tab="json">
+                        Raw JSON
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab Content -->
+            <div id="tabContent" class="flex-1 overflow-auto p-4">
+                <div class="text-center py-12 text-slate-400">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const JOB_ID = '{{ job.id }}';
+    let pdfDoc = null;
+    let currentPage = 1;
+    let zoomScale = 1.0;
+    let resultsData = null;
+    let currentTab = 'pages';
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await loadPdf();
+        await loadResults();
+    });
+
+    async function loadPdf() {
+        try {
+            pdfDoc = await pdfjsLib.getDocument(`/api/jobs/${JOB_ID}/pdf`).promise;
+            document.getElementById('totalPages').textContent = pdfDoc.numPages;
+            renderPage(1);
+        } catch (e) {
+            console.error('Error loading PDF:', e);
+        }
+    }
+
+    async function renderPage(num) {
+        if (!pdfDoc) return;
+        currentPage = num;
+        document.getElementById('currentPage').textContent = num;
+
+        const page = await pdfDoc.getPage(num);
+        const canvas = document.getElementById('pdfCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const viewport = page.getViewport({ scale: zoomScale * 1.5 });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        await page.render({ canvasContext: ctx, viewport }).promise;
+
+        // Update page details if on pages tab
+        if (currentTab === 'pages') {
+            updatePageHighlight();
+        }
+    }
+
+    function prevPage() {
+        if (currentPage > 1) renderPage(currentPage - 1);
+    }
+
+    function nextPage() {
+        if (pdfDoc && currentPage < pdfDoc.numPages) renderPage(currentPage + 1);
+    }
+
+    function zoomIn() {
+        zoomScale = Math.min(zoomScale + 0.25, 3);
+        document.getElementById('zoomLevel').textContent = Math.round(zoomScale * 100) + '%';
+        renderPage(currentPage);
+    }
+
+    function zoomOut() {
+        zoomScale = Math.max(zoomScale - 0.25, 0.5);
+        document.getElementById('zoomLevel').textContent = Math.round(zoomScale * 100) + '%';
+        renderPage(currentPage);
+    }
+
+    async function loadResults() {
+        try {
+            const response = await fetch(`/api/jobs/${JOB_ID}/results`);
+            resultsData = await response.json();
+            showTab('pages');
+        } catch (e) {
+            console.error('Error loading results:', e);
+            document.getElementById('tabContent').innerHTML = `
+                <div class="text-center py-12 text-red-500">Error loading results</div>
+            `;
+        }
+    }
+
+    function showTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.toggle('tab-active', btn.dataset.tab === tab);
+        });
+
+        const container = document.getElementById('tabContent');
+
+        switch (tab) {
+            case 'pages':
+                renderPagesTab(container);
+                break;
+            case 'data':
+                renderDataTab(container);
+                break;
+            case 'csv':
+                renderCsvTab(container);
+                break;
+            case 'json':
+                renderJsonTab(container);
+                break;
+        }
+    }
+
+    function renderPagesTab(container) {
+        const data = resultsData?.matched_data || resultsData?.ocr_data;
+        if (!data?.pages) {
+            container.innerHTML = `<div class="text-center py-12 text-slate-400">No page data available</div>`;
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="space-y-2">
+                ${data.pages.map((page, i) => {
+                    const isActive = (i + 1) === currentPage;
+                    const pageType = page.page_type || page.matched_template || 'Unknown';
+                    return `
+                        <div class="p-3 rounded-lg border cursor-pointer transition-colors ${isActive ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300'}"
+                             onclick="goToPage(${i + 1})" id="page-item-${i + 1}">
+                            <div class="flex items-center gap-3">
+                                <span class="w-8 h-8 rounded-lg ${isActive ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-600'} flex items-center justify-center text-sm font-medium">
+                                    ${i + 1}
+                                </span>
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-sm font-medium text-slate-900">${pageType}</div>
+                                    <div class="text-xs text-slate-400 truncate">
+                                        ${(page.lines?.length || 0)} lines
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+
+        updatePageHighlight();
+    }
+
+    function updatePageHighlight() {
+        document.querySelectorAll('[id^="page-item-"]').forEach(el => {
+            const pageNum = parseInt(el.id.split('-')[2]);
+            if (pageNum === currentPage) {
+                el.classList.add('border-blue-500', 'bg-blue-50');
+                el.classList.remove('border-slate-200');
+                el.querySelector('span').classList.add('bg-blue-500', 'text-white');
+                el.querySelector('span').classList.remove('bg-slate-100', 'text-slate-600');
+                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } else {
+                el.classList.remove('border-blue-500', 'bg-blue-50');
+                el.classList.add('border-slate-200');
+                el.querySelector('span').classList.remove('bg-blue-500', 'text-white');
+                el.querySelector('span').classList.add('bg-slate-100', 'text-slate-600');
+            }
+        });
+    }
+
+    function renderDataTab(container) {
+        const data = resultsData?.matched_data || resultsData?.ocr_data;
+        if (!data) {
+            container.innerHTML = `<div class="text-center py-12 text-slate-400">No extracted data</div>`;
+            return;
+        }
+
+        // Group pages by type
+        const pagesByType = {};
+        (data.pages || []).forEach((page, i) => {
+            const type = page.page_type || page.matched_template || 'unknown';
+            if (!pagesByType[type]) pagesByType[type] = [];
+            pagesByType[type].push({ page, index: i + 1 });
+        });
+
+        container.innerHTML = `
+            <div class="space-y-4">
+                ${Object.entries(pagesByType).map(([type, pages]) => `
+                    <div class="border border-slate-200 rounded-lg overflow-hidden">
+                        <div class="px-4 py-3 bg-slate-50 border-b border-slate-200">
+                            <div class="flex items-center justify-between">
+                                <span class="font-medium text-slate-900">${type}</span>
+                                <span class="text-sm text-slate-400">${pages.length} pages</span>
+                            </div>
+                        </div>
+                        <div class="divide-y divide-slate-100">
+                            ${pages.map(({ page, index }) => `
+                                <div class="px-4 py-2 hover:bg-slate-50 cursor-pointer transition-colors" onclick="goToPage(${index})">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-sm text-slate-500">Page ${index}</span>
+                                        <span class="text-xs text-slate-400">${page.lines?.length || 0} lines</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    function renderCsvTab(container) {
+        const csvFiles = resultsData?.csv_files || [];
+        if (csvFiles.length === 0) {
+            container.innerHTML = `<div class="text-center py-12 text-slate-400">No CSV files generated</div>`;
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="space-y-2">
+                ${csvFiles.map(file => `
+                    <a href="/api/jobs/${JOB_ID}/csv/${file}" download
+                       class="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors">
+                        <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        <span class="flex-1 text-sm font-medium text-slate-900">${file}</span>
+                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                        </svg>
+                    </a>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    function renderJsonTab(container) {
+        const data = resultsData?.matched_data || resultsData?.ocr_data;
+        container.innerHTML = `
+            <div class="bg-slate-50 rounded-lg p-4 overflow-auto">
+                <pre class="text-xs text-slate-600 whitespace-pre-wrap font-mono">${JSON.stringify(data, null, 2)}</pre>
+            </div>
+        `;
+    }
+
+    function goToPage(pageNum) {
+        renderPage(pageNum);
+        if (currentTab === 'pages') {
+            updatePageHighlight();
+        }
+    }
+
+    function exportResults() {
+        const data = resultsData?.matched_data || resultsData?.ocr_data;
+        if (!data) return;
+
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${JOB_ID}_results.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+    </script>
+</body>
+</html>

@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ScanX - Document Processing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', system-ui, sans-serif; }
+        .fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+    <div class="max-w-5xl mx-auto px-6 py-8">
+        <!-- Header -->
+        <header class="mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-semibold text-slate-900">ScanX</h1>
+                    <p class="text-sm text-slate-500 mt-1">Thai Financial Disclosure Document Processing</p>
+                </div>
+                <button onclick="refreshJobs()" class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Upload Section -->
+        <section class="mb-8">
+            <div id="dropZone"
+                 class="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center cursor-pointer transition-all hover:border-blue-400 hover:bg-blue-50/50"
+                 ondragover="handleDragOver(event)"
+                 ondragleave="handleDragLeave(event)"
+                 ondrop="handleDrop(event)"
+                 onclick="document.getElementById('fileInput').click()">
+                <svg class="w-10 h-10 mx-auto text-slate-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                </svg>
+                <p class="text-slate-600 mb-1">Drop PDF files here or click to upload</p>
+                <p class="text-sm text-slate-400">Supports Thai government disclosure documents</p>
+                <input type="file" id="fileInput" class="hidden" accept=".pdf" multiple onchange="handleFileSelect(event)">
+            </div>
+            <div id="uploadProgress" class="mt-3 hidden">
+                <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div id="uploadBar" class="h-full bg-blue-500 transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <p class="text-xs text-slate-400 mt-1" id="uploadText">Uploading...</p>
+            </div>
+        </section>
+
+        <!-- Stats -->
+        <section class="grid grid-cols-4 gap-4 mb-8">
+            <div class="bg-white rounded-xl p-4 border border-slate-100">
+                <div class="text-2xl font-semibold text-slate-900" id="statTotal">0</div>
+                <div class="text-sm text-slate-400">Total</div>
+            </div>
+            <div class="bg-white rounded-xl p-4 border border-slate-100">
+                <div class="text-2xl font-semibold text-amber-500" id="statProcessing">0</div>
+                <div class="text-sm text-slate-400">Processing</div>
+            </div>
+            <div class="bg-white rounded-xl p-4 border border-slate-100">
+                <div class="text-2xl font-semibold text-emerald-500" id="statCompleted">0</div>
+                <div class="text-sm text-slate-400">Completed</div>
+            </div>
+            <div class="bg-white rounded-xl p-4 border border-slate-100">
+                <div class="text-2xl font-semibold text-red-500" id="statError">0</div>
+                <div class="text-sm text-slate-400">Errors</div>
+            </div>
+        </section>
+
+        <!-- Jobs List -->
+        <section>
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-medium text-slate-900">Documents</h2>
+                <button onclick="clearCompleted()" class="text-sm text-slate-400 hover:text-slate-600 transition-colors">Clear completed</button>
+            </div>
+            <div id="jobsList" class="space-y-3">
+                <div class="text-center py-12 text-slate-400">
+                    <svg class="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <p>No documents yet</p>
+                    <p class="text-sm mt-1">Upload PDF files to get started</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Job Detail Modal -->
+    <div id="modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50" onclick="closeModal(event)">
+        <div class="bg-white rounded-2xl w-full max-w-lg mx-4 max-h-[80vh] overflow-hidden" onclick="event.stopPropagation()">
+            <div class="p-6 border-b border-slate-100">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1 min-w-0">
+                        <h3 class="font-semibold text-slate-900 truncate" id="modalTitle">Document</h3>
+                        <p class="text-sm text-slate-400 mt-1" id="modalMeta">-</p>
+                    </div>
+                    <button onclick="closeModal()" class="p-1 text-slate-400 hover:text-slate-600 ml-4">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="p-6" id="modalContent">
+                <!-- Content inserted by JS -->
+            </div>
+            <div class="px-6 pb-6 flex gap-3" id="modalActions">
+                <!-- Actions inserted by JS -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+    let jobs = {};
+    let selectedJobId = null;
+    let pollingInterval = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        refreshJobs();
+        startPolling();
+    });
+
+    function startPolling() {
+        if (pollingInterval) clearInterval(pollingInterval);
+        pollingInterval = setInterval(refreshJobs, 2000);
+    }
+
+    async function refreshJobs() {
+        try {
+            const response = await fetch('/api/jobs');
+            const data = await response.json();
+            jobs = {};
+            (data.jobs || []).forEach(job => { jobs[job.id] = job; });
+            renderJobs();
+            updateStats();
+            if (selectedJobId && jobs[selectedJobId]) {
+                renderModal(jobs[selectedJobId]);
+            }
+        } catch (e) {
+            console.error('Error loading jobs:', e);
+        }
+    }
+
+    function updateStats() {
+        const list = Object.values(jobs);
+        document.getElementById('statTotal').textContent = list.length;
+        document.getElementById('statProcessing').textContent = list.filter(j => j.status === 'processing').length;
+        document.getElementById('statCompleted').textContent = list.filter(j => j.status === 'completed').length;
+        document.getElementById('statError').textContent = list.filter(j => j.status === 'error').length;
+    }
+
+    function renderJobs() {
+        const container = document.getElementById('jobsList');
+        const list = Object.values(jobs).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+        if (list.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-12 text-slate-400">
+                    <svg class="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <p>No documents yet</p>
+                    <p class="text-sm mt-1">Upload PDF files to get started</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = list.map(job => {
+            const statusColors = {
+                'queued': 'bg-slate-100 text-slate-600',
+                'processing': 'bg-amber-50 text-amber-600',
+                'completed': 'bg-emerald-50 text-emerald-600',
+                'error': 'bg-red-50 text-red-600'
+            };
+            const statusLabels = {
+                'queued': 'Queued',
+                'processing': job.current_phase || 'Processing',
+                'completed': 'Completed',
+                'error': 'Error'
+            };
+
+            return `
+                <div class="bg-white rounded-xl p-4 border border-slate-100 hover:border-slate-200 transition-colors cursor-pointer fade-in"
+                     onclick="openModal('${job.id}')">
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="font-medium text-slate-900 truncate">${job.filename}</div>
+                            <div class="text-sm text-slate-400">${job.pages || '?'} pages</div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            ${job.status === 'processing' ? `
+                                <div class="w-24">
+                                    <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                        <div class="h-full bg-amber-500 transition-all" style="width: ${job.progress || 0}%"></div>
+                                    </div>
+                                    <div class="text-xs text-slate-400 mt-1">${job.progress || 0}%</div>
+                                </div>
+                            ` : ''}
+                            <span class="px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[job.status] || statusColors.queued}">
+                                ${statusLabels[job.status] || 'Unknown'}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function openModal(jobId) {
+        selectedJobId = jobId;
+        const job = jobs[jobId];
+        if (!job) return;
+
+        document.getElementById('modal').classList.remove('hidden');
+        document.getElementById('modal').classList.add('flex');
+        renderModal(job);
+    }
+
+    function closeModal(e) {
+        if (e && e.target !== e.currentTarget) return;
+        document.getElementById('modal').classList.add('hidden');
+        document.getElementById('modal').classList.remove('flex');
+        selectedJobId = null;
+    }
+
+    function renderModal(job) {
+        document.getElementById('modalTitle').textContent = job.filename;
+        document.getElementById('modalMeta').textContent = `${job.pages || '?'} pages • Created ${new Date(job.created_at).toLocaleString()}`;
+
+        const phases = [
+            { id: 'phase0', name: 'OCR', desc: 'Extract text from PDF' },
+            { id: 'phase1ab', name: 'Match', desc: 'Identify page types' },
+            { id: 'phase1c', name: 'Extract', desc: 'Extract structured text' },
+            { id: 'phase1d', name: 'AI', desc: 'Enrich with AI' },
+            { id: 'phase1e', name: 'Map', desc: 'Generate CSV output' }
+        ];
+
+        const phaseStatus = job.phase_status || {};
+
+        let content = `
+            <div class="space-y-4">
+                <!-- Progress -->
+                <div>
+                    <div class="flex justify-between text-sm mb-2">
+                        <span class="text-slate-500">Progress</span>
+                        <span class="font-medium text-slate-900">${job.progress || 0}%</span>
+                    </div>
+                    <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-blue-500 transition-all duration-500" style="width: ${job.progress || 0}%"></div>
+                    </div>
+                </div>
+
+                <!-- Phases -->
+                <div class="space-y-2">
+                    ${phases.map(phase => {
+                        const status = phaseStatus[phase.id] || 'pending';
+                        const icons = {
+                            'pending': '<div class="w-5 h-5 rounded-full border-2 border-slate-200"></div>',
+                            'running': '<div class="w-5 h-5 rounded-full border-2 border-amber-500 border-t-transparent animate-spin"></div>',
+                            'completed': '<svg class="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>',
+                            'skipped': '<svg class="w-5 h-5 text-slate-300" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>',
+                            'error': '<svg class="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>'
+                        };
+                        return `
+                            <div class="flex items-center gap-3 p-2 rounded-lg ${status === 'running' ? 'bg-amber-50' : ''}">
+                                ${icons[status] || icons.pending}
+                                <div class="flex-1">
+                                    <div class="text-sm font-medium text-slate-900">${phase.name}</div>
+                                    <div class="text-xs text-slate-400">${phase.desc}</div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+
+                ${job.error ? `
+                    <div class="p-3 bg-red-50 border border-red-100 rounded-lg text-sm text-red-600">
+                        ${job.error}
+                    </div>
+                ` : ''}
+
+                ${job.logs && job.logs.length > 0 ? `
+                    <details class="text-sm">
+                        <summary class="text-slate-500 cursor-pointer hover:text-slate-700">View logs</summary>
+                        <div class="mt-2 p-3 bg-slate-50 rounded-lg font-mono text-xs text-slate-600 max-h-40 overflow-y-auto">
+                            ${job.logs.map(log => `<div>${log}</div>`).join('')}
+                        </div>
+                    </details>
+                ` : ''}
+            </div>
+        `;
+
+        document.getElementById('modalContent').innerHTML = content;
+
+        // Actions
+        let actions = '';
+        if (job.status === 'queued') {
+            actions = `
+                <button onclick="startJob('${job.id}')" class="flex-1 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors">
+                    Start Processing
+                </button>
+                <button onclick="deleteJob('${job.id}')" class="px-4 py-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                    Delete
+                </button>
+            `;
+        } else if (job.status === 'completed') {
+            actions = `
+                <a href="/results/${job.id}" class="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium transition-colors text-center">
+                    View Results
+                </a>
+                <button onclick="deleteJob('${job.id}')" class="px-4 py-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                    Delete
+                </button>
+            `;
+        } else if (job.status === 'error') {
+            actions = `
+                <button onclick="deleteJob('${job.id}')" class="flex-1 py-2.5 text-red-500 hover:bg-red-50 border border-red-200 rounded-lg font-medium transition-colors">
+                    Delete
+                </button>
+            `;
+        } else {
+            actions = `
+                <div class="flex-1 text-center text-sm text-slate-400 py-2">Processing...</div>
+            `;
+        }
+        document.getElementById('modalActions').innerHTML = actions;
+    }
+
+    // File handling
+    function handleDragOver(e) {
+        e.preventDefault();
+        e.currentTarget.classList.add('border-blue-400', 'bg-blue-50/50');
+    }
+
+    function handleDragLeave(e) {
+        e.currentTarget.classList.remove('border-blue-400', 'bg-blue-50/50');
+    }
+
+    function handleDrop(e) {
+        e.preventDefault();
+        e.currentTarget.classList.remove('border-blue-400', 'bg-blue-50/50');
+        const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
+        if (files.length > 0) uploadFiles(files);
+    }
+
+    function handleFileSelect(e) {
+        const files = Array.from(e.target.files);
+        if (files.length > 0) uploadFiles(files);
+        e.target.value = '';
+    }
+
+    async function uploadFiles(files) {
+        const progressDiv = document.getElementById('uploadProgress');
+        const progressBar = document.getElementById('uploadBar');
+        const progressText = document.getElementById('uploadText');
+
+        progressDiv.classList.remove('hidden');
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                progressText.textContent = `Uploading ${i + 1}/${files.length}: ${file.name}`;
+                progressBar.style.width = `${((i + 0.5) / files.length) * 100}%`;
+
+                const response = await fetch('/api/upload', { method: 'POST', body: formData });
+                const result = await response.json();
+
+                if (!result.success) {
+                    alert('Error: ' + (result.error || 'Upload failed'));
+                }
+
+                progressBar.style.width = `${((i + 1) / files.length) * 100}%`;
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        setTimeout(() => {
+            progressDiv.classList.add('hidden');
+            progressBar.style.width = '0%';
+        }, 500);
+
+        refreshJobs();
+    }
+
+    async function startJob(jobId) {
+        try {
+            const response = await fetch(`/api/jobs/${jobId}/start`, { method: 'POST' });
+            const result = await response.json();
+            if (!result.success) {
+                alert('Error: ' + (result.error || 'Failed to start'));
+            }
+            refreshJobs();
+        } catch (e) {
+            alert('Error: ' + e.message);
+        }
+    }
+
+    async function deleteJob(jobId) {
+        if (!confirm('Delete this document?')) return;
+        try {
+            await fetch(`/api/jobs/${jobId}`, { method: 'DELETE' });
+            closeModal();
+            refreshJobs();
+        } catch (e) {
+            alert('Error: ' + e.message);
+        }
+    }
+
+    async function clearCompleted() {
+        const completed = Object.values(jobs).filter(j => j.status === 'completed');
+        for (const job of completed) {
+            await fetch(`/api/jobs/${job.id}`, { method: 'DELETE' });
+        }
+        refreshJobs();
+    }
+    </script>
+</body>
+</html>

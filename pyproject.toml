@@ -15,10 +15,18 @@ dependencies = [
     "scipy>=1.11.0",
     "openai>=1.0.0",
     "pypdf2 (>=3.0.1,<4.0.0)",
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "python-multipart>=0.0.6",
+    "jinja2>=3.1.2",
+    "aiofiles>=23.2.1",
 ]
 
 [tool.poetry]
-packages = [{include = "submission_scanx", from = "src"}]
+packages = [
+    {include = "submission_scanx", from = "src"},
+    {include = "scanx_tools", from = "src"},
+]
 
 [tool.poetry.scripts]
 scanx = "submission_scanx.pipeline:main"
@@ -27,6 +35,7 @@ scanx-process = "submission_scanx.phase1_process:main"
 scanx-text = "submission_scanx.phase1c_text_extract:main"
 scanx-meta = "submission_scanx.phase1d_metadata:main"
 scanx-mapping = "submission_scanx.phase1e_mapping:main"
+scanx-tools = "scanx_tools.main:run"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
