@@ -1,6 +1,6 @@
 """
-ScanX Tools - Document Processing Panel
-A clean web interface for the ScanX extraction pipeline
+ScanX Tools - Single File Document Processing
+A clean web interface for processing Thai financial disclosure documents
 """
 import asyncio
 import json
@@ -10,11 +10,11 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import FastAPI, Request, HTTPException, UploadFile, File, BackgroundTasks
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi import FastAPI, Request, HTTPException, UploadFile, File
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -28,50 +28,142 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 # Storage paths
-UPLOADS_DIR = BASE_DIR / "uploads"
-JOBS_DIR = BASE_DIR / "jobs"
-UPLOADS_DIR.mkdir(exist_ok=True)
+WORK_DIR = BASE_DIR / "workspace"
+WORK_DIR.mkdir(exist_ok=True)
+JOBS_DIR = BASE_DIR / "jobs"  # Store completed job results
 JOBS_DIR.mkdir(exist_ok=True)
+HISTORY_FILE = BASE_DIR / "history.json"
 
-# In-memory job storage
-jobs: Dict[str, Dict] = {}
-executor = ThreadPoolExecutor(max_workers=2)
+# Current processing state
+current_state: Dict = {
+    "status": "idle",  # idle, uploading, processing, completed, error
+    "job_id": None,
+    "filename": None,
+    "pdf_path": None,
+    "pages": 0,
+    "progress": 0,
+    "current_phase": None,
+    "phase_status": {},
+    "logs": [],
+    "error": None,
+    "started_at": None,
+    "completed_at": None
+}
+
+# Processing history
+history: List[Dict] = []
+
+executor = ThreadPoolExecutor(max_workers=1)
 
 
-def load_jobs():
-    """Load jobs from disk"""
-    global jobs
-    for job_file in JOBS_DIR.glob("*.json"):
+def load_history():
+    """Load history from file"""
+    global history
+    if HISTORY_FILE.exists():
         try:
-            with open(job_file, 'r', encoding='utf-8') as f:
-                job = json.load(f)
-                jobs[job['id']] = job
-        except Exception as e:
-            print(f"Error loading job {job_file}: {e}")
+            with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
+                history = json.load(f)
+        except Exception:
+            history = []
 
 
-def save_job(job: Dict):
-    """Save job to disk"""
-    job_file = JOBS_DIR / f"{job['id']}.json"
-    with open(job_file, 'w', encoding='utf-8') as f:
-        json.dump(job, f, ensure_ascii=False, indent=2, default=str)
+def save_history():
+    """Save history to file"""
+    with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
+        json.dump(history[-50:], f, ensure_ascii=False, indent=2)  # Keep last 50
 
 
-def delete_job_files(job_id: str):
-    """Delete job files from disk"""
-    job_file = JOBS_DIR / f"{job_id}.json"
-    if job_file.exists():
-        job_file.unlink()
+def generate_job_id() -> str:
+    """Generate a unique job ID"""
+    return datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:8]
 
-    job = jobs.get(job_id)
-    if job:
-        pdf_path = Path(job.get('pdf_path', ''))
-        if pdf_path.exists():
-            pdf_path.unlink()
 
-        output_dir = JOBS_DIR / job_id
-        if output_dir.exists():
-            shutil.rmtree(output_dir)
+def save_job_results(job_id: str, state: Dict):
+    """Save job results to a dedicated folder"""
+    job_dir = JOBS_DIR / job_id
+    job_dir.mkdir(exist_ok=True)
+
+    # Copy workspace results to job folder
+    for subdir in ["ocr", "matched", "text", "metadata", "mapping"]:
+        src_dir = WORK_DIR / subdir
+        if src_dir.exists():
+            dst_dir = job_dir / subdir
+            if dst_dir.exists():
+                shutil.rmtree(dst_dir)
+            shutil.copytree(src_dir, dst_dir)
+
+    # Copy PDF file
+    if state.get('pdf_path') and Path(state['pdf_path']).exists():
+        pdf_src = Path(state['pdf_path'])
+        pdf_dst = job_dir / pdf_src.name
+        shutil.copy2(pdf_src, pdf_dst)
+
+    # Save job state
+    job_state = {
+        "job_id": job_id,
+        "filename": state['filename'],
+        "pages": state['pages'],
+        "status": state['status'],
+        "started_at": state['started_at'],
+        "completed_at": state['completed_at'],
+        "error": state.get('error'),
+        "phase_status": state.get('phase_status', {}),
+        "logs": state.get('logs', [])
+    }
+    with open(job_dir / "job_state.json", 'w', encoding='utf-8') as f:
+        json.dump(job_state, f, ensure_ascii=False, indent=2)
+
+
+def delete_job(job_id: str) -> bool:
+    """Delete a job and its data"""
+    job_dir = JOBS_DIR / job_id
+    if job_dir.exists():
+        shutil.rmtree(job_dir)
+        return True
+    return False
+
+
+def add_to_history(state: Dict):
+    """Add completed processing to history"""
+    history.append({
+        "job_id": state.get('job_id'),
+        "filename": state['filename'],
+        "pages": state['pages'],
+        "status": state['status'],
+        "started_at": state['started_at'],
+        "completed_at": state['completed_at'],
+        "error": state.get('error')
+    })
+    save_history()
+
+
+def reset_state():
+    """Reset the current state"""
+    global current_state
+    current_state = {
+        "status": "idle",
+        "job_id": None,
+        "filename": None,
+        "pdf_path": None,
+        "pages": 0,
+        "progress": 0,
+        "current_phase": None,
+        "phase_status": {},
+        "logs": [],
+        "error": None,
+        "started_at": None,
+        "completed_at": None
+    }
+
+
+def clear_workspace():
+    """Clear workspace directory"""
+    if WORK_DIR.exists():
+        for item in WORK_DIR.iterdir():
+            if item.is_dir():
+                shutil.rmtree(item)
+            else:
+                item.unlink()
 
 
 def get_pdf_page_count(pdf_path: Path) -> int:
@@ -84,45 +176,43 @@ def get_pdf_page_count(pdf_path: Path) -> int:
         return 0
 
 
-async def run_pipeline_for_job(job_id: str):
-    """Run the full pipeline for a job"""
-    job = jobs.get(job_id)
-    if not job:
+def log_message(msg: str):
+    """Add a log message"""
+    current_state['logs'].append(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
+
+
+async def run_pipeline():
+    """Run the full pipeline for the current file"""
+    global current_state
+
+    if not current_state['pdf_path']:
         return
 
     try:
-        job['status'] = 'processing'
-        job['started_at'] = datetime.now().isoformat()
-        job['phase_status'] = {}
-        job['logs'] = []
-        save_job(job)
+        current_state['status'] = 'processing'
+        current_state['started_at'] = datetime.now().isoformat()
+        current_state['phase_status'] = {}
+        current_state['logs'] = []
 
-        pdf_path = Path(job['pdf_path'])
-        output_dir = JOBS_DIR / job_id
-        output_dir.mkdir(exist_ok=True)
+        pdf_path = Path(current_state['pdf_path'])
 
-        # Create subdirectories
-        ocr_output = output_dir / "ocr"
-        matched_output = output_dir / "matched"
-        text_output = output_dir / "text"
-        metadata_output = output_dir / "metadata"
-        mapping_output = output_dir / "mapping"
+        # Create output directories
+        ocr_output = WORK_DIR / "ocr"
+        matched_output = WORK_DIR / "matched"
+        text_output = WORK_DIR / "text"
+        metadata_output = WORK_DIR / "metadata"
+        mapping_output = WORK_DIR / "mapping"
 
         for d in [ocr_output, matched_output, text_output, metadata_output, mapping_output]:
             d.mkdir(exist_ok=True)
 
         loop = asyncio.get_event_loop()
 
-        def log(msg):
-            job['logs'].append(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
-            save_job(job)
-
         # Phase 0: OCR
-        job['current_phase'] = 'OCR Extraction'
-        job['phase_status']['phase0'] = 'running'
-        job['progress'] = 5
-        save_job(job)
-        log(f"Starting OCR for {pdf_path.name}")
+        current_state['current_phase'] = 'OCR Extraction'
+        current_state['phase_status']['phase0'] = 'running'
+        current_state['progress'] = 5
+        log_message(f"Starting OCR for {pdf_path.name}")
 
         try:
             from submission_scanx.phase0_ocr import process_single_pdf
@@ -132,21 +222,19 @@ async def run_pipeline_for_job(job_id: str):
             )
             if result.get('status') == 'error':
                 raise Exception(result.get('error', 'OCR failed'))
-            log(f"OCR completed: {result.get('pages', 0)} pages extracted")
+            log_message(f"OCR completed: {result.get('pages', 0)} pages extracted")
         except Exception as e:
-            log(f"OCR error: {str(e)}")
+            log_message(f"OCR error: {str(e)}")
             raise
 
-        job['phase_status']['phase0'] = 'completed'
-        job['progress'] = 20
-        save_job(job)
+        current_state['phase_status']['phase0'] = 'completed'
+        current_state['progress'] = 20
 
         # Phase 1ab: Page Matching
-        job['current_phase'] = 'Page Matching'
-        job['phase_status']['phase1ab'] = 'running'
-        job['progress'] = 25
-        save_job(job)
-        log("Starting page type identification...")
+        current_state['current_phase'] = 'Page Matching'
+        current_state['phase_status']['phase1ab'] = 'running'
+        current_state['progress'] = 25
+        log_message("Starting page type identification...")
 
         try:
             from submission_scanx.phase1_process import run_phase1
@@ -155,21 +243,19 @@ async def run_pipeline_for_job(job_id: str):
                 executor,
                 lambda: run_phase1(ocr_output, matched_output, template_path, is_final=False, skip_existing=False)
             )
-            log("Page matching completed")
+            log_message("Page matching completed")
         except Exception as e:
-            log(f"Page matching error: {str(e)}")
+            log_message(f"Page matching error: {str(e)}")
             raise
 
-        job['phase_status']['phase1ab'] = 'completed'
-        job['progress'] = 40
-        save_job(job)
+        current_state['phase_status']['phase1ab'] = 'completed'
+        current_state['progress'] = 40
 
         # Phase 1c: Text Extraction
-        job['current_phase'] = 'Text Extraction'
-        job['phase_status']['phase1c'] = 'running'
-        job['progress'] = 45
-        save_job(job)
-        log("Extracting text from pages...")
+        current_state['current_phase'] = 'Text Extraction'
+        current_state['phase_status']['phase1c'] = 'running'
+        current_state['progress'] = 45
+        log_message("Extracting text from pages...")
 
         try:
             from submission_scanx.phase1_process import process_phase1c
@@ -177,21 +263,19 @@ async def run_pipeline_for_job(job_id: str):
                 executor,
                 lambda: process_phase1c(matched_output, text_output, clean=False, skip_existing=False)
             )
-            log("Text extraction completed")
+            log_message("Text extraction completed")
         except Exception as e:
-            log(f"Text extraction error: {str(e)}")
+            log_message(f"Text extraction error: {str(e)}")
             raise
 
-        job['phase_status']['phase1c'] = 'completed'
-        job['progress'] = 60
-        save_job(job)
+        current_state['phase_status']['phase1c'] = 'completed'
+        current_state['progress'] = 60
 
-        # Phase 1d: AI Metadata (optional - may fail without Azure OpenAI)
-        job['current_phase'] = 'AI Metadata'
-        job['phase_status']['phase1d'] = 'running'
-        job['progress'] = 65
-        save_job(job)
-        log("Extracting metadata with AI...")
+        # Phase 1d: AI Metadata (optional)
+        current_state['current_phase'] = 'AI Metadata'
+        current_state['phase_status']['phase1d'] = 'running'
+        current_state['progress'] = 65
+        log_message("Extracting metadata with AI...")
 
         try:
             from submission_scanx.phase1d_metadata import process_phase1d
@@ -199,26 +283,23 @@ async def run_pipeline_for_job(job_id: str):
                 executor,
                 lambda: process_phase1d(matched_output, metadata_output, skip_existing=False, clean=False)
             )
-            log("AI metadata extraction completed")
-            job['phase_status']['phase1d'] = 'completed'
+            log_message("AI metadata extraction completed")
+            current_state['phase_status']['phase1d'] = 'completed'
         except Exception as e:
-            log(f"AI metadata skipped: {str(e)}")
-            job['phase_status']['phase1d'] = 'skipped'
+            log_message(f"AI metadata skipped: {str(e)}")
+            current_state['phase_status']['phase1d'] = 'skipped'
 
-        job['progress'] = 80
-        save_job(job)
+        current_state['progress'] = 80
 
         # Phase 1e: Data Mapping
-        job['current_phase'] = 'Data Mapping'
-        job['phase_status']['phase1e'] = 'running'
-        job['progress'] = 85
-        save_job(job)
-        log("Mapping extracted data to CSV...")
+        current_state['current_phase'] = 'Data Mapping'
+        current_state['phase_status']['phase1e'] = 'running'
+        current_state['progress'] = 85
+        log_message("Mapping extracted data to CSV...")
 
         try:
             from submission_scanx.phase1e_mapping import run_phase1e
 
-            # Try to find CSV dir from training data as reference
             csv_dir = SRC_DIR / "training" / "train input"
             if not csv_dir.exists():
                 csv_dir = matched_output
@@ -227,43 +308,47 @@ async def run_pipeline_for_job(job_id: str):
                 executor,
                 lambda: run_phase1e(matched_output, mapping_output, csv_dir=csv_dir, skip_existing=False, clean=False)
             )
-            log("Data mapping completed")
-            job['phase_status']['phase1e'] = 'completed'
+            log_message("Data mapping completed")
+            current_state['phase_status']['phase1e'] = 'completed'
         except Exception as e:
-            log(f"Data mapping error: {str(e)}")
-            job['phase_status']['phase1e'] = 'error'
+            log_message(f"Data mapping error: {str(e)}")
+            current_state['phase_status']['phase1e'] = 'error'
 
-        job['progress'] = 100
+        current_state['progress'] = 100
+        current_state['status'] = 'completed'
+        current_state['completed_at'] = datetime.now().isoformat()
+        current_state['current_phase'] = None
+        log_message("Processing completed!")
 
-        # Mark job as completed
-        job['status'] = 'completed'
-        job['completed_at'] = datetime.now().isoformat()
-        job['current_phase'] = None
-        log("Pipeline completed successfully!")
-        save_job(job)
+        # Save job results to permanent storage
+        if current_state.get('job_id'):
+            save_job_results(current_state['job_id'], current_state)
+            log_message(f"Results saved to job: {current_state['job_id']}")
+
+        # Add to history
+        add_to_history(current_state)
 
     except Exception as e:
-        job['status'] = 'error'
-        job['error'] = str(e)
-        job['current_phase'] = None
-        if 'logs' in job:
-            job['logs'].append(f"[{datetime.now().strftime('%H:%M:%S')}] ERROR: {str(e)}")
-        save_job(job)
-        print(f"Pipeline error for job {job_id}: {e}")
+        current_state['status'] = 'error'
+        current_state['error'] = str(e)
+        current_state['current_phase'] = None
+        log_message(f"ERROR: {str(e)}")
+        print(f"Pipeline error: {e}")
+
+        # Add to history even on error
+        current_state['completed_at'] = datetime.now().isoformat()
+        add_to_history(current_state)
 
 
-# Lifespan handler (replaces deprecated on_event)
+# Lifespan handler
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    load_jobs()
-    print(f"Loaded {len(jobs)} existing jobs")
+    load_history()
     yield
-    # Shutdown
     executor.shutdown(wait=False)
 
 
-# Create app with lifespan
+# Create app
 app = FastAPI(title="ScanX Tools", version="2.0.0", lifespan=lifespan)
 
 # Static files
@@ -280,119 +365,115 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 # Page Routes
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    """Main panel page"""
+    """Main page"""
     return templates.TemplateResponse("index.html", {"request": request})
 
 
-@app.get("/results/{job_id}", response_class=HTMLResponse)
-async def results_page(request: Request, job_id: str):
+@app.get("/results", response_class=HTMLResponse)
+async def results_page(request: Request, job_id: Optional[str] = None):
     """Results viewer page"""
-    job = jobs.get(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return templates.TemplateResponse("results.html", {"request": request, "job": job})
+    # If job_id is provided, load that job's state
+    if job_id:
+        job_dir = JOBS_DIR / job_id
+        state_file = job_dir / "job_state.json"
+        if state_file.exists():
+            with open(state_file, 'r', encoding='utf-8') as f:
+                job_state = json.load(f)
+            return templates.TemplateResponse("results.html", {
+                "request": request,
+                "state": job_state,
+                "job_id": job_id
+            })
+        else:
+            return HTMLResponse(content="<script>alert('Job not found');window.location.href='/'</script>")
+
+    # Otherwise use current state
+    if current_state['status'] != 'completed':
+        return HTMLResponse(content="<script>window.location.href='/'</script>")
+    return templates.TemplateResponse("results.html", {
+        "request": request,
+        "state": current_state,
+        "job_id": current_state.get('job_id')
+    })
 
 
-# API Routes - Jobs
-@app.get("/api/jobs")
-async def list_jobs():
-    """List all jobs"""
-    job_list = sorted(jobs.values(), key=lambda x: x.get('created_at', ''), reverse=True)
-    return {"jobs": job_list}
+# API Routes
+@app.get("/api/status")
+async def get_status():
+    """Get current processing status"""
+    return current_state
+
+
+@app.get("/api/history")
+async def get_history():
+    """Get processing history"""
+    return {"history": list(reversed(history))}
 
 
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...)):
-    """Upload a PDF file and create a job"""
+    """Upload a PDF file and start processing"""
+    global current_state
+
     if not file.filename.lower().endswith('.pdf'):
-        return {"success": False, "error": "Only PDF files are allowed"}
+        return JSONResponse({"success": False, "error": "Only PDF files are allowed"}, status_code=400)
 
-    job_id = str(uuid.uuid4())[:8]
+    if current_state['status'] == 'processing':
+        return JSONResponse({"success": False, "error": "Already processing a file"}, status_code=400)
 
-    pdf_path = UPLOADS_DIR / f"{job_id}_{file.filename}"
+    # Clear previous data
+    reset_state()
+    clear_workspace()
+
+    # Generate job ID
+    job_id = generate_job_id()
+
+    # Save the uploaded file
+    pdf_path = WORK_DIR / file.filename
     with open(pdf_path, 'wb') as f:
         content = await file.read()
         f.write(content)
 
     pages = get_pdf_page_count(pdf_path)
 
-    job = {
-        "id": job_id,
-        "filename": file.filename,
-        "pdf_path": str(pdf_path),
-        "pages": pages,
-        "status": "queued",
-        "progress": 0,
-        "current_phase": None,
-        "phase_status": {},
-        "logs": [],
-        "created_at": datetime.now().isoformat(),
-        "started_at": None,
-        "completed_at": None,
-        "error": None
-    }
+    current_state['status'] = 'uploading'
+    current_state['job_id'] = job_id
+    current_state['filename'] = file.filename
+    current_state['pdf_path'] = str(pdf_path)
+    current_state['pages'] = pages
 
-    jobs[job_id] = job
-    save_job(job)
+    # Start processing in background
+    asyncio.create_task(run_pipeline())
 
-    return {"success": True, "job_id": job_id, "job": job}
+    return {"success": True, "filename": file.filename, "pages": pages, "job_id": job_id}
 
 
-@app.post("/api/jobs/{job_id}/start")
-async def start_job(job_id: str, background_tasks: BackgroundTasks):
-    """Start processing a job"""
-    job = jobs.get(job_id)
-    if not job:
-        return {"success": False, "error": "Job not found"}
-
-    if job['status'] != 'queued':
-        return {"success": False, "error": f"Job is already {job['status']}"}
-
-    background_tasks.add_task(run_pipeline_for_job, job_id)
-
+@app.post("/api/reset")
+async def reset():
+    """Reset and clear everything"""
+    reset_state()
+    clear_workspace()
     return {"success": True}
 
 
-@app.get("/api/jobs/{job_id}")
-async def get_job(job_id: str):
-    """Get job details"""
-    job = jobs.get(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return job
+@app.get("/api/results")
+async def get_results():
+    """Get processing results"""
+    if current_state['status'] != 'completed':
+        return {"success": False, "error": "Processing not completed"}
 
-
-@app.delete("/api/jobs/{job_id}")
-async def delete_job(job_id: str):
-    """Delete a job"""
-    if job_id not in jobs:
-        return {"success": False, "error": "Job not found"}
-
-    delete_job_files(job_id)
-    del jobs[job_id]
-
-    return {"success": True}
-
-
-@app.get("/api/jobs/{job_id}/results")
-async def get_job_results(job_id: str):
-    """Get job results"""
-    job = jobs.get(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    output_dir = JOBS_DIR / job_id
     results = {
         "success": True,
-        "job": job,
+        "state": current_state,
         "ocr_data": None,
         "matched_data": None,
         "text_data": None,
+        "metadata": None,
         "csv_files": []
     }
 
     # Load OCR data
-    ocr_dir = output_dir / "ocr"
+    ocr_dir = WORK_DIR / "ocr"
     if ocr_dir.exists():
         for json_file in ocr_dir.glob("*.json"):
             with open(json_file, 'r', encoding='utf-8') as f:
@@ -400,7 +481,7 @@ async def get_job_results(job_id: str):
             break
 
     # Load matched data
-    matched_dir = output_dir / "matched"
+    matched_dir = WORK_DIR / "matched"
     if matched_dir.exists():
         for json_file in matched_dir.glob("*.json"):
             with open(json_file, 'r', encoding='utf-8') as f:
@@ -408,57 +489,174 @@ async def get_job_results(job_id: str):
             break
 
     # Load text data
-    text_dir = output_dir / "text"
+    text_dir = WORK_DIR / "text"
     if text_dir.exists():
-        for json_file in text_dir.glob("*_combined.json"):
+        for json_file in text_dir.glob("*.json"):
             with open(json_file, 'r', encoding='utf-8') as f:
                 results['text_data'] = json.load(f)
             break
 
+    # Load metadata
+    metadata_dir = WORK_DIR / "metadata"
+    if metadata_dir.exists():
+        for json_file in metadata_dir.glob("*.json"):
+            with open(json_file, 'r', encoding='utf-8') as f:
+                results['metadata'] = json.load(f)
+            break
+
     # List CSV files
-    mapping_dir = output_dir / "mapping"
+    mapping_dir = WORK_DIR / "mapping"
     if mapping_dir.exists():
         results['csv_files'] = [f.name for f in mapping_dir.glob("*.csv")]
 
     return results
 
 
-@app.get("/api/jobs/{job_id}/csv/{filename}")
-async def get_job_csv(job_id: str, filename: str):
-    """Get a CSV file from job results"""
-    job = jobs.get(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    csv_path = JOBS_DIR / job_id / "mapping" / filename
+@app.get("/api/csv/{filename}")
+async def get_csv(filename: str):
+    """Get a CSV file"""
+    csv_path = WORK_DIR / "mapping" / filename
     if not csv_path.exists():
         raise HTTPException(status_code=404, detail="CSV file not found")
-
     return FileResponse(csv_path, media_type="text/csv", filename=filename)
 
 
-@app.get("/api/jobs/{job_id}/pdf")
-async def get_job_pdf(job_id: str):
-    """Serve the job's PDF file"""
-    job = jobs.get(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+@app.get("/api/pdf")
+async def get_pdf():
+    """Serve the uploaded PDF file"""
+    if not current_state['pdf_path']:
+        raise HTTPException(status_code=404, detail="No PDF uploaded")
 
-    pdf_path = Path(job['pdf_path'])
+    pdf_path = Path(current_state['pdf_path'])
     if not pdf_path.exists():
         raise HTTPException(status_code=404, detail="PDF not found")
 
     return FileResponse(pdf_path, media_type="application/pdf")
 
 
-@app.get("/api/jobs/{job_id}/logs")
-async def get_job_logs(job_id: str):
-    """Get job processing logs"""
-    job = jobs.get(job_id)
-    if not job:
+@app.delete("/api/history/{index}")
+async def delete_history_item(index: int):
+    """Delete a history item by index"""
+    global history
+    if index < 0 or index >= len(history):
+        raise HTTPException(status_code=404, detail="History item not found")
+
+    # History is stored in chronological order, but displayed reversed
+    # So we need to delete from the end
+    reversed_index = len(history) - 1 - index
+    deleted = history.pop(reversed_index)
+
+    # Also delete job data if exists
+    if deleted.get('job_id'):
+        delete_job(deleted['job_id'])
+
+    save_history()
+    return {"success": True, "deleted": deleted}
+
+
+@app.post("/api/history/clear")
+async def clear_history():
+    """Clear all history"""
+    global history
+
+    # Delete all job data
+    for item in history:
+        if item.get('job_id'):
+            delete_job(item['job_id'])
+
+    history = []
+    save_history()
+    return {"success": True}
+
+
+@app.get("/api/jobs/{job_id}")
+async def get_job_results(job_id: str):
+    """Get results for a specific job"""
+    job_dir = JOBS_DIR / job_id
+
+    if not job_dir.exists():
         raise HTTPException(status_code=404, detail="Job not found")
 
-    return {"logs": job.get('logs', [])}
+    results = {
+        "success": True,
+        "job_id": job_id,
+        "state": None,
+        "ocr_data": None,
+        "matched_data": None,
+        "text_data": None,
+        "metadata": None,
+        "csv_files": []
+    }
+
+    # Load job state
+    state_file = job_dir / "job_state.json"
+    if state_file.exists():
+        with open(state_file, 'r', encoding='utf-8') as f:
+            results['state'] = json.load(f)
+
+    # Load OCR data
+    ocr_dir = job_dir / "ocr"
+    if ocr_dir.exists():
+        for json_file in ocr_dir.glob("*.json"):
+            with open(json_file, 'r', encoding='utf-8') as f:
+                results['ocr_data'] = json.load(f)
+            break
+
+    # Load matched data
+    matched_dir = job_dir / "matched"
+    if matched_dir.exists():
+        for json_file in matched_dir.glob("*.json"):
+            with open(json_file, 'r', encoding='utf-8') as f:
+                results['matched_data'] = json.load(f)
+            break
+
+    # Load text data
+    text_dir = job_dir / "text"
+    if text_dir.exists():
+        for json_file in text_dir.glob("*.json"):
+            with open(json_file, 'r', encoding='utf-8') as f:
+                results['text_data'] = json.load(f)
+            break
+
+    # Load metadata
+    metadata_dir = job_dir / "metadata"
+    if metadata_dir.exists():
+        for json_file in metadata_dir.glob("*.json"):
+            with open(json_file, 'r', encoding='utf-8') as f:
+                results['metadata'] = json.load(f)
+            break
+
+    # List CSV files
+    mapping_dir = job_dir / "mapping"
+    if mapping_dir.exists():
+        results['csv_files'] = [f.name for f in mapping_dir.glob("*.csv")]
+
+    return results
+
+
+@app.get("/api/jobs/{job_id}/pdf")
+async def get_job_pdf(job_id: str):
+    """Serve PDF for a specific job"""
+    job_dir = JOBS_DIR / job_id
+
+    if not job_dir.exists():
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Find PDF file in job directory
+    pdf_files = list(job_dir.glob("*.pdf"))
+    if not pdf_files:
+        raise HTTPException(status_code=404, detail="PDF not found")
+
+    return FileResponse(pdf_files[0], media_type="application/pdf")
+
+
+@app.get("/api/jobs/{job_id}/csv/{filename}")
+async def get_job_csv(job_id: str, filename: str):
+    """Get a CSV file from a specific job"""
+    csv_path = JOBS_DIR / job_id / "mapping" / filename
+    if not csv_path.exists():
+        raise HTTPException(status_code=404, detail="CSV file not found")
+    return FileResponse(csv_path, media_type="text/csv", filename=filename)
 
 
 def run():

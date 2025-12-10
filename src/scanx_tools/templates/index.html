@@ -5,214 +5,214 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ScanX - Document Processing</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { font-family: 'Inter', system-ui, sans-serif; }
-        .fade-in { animation: fadeIn 0.3s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #f1f5f9; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen">
-    <div class="max-w-5xl mx-auto px-6 py-8">
-        <!-- Header -->
-        <header class="mb-8">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-2xl font-semibold text-slate-900">ScanX</h1>
-                    <p class="text-sm text-slate-500 mt-1">Thai Financial Disclosure Document Processing</p>
-                </div>
-                <button onclick="refreshJobs()" class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                    </svg>
-                </button>
-            </div>
-        </header>
-
-        <!-- Upload Section -->
-        <section class="mb-8">
-            <div id="dropZone"
-                 class="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center cursor-pointer transition-all hover:border-blue-400 hover:bg-blue-50/50"
-                 ondragover="handleDragOver(event)"
-                 ondragleave="handleDragLeave(event)"
-                 ondrop="handleDrop(event)"
-                 onclick="document.getElementById('fileInput').click()">
-                <svg class="w-10 h-10 mx-auto text-slate-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                </svg>
-                <p class="text-slate-600 mb-1">Drop PDF files here or click to upload</p>
-                <p class="text-sm text-slate-400">Supports Thai government disclosure documents</p>
-                <input type="file" id="fileInput" class="hidden" accept=".pdf" multiple onchange="handleFileSelect(event)">
-            </div>
-            <div id="uploadProgress" class="mt-3 hidden">
-                <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div id="uploadBar" class="h-full bg-blue-500 transition-all duration-300" style="width: 0%"></div>
-                </div>
-                <p class="text-xs text-slate-400 mt-1" id="uploadText">Uploading...</p>
-            </div>
-        </section>
-
-        <!-- Stats -->
-        <section class="grid grid-cols-4 gap-4 mb-8">
-            <div class="bg-white rounded-xl p-4 border border-slate-100">
-                <div class="text-2xl font-semibold text-slate-900" id="statTotal">0</div>
-                <div class="text-sm text-slate-400">Total</div>
-            </div>
-            <div class="bg-white rounded-xl p-4 border border-slate-100">
-                <div class="text-2xl font-semibold text-amber-500" id="statProcessing">0</div>
-                <div class="text-sm text-slate-400">Processing</div>
-            </div>
-            <div class="bg-white rounded-xl p-4 border border-slate-100">
-                <div class="text-2xl font-semibold text-emerald-500" id="statCompleted">0</div>
-                <div class="text-sm text-slate-400">Completed</div>
-            </div>
-            <div class="bg-white rounded-xl p-4 border border-slate-100">
-                <div class="text-2xl font-semibold text-red-500" id="statError">0</div>
-                <div class="text-sm text-slate-400">Errors</div>
-            </div>
-        </section>
-
-        <!-- Jobs List -->
-        <section>
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-medium text-slate-900">Documents</h2>
-                <button onclick="clearCompleted()" class="text-sm text-slate-400 hover:text-slate-600 transition-colors">Clear completed</button>
-            </div>
-            <div id="jobsList" class="space-y-3">
-                <div class="text-center py-12 text-slate-400">
-                    <svg class="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
-                    <p>No documents yet</p>
-                    <p class="text-sm mt-1">Upload PDF files to get started</p>
-                </div>
-            </div>
-        </section>
-    </div>
-
-    <!-- Job Detail Modal -->
-    <div id="modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50" onclick="closeModal(event)">
-        <div class="bg-white rounded-2xl w-full max-w-lg mx-4 max-h-[80vh] overflow-hidden" onclick="event.stopPropagation()">
-            <div class="p-6 border-b border-slate-100">
-                <div class="flex items-start justify-between">
-                    <div class="flex-1 min-w-0">
-                        <h3 class="font-semibold text-slate-900 truncate" id="modalTitle">Document</h3>
-                        <p class="text-sm text-slate-400 mt-1" id="modalMeta">-</p>
-                    </div>
-                    <button onclick="closeModal()" class="p-1 text-slate-400 hover:text-slate-600 ml-4">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+<body class="bg-slate-100 text-slate-800 min-h-screen">
+    <!-- Navbar -->
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-14">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                         </svg>
-                    </button>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-semibold text-slate-900">ScanX</h1>
+                    </div>
                 </div>
             </div>
-            <div class="p-6" id="modalContent">
-                <!-- Content inserted by JS -->
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left Panel: Upload & Processing -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Upload Card -->
+                <div id="uploadCard" class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-5 py-4 border-b border-slate-100">
+                        <h2 class="font-semibold text-slate-900">Upload Document</h2>
+                        <p class="text-sm text-slate-500 mt-0.5">Upload a PDF file to extract financial disclosure data</p>
+                    </div>
+                    <div class="p-5">
+                        <div id="dropZone"
+                             class="border-2 border-dashed border-slate-200 rounded-xl p-10 text-center cursor-pointer transition-all hover:border-blue-400 hover:bg-blue-50/30"
+                             ondragover="handleDragOver(event)"
+                             ondragleave="handleDragLeave(event)"
+                             ondrop="handleDrop(event)"
+                             onclick="document.getElementById('fileInput').click()">
+                            <svg class="w-12 h-12 mx-auto text-slate-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                            </svg>
+                            <p class="text-slate-600 mb-1">Drop PDF file here or click to browse</p>
+                            <p class="text-sm text-slate-400">Supports Thai financial disclosure documents</p>
+                            <input type="file" id="fileInput" class="hidden" accept=".pdf" onchange="handleFileSelect(event)">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Processing Card -->
+                <div id="processingCard" class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden hidden">
+                    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                        <div>
+                            <h2 class="font-semibold text-slate-900">Processing</h2>
+                            <p class="text-sm text-slate-500 mt-0.5" id="fileName">-</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm text-slate-500"><span id="pageCount">0</span> pages</span>
+                            <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700" id="statusBadge">Processing</span>
+                        </div>
+                    </div>
+                    <div class="p-5">
+                        <!-- Progress Bar -->
+                        <div class="mb-5">
+                            <div class="flex justify-between text-sm mb-2">
+                                <span class="text-slate-600" id="currentPhase">Preparing...</span>
+                                <span class="font-medium text-slate-900"><span id="progressPercent">0</span>%</span>
+                            </div>
+                            <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                                <div id="progressBar" class="h-full bg-blue-500 transition-all duration-500 rounded-full" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Phases -->
+                        <div class="space-y-2" id="phasesList"></div>
+
+                        <!-- Error -->
+                        <div id="errorBox" class="hidden mt-4 p-4 bg-red-50 border border-red-100 rounded-lg text-sm text-red-600"></div>
+
+                        <!-- Actions -->
+                        <div class="mt-5 pt-4 border-t border-slate-100 flex gap-3" id="actionButtons"></div>
+                    </div>
+                </div>
+
+                <!-- Logs Card -->
+                <div id="logsCard" class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden hidden">
+                    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                        <h2 class="font-semibold text-slate-900">Processing Logs</h2>
+                        <button onclick="toggleLogs()" class="text-sm text-slate-500 hover:text-slate-700">
+                            <span id="logsToggle">Hide</span>
+                        </button>
+                    </div>
+                    <div id="logsContent" class="p-4 bg-slate-50 max-h-48 overflow-y-auto">
+                        <pre class="text-xs text-slate-600 font-mono whitespace-pre-wrap" id="logsText"></pre>
+                    </div>
+                </div>
             </div>
-            <div class="px-6 pb-6 flex gap-3" id="modalActions">
-                <!-- Actions inserted by JS -->
+
+            <!-- Right Panel: History -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden sticky top-20">
+                    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                        <div>
+                            <h2 class="font-semibold text-slate-900">งานที่ทำแล้ว</h2>
+                            <p class="text-sm text-slate-500 mt-0.5">Recent Activity</p>
+                        </div>
+                        <button onclick="clearAllHistory()" id="clearHistoryBtn" class="hidden text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded transition-colors">
+                            ล้างทั้งหมด
+                        </button>
+                    </div>
+                    <div id="historyList" class="divide-y divide-slate-100 max-h-[calc(100vh-200px)] overflow-y-auto">
+                        <div class="p-5 text-center text-sm text-slate-400">No recent activity</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-    let jobs = {};
-    let selectedJobId = null;
     let pollingInterval = null;
+    let logsVisible = true;
+
+    const phases = [
+        { id: 'phase0', name: 'OCR Extraction', desc: 'Extract text from PDF pages' },
+        { id: 'phase1ab', name: 'Page Matching', desc: 'Identify document page types' },
+        { id: 'phase1c', name: 'Text Extraction', desc: 'Extract structured text' },
+        { id: 'phase1d', name: 'AI Enhancement', desc: 'Enrich data with AI' },
+        { id: 'phase1e', name: 'Data Mapping', desc: 'Generate output CSV files' }
+    ];
 
     document.addEventListener('DOMContentLoaded', () => {
-        refreshJobs();
-        startPolling();
+        checkStatus();
+        loadHistory();
     });
 
-    function startPolling() {
-        if (pollingInterval) clearInterval(pollingInterval);
-        pollingInterval = setInterval(refreshJobs, 2000);
-    }
-
-    async function refreshJobs() {
+    async function loadHistory() {
         try {
-            const response = await fetch('/api/jobs');
+            const response = await fetch('/api/history');
             const data = await response.json();
-            jobs = {};
-            (data.jobs || []).forEach(job => { jobs[job.id] = job; });
-            renderJobs();
-            updateStats();
-            if (selectedJobId && jobs[selectedJobId]) {
-                renderModal(jobs[selectedJobId]);
-            }
+            renderHistory(data.history || []);
         } catch (e) {
-            console.error('Error loading jobs:', e);
+            console.error('Error loading history:', e);
         }
     }
 
-    function updateStats() {
-        const list = Object.values(jobs);
-        document.getElementById('statTotal').textContent = list.length;
-        document.getElementById('statProcessing').textContent = list.filter(j => j.status === 'processing').length;
-        document.getElementById('statCompleted').textContent = list.filter(j => j.status === 'completed').length;
-        document.getElementById('statError').textContent = list.filter(j => j.status === 'error').length;
-    }
+    function renderHistory(items) {
+        const container = document.getElementById('historyList');
+        const clearBtn = document.getElementById('clearHistoryBtn');
 
-    function renderJobs() {
-        const container = document.getElementById('jobsList');
-        const list = Object.values(jobs).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-        if (list.length === 0) {
-            container.innerHTML = `
-                <div class="text-center py-12 text-slate-400">
-                    <svg class="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
-                    <p>No documents yet</p>
-                    <p class="text-sm mt-1">Upload PDF files to get started</p>
-                </div>
-            `;
+        if (!items || items.length === 0) {
+            container.innerHTML = '<div class="p-5 text-center text-sm text-slate-400">ยังไม่มีงานที่ทำ</div>';
+            clearBtn.classList.add('hidden');
             return;
         }
 
-        container.innerHTML = list.map(job => {
-            const statusColors = {
-                'queued': 'bg-slate-100 text-slate-600',
-                'processing': 'bg-amber-50 text-amber-600',
-                'completed': 'bg-emerald-50 text-emerald-600',
-                'error': 'bg-red-50 text-red-600'
-            };
-            const statusLabels = {
-                'queued': 'Queued',
-                'processing': job.current_phase || 'Processing',
-                'completed': 'Completed',
-                'error': 'Error'
-            };
+        clearBtn.classList.remove('hidden');
+
+        container.innerHTML = items.slice(0, 20).map((item, index) => {
+            const isSuccess = item.status === 'completed';
+            const hasJobId = !!item.job_id;
+            const date = new Date(item.completed_at || item.started_at);
+            const timeStr = date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+            const dateStr = date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
 
             return `
-                <div class="bg-white rounded-xl p-4 border border-slate-100 hover:border-slate-200 transition-colors cursor-pointer fade-in"
-                     onclick="openModal('${job.id}')">
-                    <div class="flex items-center gap-4">
-                        <div class="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                            </svg>
+                <div class="p-4 hover:bg-slate-50 transition-colors group">
+                    <div class="flex items-start gap-3">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isSuccess ? 'bg-emerald-100' : 'bg-red-100'}">
+                            ${isSuccess ?
+                                '<svg class="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>' :
+                                '<svg class="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>'
+                            }
                         </div>
                         <div class="flex-1 min-w-0">
-                            <div class="font-medium text-slate-900 truncate">${job.filename}</div>
-                            <div class="text-sm text-slate-400">${job.pages || '?'} pages</div>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            ${job.status === 'processing' ? `
-                                <div class="w-24">
-                                    <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                        <div class="h-full bg-amber-500 transition-all" style="width: ${job.progress || 0}%"></div>
-                                    </div>
-                                    <div class="text-xs text-slate-400 mt-1">${job.progress || 0}%</div>
-                                </div>
-                            ` : ''}
-                            <span class="px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[job.status] || statusColors.queued}">
-                                ${statusLabels[job.status] || 'Unknown'}
-                            </span>
+                            <p class="text-sm font-medium text-slate-900 truncate" title="${item.filename || 'Unknown'}">${item.filename || 'Unknown'}</p>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="text-xs text-slate-400">${item.pages || 0} หน้า</span>
+                                <span class="text-xs text-slate-300">•</span>
+                                <span class="text-xs text-slate-400">${dateStr} ${timeStr}</span>
+                            </div>
+                            ${item.error ? `<p class="text-xs text-red-500 mt-1 truncate" title="${item.error}">${item.error}</p>` : ''}
+
+                            <!-- Action Buttons -->
+                            <div class="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                ${isSuccess && hasJobId ? `
+                                    <button onclick="viewJob('${item.job_id}')"
+                                            class="text-xs px-2 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded transition-colors flex items-center gap-1">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                        </svg>
+                                        ดูผลลัพธ์
+                                    </button>
+                                ` : ''}
+                                <button onclick="deleteHistoryItem(${index})"
+                                        class="text-xs px-2 py-1 bg-red-50 text-red-600 hover:bg-red-100 rounded transition-colors flex items-center gap-1">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
+                                    ลบ
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -220,127 +220,143 @@
         }).join('');
     }
 
-    function openModal(jobId) {
-        selectedJobId = jobId;
-        const job = jobs[jobId];
-        if (!job) return;
+    async function checkStatus() {
+        try {
+            const response = await fetch('/api/status');
+            const state = await response.json();
+            updateUI(state);
 
-        document.getElementById('modal').classList.remove('hidden');
-        document.getElementById('modal').classList.add('flex');
-        renderModal(job);
+            if (state.status === 'processing') {
+                startPolling();
+            }
+        } catch (e) {
+            console.error('Error checking status:', e);
+        }
     }
 
-    function closeModal(e) {
-        if (e && e.target !== e.currentTarget) return;
-        document.getElementById('modal').classList.add('hidden');
-        document.getElementById('modal').classList.remove('flex');
-        selectedJobId = null;
+    function startPolling() {
+        if (pollingInterval) clearInterval(pollingInterval);
+        pollingInterval = setInterval(async () => {
+            try {
+                const response = await fetch('/api/status');
+                const state = await response.json();
+                updateUI(state);
+
+                if (state.status !== 'processing') {
+                    clearInterval(pollingInterval);
+                    pollingInterval = null;
+                    loadHistory();
+                }
+            } catch (e) {
+                console.error('Polling error:', e);
+            }
+        }, 1000);
     }
 
-    function renderModal(job) {
-        document.getElementById('modalTitle').textContent = job.filename;
-        document.getElementById('modalMeta').textContent = `${job.pages || '?'} pages • Created ${new Date(job.created_at).toLocaleString()}`;
+    function updateUI(state) {
+        const uploadCard = document.getElementById('uploadCard');
+        const processingCard = document.getElementById('processingCard');
+        const logsCard = document.getElementById('logsCard');
 
-        const phases = [
-            { id: 'phase0', name: 'OCR', desc: 'Extract text from PDF' },
-            { id: 'phase1ab', name: 'Match', desc: 'Identify page types' },
-            { id: 'phase1c', name: 'Extract', desc: 'Extract structured text' },
-            { id: 'phase1d', name: 'AI', desc: 'Enrich with AI' },
-            { id: 'phase1e', name: 'Map', desc: 'Generate CSV output' }
-        ];
+        if (state.status === 'idle') {
+            uploadCard.classList.remove('hidden');
+            processingCard.classList.add('hidden');
+            logsCard.classList.add('hidden');
+            return;
+        }
 
-        const phaseStatus = job.phase_status || {};
+        uploadCard.classList.add('hidden');
+        processingCard.classList.remove('hidden');
+        logsCard.classList.remove('hidden');
 
-        let content = `
-            <div class="space-y-4">
-                <!-- Progress -->
-                <div>
-                    <div class="flex justify-between text-sm mb-2">
-                        <span class="text-slate-500">Progress</span>
-                        <span class="font-medium text-slate-900">${job.progress || 0}%</span>
-                    </div>
-                    <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div class="h-full bg-blue-500 transition-all duration-500" style="width: ${job.progress || 0}%"></div>
+        // Update file info
+        document.getElementById('fileName').textContent = state.filename || '-';
+        document.getElementById('pageCount').textContent = state.pages || 0;
+
+        // Update status badge
+        const badge = document.getElementById('statusBadge');
+        if (state.status === 'completed') {
+            badge.textContent = 'Completed';
+            badge.className = 'px-2 py-1 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700';
+        } else if (state.status === 'error') {
+            badge.textContent = 'Error';
+            badge.className = 'px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700';
+        } else {
+            badge.textContent = 'Processing';
+            badge.className = 'px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700';
+        }
+
+        // Update progress
+        document.getElementById('progressPercent').textContent = state.progress || 0;
+        document.getElementById('progressBar').style.width = `${state.progress || 0}%`;
+        document.getElementById('currentPhase').textContent = state.current_phase || (state.status === 'completed' ? 'All phases completed' : 'Preparing...');
+
+        // Update phases
+        const phasesList = document.getElementById('phasesList');
+        phasesList.innerHTML = phases.map(phase => {
+            const status = state.phase_status?.[phase.id] || 'pending';
+            const icons = {
+                'pending': '<div class="w-5 h-5 rounded-full border-2 border-slate-200"></div>',
+                'running': '<div class="w-5 h-5 rounded-full border-2 border-blue-500 border-t-transparent animate-spin"></div>',
+                'completed': '<svg class="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>',
+                'skipped': '<svg class="w-5 h-5 text-slate-300" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clip-rule="evenodd"/></svg>',
+                'error': '<svg class="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>'
+            };
+            return `
+                <div class="flex items-center gap-3 p-3 rounded-lg ${status === 'running' ? 'bg-blue-50' : 'bg-slate-50'}">
+                    ${icons[status] || icons.pending}
+                    <div class="flex-1">
+                        <div class="text-sm font-medium text-slate-900">${phase.name}</div>
+                        <div class="text-xs text-slate-500">${phase.desc}</div>
                     </div>
                 </div>
-
-                <!-- Phases -->
-                <div class="space-y-2">
-                    ${phases.map(phase => {
-                        const status = phaseStatus[phase.id] || 'pending';
-                        const icons = {
-                            'pending': '<div class="w-5 h-5 rounded-full border-2 border-slate-200"></div>',
-                            'running': '<div class="w-5 h-5 rounded-full border-2 border-amber-500 border-t-transparent animate-spin"></div>',
-                            'completed': '<svg class="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>',
-                            'skipped': '<svg class="w-5 h-5 text-slate-300" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>',
-                            'error': '<svg class="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>'
-                        };
-                        return `
-                            <div class="flex items-center gap-3 p-2 rounded-lg ${status === 'running' ? 'bg-amber-50' : ''}">
-                                ${icons[status] || icons.pending}
-                                <div class="flex-1">
-                                    <div class="text-sm font-medium text-slate-900">${phase.name}</div>
-                                    <div class="text-xs text-slate-400">${phase.desc}</div>
-                                </div>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-
-                ${job.error ? `
-                    <div class="p-3 bg-red-50 border border-red-100 rounded-lg text-sm text-red-600">
-                        ${job.error}
-                    </div>
-                ` : ''}
-
-                ${job.logs && job.logs.length > 0 ? `
-                    <details class="text-sm">
-                        <summary class="text-slate-500 cursor-pointer hover:text-slate-700">View logs</summary>
-                        <div class="mt-2 p-3 bg-slate-50 rounded-lg font-mono text-xs text-slate-600 max-h-40 overflow-y-auto">
-                            ${job.logs.map(log => `<div>${log}</div>`).join('')}
-                        </div>
-                    </details>
-                ` : ''}
-            </div>
-        `;
-
-        document.getElementById('modalContent').innerHTML = content;
-
-        // Actions
-        let actions = '';
-        if (job.status === 'queued') {
-            actions = `
-                <button onclick="startJob('${job.id}')" class="flex-1 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors">
-                    Start Processing
-                </button>
-                <button onclick="deleteJob('${job.id}')" class="px-4 py-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                    Delete
-                </button>
             `;
-        } else if (job.status === 'completed') {
-            actions = `
-                <a href="/results/${job.id}" class="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium transition-colors text-center">
+        }).join('');
+
+        // Update logs
+        if (state.logs && state.logs.length > 0) {
+            document.getElementById('logsText').textContent = state.logs.join('\n');
+        }
+
+        // Update error
+        const errorBox = document.getElementById('errorBox');
+        if (state.error) {
+            errorBox.textContent = state.error;
+            errorBox.classList.remove('hidden');
+        } else {
+            errorBox.classList.add('hidden');
+        }
+
+        // Update action buttons
+        const actionButtons = document.getElementById('actionButtons');
+        if (state.status === 'completed') {
+            actionButtons.innerHTML = `
+                <a href="/results" class="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium transition-colors text-center text-sm">
                     View Results
                 </a>
-                <button onclick="deleteJob('${job.id}')" class="px-4 py-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                    Delete
+                <button onclick="resetAndStart()" class="px-4 py-2.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors text-sm">
+                    Process New File
                 </button>
             `;
-        } else if (job.status === 'error') {
-            actions = `
-                <button onclick="deleteJob('${job.id}')" class="flex-1 py-2.5 text-red-500 hover:bg-red-50 border border-red-200 rounded-lg font-medium transition-colors">
-                    Delete
+        } else if (state.status === 'error') {
+            actionButtons.innerHTML = `
+                <button onclick="resetAndStart()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors text-sm">
+                    Try Again
                 </button>
             `;
         } else {
-            actions = `
-                <div class="flex-1 text-center text-sm text-slate-400 py-2">Processing...</div>
+            actionButtons.innerHTML = `
+                <div class="flex-1 text-center text-sm text-slate-400 py-2.5">Processing document...</div>
             `;
         }
-        document.getElementById('modalActions').innerHTML = actions;
     }
 
-    // File handling
+    function toggleLogs() {
+        logsVisible = !logsVisible;
+        document.getElementById('logsContent').classList.toggle('hidden', !logsVisible);
+        document.getElementById('logsToggle').textContent = logsVisible ? 'Hide' : 'Show';
+    }
+
     function handleDragOver(e) {
         e.preventDefault();
         e.currentTarget.classList.add('border-blue-400', 'bg-blue-50/50');
@@ -354,82 +370,78 @@
         e.preventDefault();
         e.currentTarget.classList.remove('border-blue-400', 'bg-blue-50/50');
         const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
-        if (files.length > 0) uploadFiles(files);
+        if (files.length > 0) uploadFile(files[0]);
     }
 
     function handleFileSelect(e) {
-        const files = Array.from(e.target.files);
-        if (files.length > 0) uploadFiles(files);
+        const file = e.target.files[0];
+        if (file) uploadFile(file);
         e.target.value = '';
     }
 
-    async function uploadFiles(files) {
-        const progressDiv = document.getElementById('uploadProgress');
-        const progressBar = document.getElementById('uploadBar');
-        const progressText = document.getElementById('uploadText');
+    async function uploadFile(file) {
+        const formData = new FormData();
+        formData.append('file', file);
 
-        progressDiv.classList.remove('hidden');
-
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            const formData = new FormData();
-            formData.append('file', file);
-
-            try {
-                progressText.textContent = `Uploading ${i + 1}/${files.length}: ${file.name}`;
-                progressBar.style.width = `${((i + 0.5) / files.length) * 100}%`;
-
-                const response = await fetch('/api/upload', { method: 'POST', body: formData });
-                const result = await response.json();
-
-                if (!result.success) {
-                    alert('Error: ' + (result.error || 'Upload failed'));
-                }
-
-                progressBar.style.width = `${((i + 1) / files.length) * 100}%`;
-            } catch (e) {
-                alert('Error: ' + e.message);
-            }
-        }
-
-        setTimeout(() => {
-            progressDiv.classList.add('hidden');
-            progressBar.style.width = '0%';
-        }, 500);
-
-        refreshJobs();
-    }
-
-    async function startJob(jobId) {
         try {
-            const response = await fetch(`/api/jobs/${jobId}/start`, { method: 'POST' });
+            const response = await fetch('/api/upload', { method: 'POST', body: formData });
             const result = await response.json();
-            if (!result.success) {
-                alert('Error: ' + (result.error || 'Failed to start'));
+
+            if (result.success) {
+                checkStatus();
+                startPolling();
+            } else {
+                alert('Error: ' + (result.error || 'Upload failed'));
             }
-            refreshJobs();
         } catch (e) {
             alert('Error: ' + e.message);
         }
     }
 
-    async function deleteJob(jobId) {
-        if (!confirm('Delete this document?')) return;
+    async function resetAndStart() {
         try {
-            await fetch(`/api/jobs/${jobId}`, { method: 'DELETE' });
-            closeModal();
-            refreshJobs();
+            await fetch('/api/reset', { method: 'POST' });
+            checkStatus();
         } catch (e) {
             alert('Error: ' + e.message);
         }
     }
 
-    async function clearCompleted() {
-        const completed = Object.values(jobs).filter(j => j.status === 'completed');
-        for (const job of completed) {
-            await fetch(`/api/jobs/${job.id}`, { method: 'DELETE' });
+    async function deleteHistoryItem(index) {
+        if (!confirm('ต้องการลบรายการนี้หรือไม่?')) return;
+
+        try {
+            const response = await fetch(`/api/history/${index}`, { method: 'DELETE' });
+            const result = await response.json();
+            if (result.success) {
+                loadHistory();
+            } else {
+                alert('ไม่สามารถลบได้');
+            }
+        } catch (e) {
+            alert('Error: ' + e.message);
         }
-        refreshJobs();
+    }
+
+    async function clearAllHistory() {
+        if (!confirm('ต้องการลบประวัติทั้งหมดหรือไม่?')) return;
+
+        try {
+            const response = await fetch('/api/history/clear', { method: 'POST' });
+            const result = await response.json();
+            if (result.success) {
+                loadHistory();
+            } else {
+                alert('ไม่สามารถลบได้');
+            }
+        } catch (e) {
+            alert('Error: ' + e.message);
+        }
+    }
+
+    function viewJob(jobId) {
+        // Navigate to results page with job_id
+        window.location.href = `/results?job_id=${jobId}`;
     }
     </script>
 </body>

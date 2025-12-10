@@ -3,71 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Results - {{ job.filename }} | ScanX</title>
+    <title>Results - {{ state.filename }} | ScanX</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { font-family: 'Inter', system-ui, sans-serif; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #f1f5f9; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        .tab-active { border-bottom: 2px solid #3b82f6; color: #1e293b; }
+        .tab-active { border-bottom: 2px solid #3b82f6; color: #1e293b; background: #f8fafc; }
+        .polygon-overlay {
+            position: absolute;
+            pointer-events: none;
+            border: 2px solid rgba(59, 130, 246, 0.6);
+            background: rgba(59, 130, 246, 0.1);
+            transition: all 0.2s;
+        }
+        .polygon-overlay.highlight {
+            border-color: rgba(239, 68, 68, 0.8);
+            background: rgba(239, 68, 68, 0.2);
+        }
+        .line-item:hover .polygon-overlay {
+            border-color: rgba(239, 68, 68, 0.8);
+            background: rgba(239, 68, 68, 0.2);
+        }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800">
-    <!-- Header -->
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div class="max-w-full px-4 py-3">
-            <div class="flex items-center gap-4">
-                <a href="/" class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-                    </svg>
-                </a>
-                <div class="flex-1 min-w-0">
-                    <h1 class="font-semibold text-slate-900 truncate">{{ job.filename }}</h1>
-                    <p class="text-sm text-slate-400">{{ job.pages }} pages</p>
+<body class="bg-slate-100 text-slate-800">
+    <!-- Navbar -->
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-full px-4">
+            <div class="flex items-center justify-between h-14">
+                <div class="flex items-center gap-4">
+                    <a href="/" class="flex items-center gap-2 text-slate-500 hover:text-slate-700 transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                        </svg>
+                        <span class="text-sm">Back</span>
+                    </a>
+                    <div class="h-6 w-px bg-slate-200"></div>
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h1 class="text-sm font-semibold text-slate-900 truncate max-w-md">{{ state.filename }}</h1>
+                            <p class="text-xs text-slate-500">{{ state.pages }} pages</p>
+                        </div>
+                    </div>
                 </div>
-                <button onclick="exportResults()" class="px-4 py-2 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                    </svg>
-                    Export
-                </button>
+                <div class="flex items-center gap-2">
+                    <button onclick="exportResults()" class="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                        </svg>
+                        Export JSON
+                    </button>
+                </div>
             </div>
         </div>
-    </header>
+    </nav>
 
     <!-- Main Content -->
-    <div class="flex" style="height: calc(100vh - 65px);">
+    <div class="flex" style="height: calc(100vh - 57px);">
         <!-- Left: PDF Viewer -->
         <div class="w-1/2 border-r border-slate-200 flex flex-col bg-white">
-            <div class="p-3 border-b border-slate-100 flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                    <button onclick="prevPage()" class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors">
+            <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <div class="flex items-center gap-3">
+                    <button onclick="prevPage()" class="p-1.5 text-slate-500 hover:text-slate-700 hover:bg-white rounded transition-colors">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
                         </svg>
                     </button>
                     <span class="text-sm text-slate-600">
-                        <span id="currentPage">1</span> / <span id="totalPages">{{ job.pages }}</span>
+                        Page <span id="currentPage" class="font-medium">1</span> of <span id="totalPages">{{ state.pages }}</span>
                     </span>
-                    <button onclick="nextPage()" class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors">
+                    <button onclick="nextPage()" class="p-1.5 text-slate-500 hover:text-slate-700 hover:bg-white rounded transition-colors">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                         </svg>
                     </button>
                 </div>
-                <div class="flex items-center gap-1">
-                    <button onclick="zoomOut()" class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors text-sm">-</button>
-                    <span id="zoomLevel" class="text-sm text-slate-500 w-12 text-center">100%</span>
-                    <button onclick="zoomIn()" class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors text-sm">+</button>
+                <div class="flex items-center gap-2">
+                    <label class="flex items-center gap-2 text-xs text-slate-500">
+                        <input type="checkbox" id="showPolygons" checked onchange="togglePolygons()" class="rounded border-slate-300">
+                        Show regions
+                    </label>
+                    <div class="w-px h-4 bg-slate-200"></div>
+                    <button onclick="zoomOut()" class="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-slate-700 hover:bg-white rounded transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                        </svg>
+                    </button>
+                    <span id="zoomLevel" class="text-xs text-slate-500 w-10 text-center">100%</span>
+                    <button onclick="zoomIn()" class="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-slate-700 hover:bg-white rounded transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                    </button>
                 </div>
             </div>
-            <div id="pdfContainer" class="flex-1 overflow-auto bg-slate-100 p-4 flex items-start justify-center">
-                <div id="pdfViewer" class="bg-white shadow-sm">
+            <div id="pdfContainer" class="flex-1 overflow-auto bg-slate-200 p-4 flex items-start justify-center">
+                <div id="pdfViewer" class="bg-white shadow-lg rounded relative">
                     <canvas id="pdfCanvas"></canvas>
+                    <div id="polygonContainer" class="absolute top-0 left-0 w-full h-full pointer-events-none"></div>
                 </div>
             </div>
         </div>
@@ -75,37 +117,91 @@
         <!-- Right: Data Panel -->
         <div class="w-1/2 flex flex-col bg-white">
             <!-- Tabs -->
-            <div class="border-b border-slate-200">
+            <div class="border-b border-slate-200 bg-slate-50">
                 <div class="flex">
-                    <button onclick="showTab('pages')" class="tab-btn px-4 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors tab-active" data-tab="pages">
+                    <button onclick="showTab('summary')" class="tab-btn px-5 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors tab-active" data-tab="summary">
+                        Summary
+                    </button>
+                    <button onclick="showTab('pages')" class="tab-btn px-5 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors" data-tab="pages">
                         Pages
                     </button>
-                    <button onclick="showTab('data')" class="tab-btn px-4 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors" data-tab="data">
-                        Extracted Data
-                    </button>
-                    <button onclick="showTab('csv')" class="tab-btn px-4 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors" data-tab="csv">
+                    <button onclick="showTab('csv')" class="tab-btn px-5 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors" data-tab="csv">
                         CSV Files
                     </button>
-                    <button onclick="showTab('json')" class="tab-btn px-4 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors" data-tab="json">
-                        Raw JSON
+                    <button onclick="showTab('json')" class="tab-btn px-5 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors" data-tab="json">
+                        Raw Data
                     </button>
                 </div>
             </div>
 
             <!-- Tab Content -->
-            <div id="tabContent" class="flex-1 overflow-auto p-4">
+            <div id="tabContent" class="flex-1 overflow-auto p-5">
                 <div class="text-center py-12 text-slate-400">Loading...</div>
             </div>
         </div>
     </div>
 
     <script>
-    const JOB_ID = '{{ job.id }}';
+    const FILENAME = '{{ state.filename }}';
+    const JOB_ID = '{{ job_id or "" }}';
     let pdfDoc = null;
     let currentPage = 1;
     let zoomScale = 1.0;
     let resultsData = null;
-    let currentTab = 'pages';
+    let currentTab = 'summary';
+    let showPolygonsEnabled = true;
+    let highlightedLineIndex = -1;
+    let stepMappings = [];
+
+    // Page type mappings for better display
+    const PAGE_TYPE_LABELS = {
+        // Document types
+        'cover': 'หน้าปก (Cover Page)',
+        'personal_info': 'ข้อมูลส่วนตัว (Personal Info)',
+        'spouse_info': 'ข้อมูลคู่สมรส (Spouse Info)',
+        'children': 'ข้อมูลบุตร (Children)',
+        'siblings': 'ข้อมูลพี่น้อง (Siblings)',
+        'tax_info': 'ข้อมูลภาษี (Tax Info)',
+        'assets_summary': 'สรุปทรัพย์สิน (Assets Summary)',
+        'income_expense': 'รายได้/รายจ่าย (Income/Expense)',
+
+        // Asset types
+        'land': 'ที่ดิน (Land)',
+        'buildings': 'โรงเรือนและสิ่งปลูกสร้าง (Buildings)',
+        'vehicles': 'ยานพาหนะ (Vehicles)',
+        'cash': 'เงินสด (Cash)',
+        'deposits': 'เงินฝาก (Deposits)',
+        'investments': 'เงินลงทุน (Investments)',
+        'loans_given': 'เงินให้กู้ยืม (Loans Given)',
+        'concessions': 'สิทธิและสัมปทาน (Concessions)',
+        'other_assets': 'ทรัพย์สินอื่น (Other Assets)',
+
+        // Debt types
+        'overdraft': 'เงินเบิกเกินบัญชี (Overdraft)',
+        'bank_loans': 'เงินกู้ธนาคาร (Bank Loans)',
+        'written_debts': 'หนี้สินมีหลักฐาน (Written Debts)',
+        'other_debts': 'หนี้สินอื่น (Other Debts)',
+
+        // Legacy mappings
+        'asset_land': 'ที่ดิน (Land)',
+        'asset_building': 'โรงเรือนและสิ่งปลูกสร้าง (Buildings)',
+        'asset_condo': 'ห้องชุด (Condominium)',
+        'asset_vehicle': 'ยานพาหนะ (Vehicles)',
+        'asset_rights': 'สิทธิและสัมปทาน (Rights & Concessions)',
+        'asset_loan': 'เงินให้กู้ยืม (Loans Given)',
+        'asset_deposit': 'เงินฝาก (Bank Deposits)',
+        'asset_investment': 'เงินลงทุน (Investments)',
+        'asset_stock': 'หุ้น (Stocks)',
+        'asset_bond': 'พันธบัตร (Bonds)',
+        'asset_valuable': 'ทรัพย์สินมีค่าอื่น (Other Valuables)',
+        'asset_other': 'ทรัพย์สินอื่น (Other Assets)',
+        'debt_loan': 'เงินกู้ (Loans)',
+        'debt_credit': 'หนี้สินอื่น (Other Debts)',
+        'income': 'รายได้ (Income)',
+        'expense': 'รายจ่าย (Expenses)',
+        'unknown': 'ไม่ระบุประเภท (Unclassified)',
+        'blank': 'หน้าว่าง (Blank Page)'
+    };
 
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -116,7 +212,9 @@
 
     async function loadPdf() {
         try {
-            pdfDoc = await pdfjsLib.getDocument(`/api/jobs/${JOB_ID}/pdf`).promise;
+            // Use job-specific PDF endpoint if job_id is available
+            const pdfUrl = JOB_ID ? `/api/jobs/${JOB_ID}/pdf` : '/api/pdf';
+            pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
             document.getElementById('totalPages').textContent = pdfDoc.numPages;
             renderPage(1);
         } catch (e) {
@@ -139,9 +237,75 @@
 
         await page.render({ canvasContext: ctx, viewport }).promise;
 
-        // Update page details if on pages tab
+        // Render polygon overlays
+        renderPolygons();
+
         if (currentTab === 'pages') {
             updatePageHighlight();
+        }
+    }
+
+    function renderPolygons() {
+        const container = document.getElementById('polygonContainer');
+        container.innerHTML = '';
+
+        if (!showPolygonsEnabled || !resultsData) return;
+
+        const data = resultsData?.matched_data || resultsData?.ocr_data;
+        if (!data?.pages) return;
+
+        const pageData = data.pages[currentPage - 1];
+        if (!pageData?.lines) return;
+
+        const canvas = document.getElementById('pdfCanvas');
+        const pageWidth = pageData.width || 8.5;
+        const pageHeight = pageData.height || 11;
+
+        // Calculate scale from page units (inches) to canvas pixels
+        const scaleX = canvas.width / pageWidth;
+        const scaleY = canvas.height / pageHeight;
+
+        pageData.lines.forEach((line, index) => {
+            if (!line.polygon || line.polygon.length < 8) return;
+
+            // polygon format: [x1, y1, x2, y2, x3, y3, x4, y4]
+            const [x1, y1, x2, y2, x3, y3, x4, y4] = line.polygon;
+
+            // Calculate bounding box
+            const minX = Math.min(x1, x2, x3, x4) * scaleX;
+            const minY = Math.min(y1, y2, y3, y4) * scaleY;
+            const maxX = Math.max(x1, x2, x3, x4) * scaleX;
+            const maxY = Math.max(y1, y2, y3, y4) * scaleY;
+
+            const div = document.createElement('div');
+            div.className = 'polygon-overlay';
+            div.dataset.lineIndex = index;
+            div.style.left = `${minX}px`;
+            div.style.top = `${minY}px`;
+            div.style.width = `${maxX - minX}px`;
+            div.style.height = `${maxY - minY}px`;
+
+            if (index === highlightedLineIndex) {
+                div.classList.add('highlight');
+            }
+
+            container.appendChild(div);
+        });
+    }
+
+    function togglePolygons() {
+        showPolygonsEnabled = document.getElementById('showPolygons').checked;
+        renderPolygons();
+    }
+
+    function highlightLine(index) {
+        highlightedLineIndex = index;
+        renderPolygons();
+
+        // Scroll polygon into view
+        const polygons = document.querySelectorAll('.polygon-overlay');
+        if (polygons[index]) {
+            polygons[index].scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     }
 
@@ -167,15 +331,61 @@
 
     async function loadResults() {
         try {
-            const response = await fetch(`/api/jobs/${JOB_ID}/results`);
+            // Use job-specific results endpoint if job_id is available
+            const resultsUrl = JOB_ID ? `/api/jobs/${JOB_ID}` : '/api/results';
+            const response = await fetch(resultsUrl);
             resultsData = await response.json();
-            showTab('pages');
+
+            // Extract step mappings from metadata
+            if (resultsData?.metadata?.step_mappings) {
+                stepMappings = resultsData.metadata.step_mappings;
+            }
+
+            showTab('summary');
+            renderPolygons();
         } catch (e) {
             console.error('Error loading results:', e);
             document.getElementById('tabContent').innerHTML = `
                 <div class="text-center py-12 text-red-500">Error loading results</div>
             `;
         }
+    }
+
+    // Get steps that relate to a page number
+    function getStepsForPage(pageNum) {
+        return stepMappings.filter(step => step.page_numbers && step.page_numbers.includes(pageNum));
+    }
+
+    // Get page types from metadata step_mappings
+    function getPageTypesForPage(pageNum) {
+        const types = new Set();
+        stepMappings.forEach(step => {
+            if (step.page_numbers && step.page_numbers.includes(pageNum)) {
+                (step.page_types || []).forEach(t => types.add(t));
+            }
+        });
+        return Array.from(types);
+    }
+
+    // Get the primary page type label for display
+    function getPageTypeLabelForPage(pageNum) {
+        const types = getPageTypesForPage(pageNum);
+        if (types.length === 0) {
+            // Check if page is in unmapped_pages
+            const metadata = resultsData?.metadata;
+            if (metadata?.unmapped_pages && metadata.unmapped_pages.includes(pageNum)) {
+                return PAGE_TYPE_LABELS['unknown'];
+            }
+            return PAGE_TYPE_LABELS['unknown'];
+        }
+        // Return the first type's label
+        return getPageTypeLabel(types[0]);
+    }
+
+    function getPageTypeLabel(type) {
+        if (!type) return PAGE_TYPE_LABELS['unknown'];
+        const normalized = type.toLowerCase().replace(/\s+/g, '_');
+        return PAGE_TYPE_LABELS[normalized] || type;
     }
 
     function showTab(tab) {
@@ -187,11 +397,11 @@
         const container = document.getElementById('tabContent');
 
         switch (tab) {
+            case 'summary':
+                renderSummaryTab(container);
+                break;
             case 'pages':
                 renderPagesTab(container);
-                break;
-            case 'data':
-                renderDataTab(container);
                 break;
             case 'csv':
                 renderCsvTab(container);
@@ -202,6 +412,149 @@
         }
     }
 
+    function renderSummaryTab(container) {
+        const data = resultsData?.matched_data || resultsData?.ocr_data;
+        const metadata = resultsData?.metadata;
+
+        if (!data) {
+            container.innerHTML = `<div class="text-center py-12 text-slate-400">No data available</div>`;
+            return;
+        }
+
+        // Count page types from metadata step_mappings
+        const pageTypes = {};
+        let totalLines = 0;
+        const totalPages = data.pages?.length || 0;
+
+        (data.pages || []).forEach((page, i) => {
+            const pageNum = i + 1;
+            const types = getPageTypesForPage(pageNum);
+            if (types.length === 0) {
+                pageTypes['unknown'] = (pageTypes['unknown'] || 0) + 1;
+            } else {
+                // Count each type (a page can have multiple types)
+                types.forEach(type => {
+                    pageTypes[type] = (pageTypes[type] || 0) + 1;
+                });
+            }
+            totalLines += page.lines?.length || 0;
+        });
+
+        const sortedTypes = Object.entries(pageTypes).sort((a, b) => b[1] - a[1]);
+
+        // Build step mappings section
+        let stepMappingsHtml = '';
+        if (stepMappings && stepMappings.length > 0) {
+            stepMappingsHtml = `
+                <!-- Step Mappings Table -->
+                <div>
+                    <h3 class="font-semibold text-slate-900 mb-3">ข้อมูลที่พบ (Data Extraction Summary)</h3>
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-200">
+                                <th class="py-2 text-left text-slate-500 font-medium">รายการข้อมูล (Data Type)</th>
+                                <th class="py-2 text-left text-slate-500 font-medium">ไฟล์ CSV</th>
+                                <th class="py-2 text-center text-slate-500 font-medium w-20">หน้า</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            ${stepMappings.map(step => {
+                                const pageNums = step.page_numbers || [];
+                                const pageLinks = pageNums.slice(0, 5).map(p =>
+                                    `<button onclick="goToPage(${p}); showTab('pages')" class="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200">${p}</button>`
+                                ).join(' ');
+                                const morePages = pageNums.length > 5 ? `<span class="text-xs text-slate-400">+${pageNums.length - 5}</span>` : '';
+
+                                return `
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="py-2.5">
+                                            <div class="font-medium text-slate-900">${step.step_description}</div>
+                                        </td>
+                                        <td class="py-2.5 text-slate-600 text-xs">${step.output_csv || '-'}</td>
+                                        <td class="py-2.5 text-center">
+                                            <div class="flex flex-wrap gap-1 justify-center">
+                                                ${pageLinks}
+                                                ${morePages}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        container.innerHTML = `
+            <div class="space-y-6">
+                <!-- Document Info Table -->
+                <div>
+                    <h3 class="font-semibold text-slate-900 mb-3">Document Information</h3>
+                    <table class="w-full text-sm">
+                        <tbody class="divide-y divide-slate-100">
+                            <tr>
+                                <td class="py-2 text-slate-500 w-1/3">File Name</td>
+                                <td class="py-2 font-medium text-slate-900">${FILENAME}</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 text-slate-500">Total Pages</td>
+                                <td class="py-2 font-medium text-slate-900">${data.pages?.length || 0}</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 text-slate-500">Total Lines Extracted</td>
+                                <td class="py-2 font-medium text-slate-900">${totalLines.toLocaleString()}</td>
+                            </tr>
+                            ${metadata?.doc_name ? `
+                            <tr>
+                                <td class="py-2 text-slate-500">Document Name</td>
+                                <td class="py-2 font-medium text-slate-900">${metadata.doc_name}</td>
+                            </tr>
+                            ` : ''}
+                        </tbody>
+                    </table>
+                </div>
+
+                ${stepMappingsHtml}
+
+                <!-- Page Types Table -->
+                <div>
+                    <h3 class="font-semibold text-slate-900 mb-3">Page Types Summary</h3>
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-200">
+                                <th class="py-2 text-left text-slate-500 font-medium">Page Type</th>
+                                <th class="py-2 text-right text-slate-500 font-medium w-20">Count</th>
+                                <th class="py-2 text-right text-slate-500 font-medium w-20">%</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            ${sortedTypes.map(([type, count]) => {
+                                const label = getPageTypeLabel(type);
+                                const percentage = Math.round((count / (data.pages?.length || 1)) * 100);
+                                const isUnknown = type === 'unknown' || type.toLowerCase().includes('unknown');
+                                return `
+                                    <tr class="${isUnknown ? 'bg-amber-50' : ''}">
+                                        <td class="py-2 ${isUnknown ? 'text-amber-700' : 'text-slate-900'}">${label}</td>
+                                        <td class="py-2 text-right font-medium ${isUnknown ? 'text-amber-700' : 'text-slate-900'}">${count}</td>
+                                        <td class="py-2 text-right text-slate-500">${percentage}%</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                        <tfoot>
+                            <tr class="border-t-2 border-slate-200">
+                                <td class="py-2 font-semibold text-slate-900">Total</td>
+                                <td class="py-2 text-right font-semibold text-slate-900">${data.pages?.length || 0}</td>
+                                <td class="py-2 text-right text-slate-500">100%</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
     function renderPagesTab(container) {
         const data = resultsData?.matched_data || resultsData?.ocr_data;
         if (!data?.pages) {
@@ -210,23 +563,67 @@
         }
 
         container.innerHTML = `
-            <div class="space-y-2">
+            <div class="space-y-2" id="pagesList">
                 ${data.pages.map((page, i) => {
-                    const isActive = (i + 1) === currentPage;
-                    const pageType = page.page_type || page.matched_template || 'Unknown';
+                    const pageNum = i + 1;
+                    const isActive = pageNum === currentPage;
+                    const pageTypes = getPageTypesForPage(pageNum);
+                    const label = getPageTypeLabelForPage(pageNum);
+                    const isUnknown = pageTypes.length === 0;
+                    const lineCount = page.lines?.length || 0;
+
+                    // Get related steps for this page
+                    const relatedSteps = getStepsForPage(pageNum);
+                    const stepTags = relatedSteps.map(step =>
+                        `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-700">${step.step_description}</span>`
+                    ).join('');
+
+                    // Show all page types as small badges
+                    const typeBadges = pageTypes.map(t =>
+                        `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-blue-50 text-blue-600">${getPageTypeLabel(t)}</span>`
+                    ).join('');
+
                     return `
-                        <div class="p-3 rounded-lg border cursor-pointer transition-colors ${isActive ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300'}"
-                             onclick="goToPage(${i + 1})" id="page-item-${i + 1}">
-                            <div class="flex items-center gap-3">
-                                <span class="w-8 h-8 rounded-lg ${isActive ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-600'} flex items-center justify-center text-sm font-medium">
-                                    ${i + 1}
-                                </span>
-                                <div class="flex-1 min-w-0">
-                                    <div class="text-sm font-medium text-slate-900">${pageType}</div>
-                                    <div class="text-xs text-slate-400 truncate">
-                                        ${(page.lines?.length || 0)} lines
+                        <div class="border border-slate-200 rounded-lg overflow-hidden" id="page-item-${pageNum}">
+                            <div class="p-3 cursor-pointer transition-all ${isActive ? 'bg-blue-50 border-blue-200' : 'hover:bg-slate-50'}"
+                                 onclick="goToPage(${pageNum}); togglePageExpand(${pageNum})">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-9 h-9 rounded-lg ${isActive ? 'bg-blue-500 text-white' : isUnknown ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'} flex items-center justify-center text-sm font-semibold flex-shrink-0">
+                                        ${pageNum}
+                                    </span>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="text-sm font-medium ${isUnknown ? 'text-amber-700' : 'text-slate-900'}">${isUnknown ? 'ไม่ระบุประเภท (Unclassified)' : label}</div>
+                                        <div class="text-xs text-slate-500">${lineCount} lines extracted</div>
+                                        ${relatedSteps.length > 0 ? `
+                                            <div class="flex flex-wrap gap-1 mt-1.5">
+                                                ${stepTags}
+                                            </div>
+                                        ` : ''}
                                     </div>
+                                    <svg class="w-4 h-4 text-slate-400 transition-transform page-chevron" id="chevron-${pageNum}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                    </svg>
                                 </div>
+                            </div>
+                            <div class="hidden border-t border-slate-100 bg-slate-50 max-h-64 overflow-y-auto" id="page-lines-${pageNum}">
+                                ${page.lines && page.lines.length > 0 ? `
+                                    <div class="divide-y divide-slate-100">
+                                        ${page.lines.slice(0, 50).map((line, lineIdx) => `
+                                            <div class="line-item px-3 py-2 text-xs hover:bg-blue-50 cursor-pointer transition-colors flex items-start gap-2"
+                                                 onmouseenter="highlightLine(${lineIdx})"
+                                                 onmouseleave="highlightLine(-1)"
+                                                 onclick="highlightLine(${lineIdx})">
+                                                <span class="text-slate-400 w-6 flex-shrink-0">${lineIdx + 1}</span>
+                                                <span class="text-slate-700 break-all">${escapeHtml(line.content || '')}</span>
+                                            </div>
+                                        `).join('')}
+                                        ${page.lines.length > 50 ? `
+                                            <div class="px-3 py-2 text-xs text-slate-400 text-center">
+                                                ... and ${page.lines.length - 50} more lines
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                ` : '<div class="p-3 text-xs text-slate-400 text-center">No lines extracted</div>'}
                             </div>
                         </div>
                     `;
@@ -234,85 +631,84 @@
             </div>
         `;
 
-        updatePageHighlight();
+        // Auto-expand current page
+        togglePageExpand(currentPage);
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function togglePageExpand(pageNum) {
+        const linesContainer = document.getElementById(`page-lines-${pageNum}`);
+        const chevron = document.getElementById(`chevron-${pageNum}`);
+
+        if (linesContainer && chevron) {
+            const isHidden = linesContainer.classList.contains('hidden');
+
+            // Close all others
+            document.querySelectorAll('[id^="page-lines-"]').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.page-chevron').forEach(el => el.classList.remove('rotate-180'));
+
+            if (isHidden) {
+                linesContainer.classList.remove('hidden');
+                chevron.classList.add('rotate-180');
+            }
+        }
     }
 
     function updatePageHighlight() {
         document.querySelectorAll('[id^="page-item-"]').forEach(el => {
             const pageNum = parseInt(el.id.split('-')[2]);
-            if (pageNum === currentPage) {
-                el.classList.add('border-blue-500', 'bg-blue-50');
-                el.classList.remove('border-slate-200');
-                el.querySelector('span').classList.add('bg-blue-500', 'text-white');
-                el.querySelector('span').classList.remove('bg-slate-100', 'text-slate-600');
-                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            } else {
-                el.classList.remove('border-blue-500', 'bg-blue-50');
-                el.classList.add('border-slate-200');
-                el.querySelector('span').classList.remove('bg-blue-500', 'text-white');
-                el.querySelector('span').classList.add('bg-slate-100', 'text-slate-600');
+            const header = el.querySelector('div');
+            if (header) {
+                if (pageNum === currentPage) {
+                    header.classList.add('bg-blue-50', 'border-blue-200');
+                    header.classList.remove('hover:bg-slate-50');
+                } else {
+                    header.classList.remove('bg-blue-50', 'border-blue-200');
+                    header.classList.add('hover:bg-slate-50');
+                }
             }
         });
-    }
-
-    function renderDataTab(container) {
-        const data = resultsData?.matched_data || resultsData?.ocr_data;
-        if (!data) {
-            container.innerHTML = `<div class="text-center py-12 text-slate-400">No extracted data</div>`;
-            return;
-        }
-
-        // Group pages by type
-        const pagesByType = {};
-        (data.pages || []).forEach((page, i) => {
-            const type = page.page_type || page.matched_template || 'unknown';
-            if (!pagesByType[type]) pagesByType[type] = [];
-            pagesByType[type].push({ page, index: i + 1 });
-        });
-
-        container.innerHTML = `
-            <div class="space-y-4">
-                ${Object.entries(pagesByType).map(([type, pages]) => `
-                    <div class="border border-slate-200 rounded-lg overflow-hidden">
-                        <div class="px-4 py-3 bg-slate-50 border-b border-slate-200">
-                            <div class="flex items-center justify-between">
-                                <span class="font-medium text-slate-900">${type}</span>
-                                <span class="text-sm text-slate-400">${pages.length} pages</span>
-                            </div>
-                        </div>
-                        <div class="divide-y divide-slate-100">
-                            ${pages.map(({ page, index }) => `
-                                <div class="px-4 py-2 hover:bg-slate-50 cursor-pointer transition-colors" onclick="goToPage(${index})">
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-sm text-slate-500">Page ${index}</span>
-                                        <span class="text-xs text-slate-400">${page.lines?.length || 0} lines</span>
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `).join('')}
-            </div>
-        `;
     }
 
     function renderCsvTab(container) {
         const csvFiles = resultsData?.csv_files || [];
         if (csvFiles.length === 0) {
-            container.innerHTML = `<div class="text-center py-12 text-slate-400">No CSV files generated</div>`;
+            container.innerHTML = `
+                <div class="text-center py-12">
+                    <svg class="w-12 h-12 mx-auto text-slate-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <p class="text-slate-500">No CSV files generated</p>
+                    <p class="text-sm text-slate-400 mt-1">Data mapping may have been skipped</p>
+                </div>
+            `;
             return;
         }
 
+        // Use job-specific CSV endpoint if job_id is available
+        const csvBaseUrl = JOB_ID ? `/api/jobs/${JOB_ID}/csv` : '/api/csv';
+
         container.innerHTML = `
-            <div class="space-y-2">
+            <div class="space-y-3">
+                <p class="text-sm text-slate-500 mb-4">${csvFiles.length} file(s) generated from extracted data</p>
                 ${csvFiles.map(file => `
-                    <a href="/api/jobs/${JOB_ID}/csv/${file}" download
-                       class="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors">
-                        <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                        </svg>
-                        <span class="flex-1 text-sm font-medium text-slate-900">${file}</span>
-                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <a href="${csvBaseUrl}/${file}" download
+                       class="flex items-center gap-4 p-4 bg-white border border-slate-200 rounded-xl hover:border-emerald-300 hover:bg-emerald-50 transition-all group">
+                        <div class="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
+                            <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="font-medium text-slate-900">${file}</p>
+                            <p class="text-sm text-slate-500">Click to download</p>
+                        </div>
+                        <svg class="w-5 h-5 text-slate-400 group-hover:text-emerald-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                         </svg>
                     </a>
@@ -323,29 +719,48 @@
 
     function renderJsonTab(container) {
         const data = resultsData?.matched_data || resultsData?.ocr_data;
+        const metadata = resultsData?.metadata;
+
         container.innerHTML = `
-            <div class="bg-slate-50 rounded-lg p-4 overflow-auto">
-                <pre class="text-xs text-slate-600 whitespace-pre-wrap font-mono">${JSON.stringify(data, null, 2)}</pre>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-medium text-slate-900">Raw JSON Data</h3>
+                    <button onclick="copyJson()" class="text-sm text-blue-600 hover:text-blue-700">Copy to clipboard</button>
+                </div>
+                <div class="bg-slate-900 rounded-xl p-4 overflow-auto max-h-[calc(100vh-250px)]">
+                    <pre class="text-xs text-slate-300 whitespace-pre-wrap font-mono" id="jsonContent">${JSON.stringify({ matched_data: data, metadata: metadata }, null, 2)}</pre>
+                </div>
             </div>
         `;
+    }
+
+    function copyJson() {
+        const content = document.getElementById('jsonContent').textContent;
+        navigator.clipboard.writeText(content).then(() => {
+            alert('JSON copied to clipboard');
+        });
     }
 
     function goToPage(pageNum) {
         renderPage(pageNum);
         if (currentTab === 'pages') {
             updatePageHighlight();
+            togglePageExpand(pageNum);
         }
     }
 
     function exportResults() {
-        const data = resultsData?.matched_data || resultsData?.ocr_data;
-        if (!data) return;
+        const data = {
+            matched_data: resultsData?.matched_data,
+            ocr_data: resultsData?.ocr_data,
+            metadata: resultsData?.metadata
+        };
 
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${JOB_ID}_results.json`;
+        a.download = `${FILENAME.replace('.pdf', '')}_results.json`;
         a.click();
         URL.revokeObjectURL(url);
     }
