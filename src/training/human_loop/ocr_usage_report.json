@@ -1,0 +1,584 @@
+{
+  "_description": "OCR usage report for cost tracking and analysis",
+  "summary": {
+    "total_runs": 1,
+    "total_pages_processed": 2018,
+    "total_pages_ignored": 0,
+    "total_estimated_cost": 3.027,
+    "total_cost_saved": 0.0,
+    "last_run": "2025-12-10T14:47:37.659580"
+  },
+  "runs": [
+    {
+      "timestamp": "2025-12-10T14:47:37.659580",
+      "mode": "training",
+      "human_loop_enabled": true,
+      "statistics": {
+        "pdfs_total": 69,
+        "pdfs_processed": 68,
+        "pdfs_skipped": 0,
+        "pdfs_error": 1,
+        "total_pages": 2018,
+        "pages_processed": 2018,
+        "pages_ignored": 0,
+        "pages_skipped_existing": 0
+      },
+      "cost": {
+        "estimated_cost_usd": 3.027,
+        "cost_saved_usd": 0.0,
+        "cost_per_page_usd": 0.0015
+      },
+      "pdf_details": [
+        {
+          "pdf_name": "วทันยา_บุนนาค_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_13_ธ.ค._2565",
+          "status": "processed",
+          "total_pages": 34,
+          "pages_processed": 34,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "สมประสงค์_นิลสมัย_สมาชิกวุฒิสภา_(สว.)_กรณีพ้นจากตำแหน่ง_13_ธ.ค._2565",
+          "status": "processed",
+          "total_pages": 26,
+          "pages_processed": 26,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "อ.นภาเดช_ธูปะเตมีย์_สมาชิกวุฒิสภา_(สว.)_กรณีพ้นจากตำแหน่ง_13_ธ.ค._2565",
+          "status": "processed",
+          "total_pages": 27,
+          "pages_processed": 27,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "วรเกียรติ_รัตนานนท์_สมาชิกวุฒิสภา_(สว.)_กรณีพ้นจากตำแหน่ง_13_ธ.ค._2565",
+          "status": "processed",
+          "total_pages": 26,
+          "pages_processed": 26,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "สมศักดิ์_นิลบรรเจิดกุล_สมาชิกวุฒิสภา_(สว.)_กรณีเข้ารับตำแหน่ง_20_ม.ค._2566",
+          "status": "processed",
+          "total_pages": 23,
+          "pages_processed": 23,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "ประพันธุ์_คูณมี_สมาชิกวุฒิสภา_(สว.)_กรณีเข้ารับตำแหน่ง_3_มี.ค._2566",
+          "status": "processed",
+          "total_pages": 24,
+          "pages_processed": 24,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "ยอดยิ่ง_แสนยากุล_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีเข้ารับตำแหน่ง_15_มี.ค._2566",
+          "status": "processed",
+          "total_pages": 24,
+          "pages_processed": 24,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "เชิงชาย_ชาลีรินทร์_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_15_มี.ค._2566",
+          "status": "processed",
+          "total_pages": 25,
+          "pages_processed": 25,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "ธนะสิทธิ์_โควสุรัตน์_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_15_มี.ค._2566",
+          "status": "processed",
+          "total_pages": 24,
+          "pages_processed": 24,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "กานต์กนิษฐ์_แห้วสันตติ_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_30_มี.ค._2566",
+          "status": "processed",
+          "total_pages": 25,
+          "pages_processed": 25,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "ภูดิท_อินสุวรรณ์_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_5_เม.ย._2566",
+          "status": "processed",
+          "total_pages": 22,
+          "pages_processed": 22,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "นิโรธ_สุนทรเลขา_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_12_พ.ค._2566",
+          "status": "processed",
+          "total_pages": 24,
+          "pages_processed": 24,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "ศิริวรรณ_ปราศจากศัตรู_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_12_พ.ค._2566",
+          "status": "processed",
+          "total_pages": 41,
+          "pages_processed": 41,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "สมบัติ_อำนาคะ_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_15_พ.ค._2566",
+          "status": "processed",
+          "total_pages": 38,
+          "pages_processed": 38,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "ปฏิวัติ_พิจารณ์_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_24_พ.ค._2566",
+          "status": "processed",
+          "total_pages": 37,
+          "pages_processed": 37,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "อนุรักษ์_จุรีมาศ_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_24_พ.ค._2566",
+          "status": "processed",
+          "total_pages": 26,
+          "pages_processed": 26,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "โกวิทย์_พวงงาม_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_24_พ.ค._2566",
+          "status": "processed",
+          "total_pages": 39,
+          "pages_processed": 39,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "ศักดิ์สยาม_ชิดชอบ_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_24_พ.ค._2566",
+          "status": "processed",
+          "total_pages": 24,
+          "pages_processed": 24,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "อ.อรุณ_สวัสดี_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_26_พ.ค._2566",
+          "status": "processed",
+          "total_pages": 24,
+          "pages_processed": 24,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "อำไพ_กองมณี_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_26_พ.ค._2566",
+          "status": "processed",
+          "total_pages": 32,
+          "pages_processed": 32,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "ภิญโญ_นิโรจน์_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_29_พ.ค._2566",
+          "status": "processed",
+          "total_pages": 38,
+          "pages_processed": 38,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "เจริญ_เรี่ยวแรง_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_29_พ.ค._2566",
+          "status": "processed",
+          "total_pages": 39,
+          "pages_processed": 39,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "สวาป_เผ่าประทาน_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_31_พ.ค._2566",
+          "status": "processed",
+          "total_pages": 38,
+          "pages_processed": 38,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "ไชยา_พรหมา_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_12_มิ.ย._2566",
+          "status": "processed",
+          "total_pages": 37,
+          "pages_processed": 37,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "เกื้อกูล_ด่านชัยวิจิตร_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_12_มิ.ย._2566",
+          "status": "processed",
+          "total_pages": 38,
+          "pages_processed": 38,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "พิเชษฐ์_เชื้อเมืองพาน_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_12_มิ.ย._2566",
+          "status": "processed",
+          "total_pages": 37,
+          "pages_processed": 37,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "ยอดยิ่ง_แสนยากุล_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_12_มิ.ย._2566",
+          "status": "processed",
+          "total_pages": 38,
+          "pages_processed": 38,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "อนุสรณ์_ปั้นทอง_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_12_มิ.ย._2566",
+          "status": "processed",
+          "total_pages": 37,
+          "pages_processed": 37,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "วราวุธ_ศิลปอาชา_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_12_มิ.ย._2566",
+          "status": "processed",
+          "total_pages": 46,
+          "pages_processed": 46,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "จิราพร_นาคดิลก_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_12_มิ.ย._2566",
+          "status": "processed",
+          "total_pages": 23,
+          "pages_processed": 23,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "วิทยา_ทรงคำ_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_16_มิ.ย._2566",
+          "status": "processed",
+          "total_pages": 24,
+          "pages_processed": 24,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "ณัฐวุฒิ_ประเสริฐสุวรรณ_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_16_มิ.ย._2566",
+          "status": "processed",
+          "total_pages": 38,
+          "pages_processed": 38,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "องอาจ_คล้ามไพบูลย์_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_16_มิ.ย._2566",
+          "status": "processed",
+          "total_pages": 23,
+          "pages_processed": 23,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "เกรียงศักดิ์_ฝ้ายสีงาม_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_16_มิ.ย._2566",
+          "status": "processed",
+          "total_pages": 39,
+          "pages_processed": 39,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "พีระวิทย์_เรื่องลือดลภาค_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_23_มิ.ย._2566",
+          "status": "processed",
+          "total_pages": 36,
+          "pages_processed": 36,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "อรรถกร_ศิริลัทธยากร_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_23_มิ.ย._2566",
+          "status": "processed",
+          "total_pages": 24,
+          "pages_processed": 24,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "วรสิทธิ์_กัลป์ตินันท์_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_23_มิ.ย._2566",
+          "status": "processed",
+          "total_pages": 34,
+          "pages_processed": 34,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "ณัฐพงษ์_สุปริยศิลป์_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_23_มิ.ย._2566",
+          "status": "processed",
+          "total_pages": 38,
+          "pages_processed": 38,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "เรวัต_วิศรุตเวช_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_23_มิ.ย._2566",
+          "status": "processed",
+          "total_pages": 24,
+          "pages_processed": 24,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "อนุรักษ์_บุญศล_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_23_มิ.ย._2566",
+          "status": "processed",
+          "total_pages": 29,
+          "pages_processed": 29,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "เทอดพงษ์_ไชยนันทน์_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_23_มิ.ย._2566",
+          "status": "processed",
+          "total_pages": 38,
+          "pages_processed": 38,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "ศักดา_คงเพชร_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_23_มิ.ย._2566",
+          "status": "processed",
+          "total_pages": 24,
+          "pages_processed": 24,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "จารึก_ศรีอ่อน_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_23_มิ.ย._2566",
+          "status": "processed",
+          "total_pages": 27,
+          "pages_processed": 27,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "ภคอร_จันทรคณา_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีเข้ารับตำแหน่ง_23_มิ.ย._2566",
+          "status": "processed",
+          "total_pages": 39,
+          "pages_processed": 39,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "สุรวิทย์_คนสมบูรณ์_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_16_มิ.ย._2566",
+          "status": "processed",
+          "total_pages": 27,
+          "pages_processed": 27,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "ทายาท_เกียรติชูศักดิ์_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_16_มิ.ย._2566",
+          "status": "error",
+          "error": "PDF not found: /Users/riwara/work/hackaton/submission_scanx/src/training/train input/Train_pdf/pdf/ทายาท_เกียรติชูศักดิ์_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_16_มิ.ย._2566.pdf"
+        },
+        {
+          "pdf_name": "ทศพร_ทองศิริ_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_5_ก.ค._2566",
+          "status": "processed",
+          "total_pages": 24,
+          "pages_processed": 24,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "สมศักดิ์_เทพสุทิน_รัฐมนตรีว่าการกระทรวง_กรณีพ้นจากตำแหน่ง_5_ก.ค._2566",
+          "status": "processed",
+          "total_pages": 25,
+          "pages_processed": 25,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "เท่าพิภพ_ลิ้มจิตรกร_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_5_ก.ค._2566",
+          "status": "processed",
+          "total_pages": 24,
+          "pages_processed": 24,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "สุภดิช_อากาศฤกษ์_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_5_ก.ค._2566",
+          "status": "processed",
+          "total_pages": 26,
+          "pages_processed": 26,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "อุบลศักดิ์_บัวหลวงงาม_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_17_ก.ค._2566",
+          "status": "processed",
+          "total_pages": 25,
+          "pages_processed": 25,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "วิวรรธน์_นิลวัชรมณี_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_17_ก.ค._2566",
+          "status": "processed",
+          "total_pages": 24,
+          "pages_processed": 24,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "ผ่องศรี_แซ่จึง_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_17_ก.ค._2566",
+          "status": "processed",
+          "total_pages": 29,
+          "pages_processed": 29,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "สมชาย_ฝั่งชลจิตร_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_17_ก.ค._2566",
+          "status": "processed",
+          "total_pages": 38,
+          "pages_processed": 38,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "ต่อศักดิ์_อัศวเหม_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_17_ก.ค._2566",
+          "status": "processed",
+          "total_pages": 26,
+          "pages_processed": 26,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "วัชระ_ยาวอหะซัน_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_17_ก.ค._2566",
+          "status": "processed",
+          "total_pages": 24,
+          "pages_processed": 24,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "รังสิมันต์_โรม_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_17_ก.ค._2566",
+          "status": "processed",
+          "total_pages": 23,
+          "pages_processed": 23,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "จิรพงษ์_ทรงวัชราภรณ์_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_17_ก.ค._2566",
+          "status": "processed",
+          "total_pages": 40,
+          "pages_processed": 40,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "มัลลิกา_บุญมีตระกูล_มหาสุข_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_17_ก.ค._2566",
+          "status": "processed",
+          "total_pages": 38,
+          "pages_processed": 38,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "นพพล_เหลืองทองนารา_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_17_ก.ค._2566",
+          "status": "processed",
+          "total_pages": 24,
+          "pages_processed": 24,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "ทองแดง_เบ็ญจะปัก_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_17_ก.ค._2566",
+          "status": "processed",
+          "total_pages": 26,
+          "pages_processed": 26,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "ชาดา_ไทยเศรษฐ์_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_17_ก.ค._2566",
+          "status": "processed",
+          "total_pages": 31,
+          "pages_processed": 31,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "กฤษฎา_ตันเทอดทิตย์_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_17_ก.ค._2566",
+          "status": "processed",
+          "total_pages": 25,
+          "pages_processed": 25,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "จักพันธ์_ปิยพรไพบูลย์_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_17_ก.ค._2566",
+          "status": "processed",
+          "total_pages": 26,
+          "pages_processed": 26,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "เพชรภูมิ_อาภรณ์รัตน์_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_24_ก.ค._2566",
+          "status": "processed",
+          "total_pages": 32,
+          "pages_processed": 32,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "จรัส_คุ้มไข่น้ำ_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_24_ก.ค._2566",
+          "status": "processed",
+          "total_pages": 25,
+          "pages_processed": 25,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "สุชาติ_โชคชัยวัฒนากร_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีเข้ารับตำแหน่ง_15_ต.ค._2562-2",
+          "status": "processed",
+          "total_pages": 15,
+          "pages_processed": 15,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "จิราพร_นาคดิลก_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีเข้ารับตำแหน่ง_15_ต.ค._2562",
+          "status": "processed",
+          "total_pages": 23,
+          "pages_processed": 23,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        },
+        {
+          "pdf_name": "ประยุทธ์_จันทร์โอชา_นายกรัฐมนตรี_กรณีพ้นจากตำแหน่ง_24_พ.ย._2566",
+          "status": "processed",
+          "total_pages": 25,
+          "pages_processed": 25,
+          "pages_ignored": 0,
+          "ignored_page_numbers": null
+        }
+      ]
+    }
+  ]
+}

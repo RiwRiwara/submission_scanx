@@ -21879,6 +21879,8 @@
     "doc_id": "949",
     "nacc_id": "820",
     "source_pdf": "/Users/riwara/work/hackaton/submission_scanx/src/training/train input/Train_pdf/pdf/ภคอร_จันทรคณา_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีเข้ารับตำแหน่ง_23_มิ.ย._2566.pdf",
-    "phase": "phase0_ocr"
+    "phase": "phase0_ocr",
+    "human_loop_enabled": true,
+    "ignored_pages": null
   }
 }

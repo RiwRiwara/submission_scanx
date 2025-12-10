@@ -39731,6 +39731,8 @@
     "doc_id": "921",
     "nacc_id": "791",
     "source_pdf": "/Users/riwara/work/hackaton/submission_scanx/src/training/train input/Train_pdf/pdf/วรสิทธิ์_กัลป์ตินันท์_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_23_มิ.ย._2566.pdf",
-    "phase": "phase0_ocr"
+    "phase": "phase0_ocr",
+    "human_loop_enabled": true,
+    "ignored_pages": null
   }
 }

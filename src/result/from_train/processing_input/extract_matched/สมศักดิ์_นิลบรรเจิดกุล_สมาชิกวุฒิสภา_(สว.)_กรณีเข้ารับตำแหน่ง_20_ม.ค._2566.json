@@ -14722,6 +14722,8 @@
     "doc_id": "348",
     "nacc_id": "218",
     "source_pdf": "/Users/riwara/work/hackaton/submission_scanx/src/training/train input/Train_pdf/pdf/สมศักดิ์_นิลบรรเจิดกุล_สมาชิกวุฒิสภา_(สว.)_กรณีเข้ารับตำแหน่ง_20_ม.ค._2566.pdf",
-    "phase": "phase0_ocr"
+    "phase": "phase0_ocr",
+    "human_loop_enabled": true,
+    "ignored_pages": null
   }
 }

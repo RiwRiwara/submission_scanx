@@ -14279,6 +14279,8 @@
     "doc_id": "1677",
     "nacc_id": "1549",
     "source_pdf": "/Users/riwara/work/hackaton/submission_scanx/src/training/train input/Train_pdf/pdf/สุชาติ_โชคชัยวัฒนากร_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีเข้ารับตำแหน่ง_15_ต.ค._2562-2.pdf",
-    "phase": "phase0_ocr"
+    "phase": "phase0_ocr",
+    "human_loop_enabled": true,
+    "ignored_pages": null
   }
 }

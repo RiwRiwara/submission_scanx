@@ -19898,6 +19898,8 @@
     "doc_id": "1080",
     "nacc_id": "950",
     "source_pdf": "/Users/riwara/work/hackaton/submission_scanx/src/training/train input/Train_pdf/pdf/ผ่องศรี_แซ่จึง_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_17_ก.ค._2566.pdf",
-    "phase": "phase0_ocr"
+    "phase": "phase0_ocr",
+    "human_loop_enabled": true,
+    "ignored_pages": null
   }
 }

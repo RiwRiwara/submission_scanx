@@ -20621,6 +20621,8 @@
     "doc_id": "3572",
     "nacc_id": "3440",
     "source_pdf": "/Users/riwara/work/hackaton/submission_scanx/src/training/train input/Train_pdf/pdf/ประยุทธ์_จันทร์โอชา_นายกรัฐมนตรี_กรณีพ้นจากตำแหน่ง_24_พ.ย._2566.pdf",
-    "phase": "phase0_ocr"
+    "phase": "phase0_ocr",
+    "human_loop_enabled": true,
+    "ignored_pages": null
   }
 }

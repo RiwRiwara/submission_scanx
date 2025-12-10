@@ -15391,6 +15391,8 @@
     "doc_id": "1035",
     "nacc_id": "905",
     "source_pdf": "/Users/riwara/work/hackaton/submission_scanx/src/training/train input/Train_pdf/pdf/สมศักดิ์_เทพสุทิน_รัฐมนตรีว่าการกระทรวง_กรณีพ้นจากตำแหน่ง_5_ก.ค._2566.pdf",
-    "phase": "phase0_ocr"
+    "phase": "phase0_ocr",
+    "human_loop_enabled": true,
+    "ignored_pages": null
   }
 }

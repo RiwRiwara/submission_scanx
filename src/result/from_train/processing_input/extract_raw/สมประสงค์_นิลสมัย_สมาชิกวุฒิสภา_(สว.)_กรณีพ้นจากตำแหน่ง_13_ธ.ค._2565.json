@@ -23343,6 +23343,8 @@
     "doc_id": "191",
     "nacc_id": "63",
     "source_pdf": "/Users/riwara/work/hackaton/submission_scanx/src/training/train input/Train_pdf/pdf/สมประสงค์_นิลสมัย_สมาชิกวุฒิสภา_(สว.)_กรณีพ้นจากตำแหน่ง_13_ธ.ค._2565.pdf",
-    "phase": "phase0_ocr"
+    "phase": "phase0_ocr",
+    "human_loop_enabled": true,
+    "ignored_pages": null
   }
 }
