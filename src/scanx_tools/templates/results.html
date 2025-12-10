@@ -28,6 +28,57 @@
             border-color: rgba(239, 68, 68, 0.8);
             background: rgba(239, 68, 68, 0.2);
         }
+        .editable-cell {
+            min-width: 80px;
+            padding: 6px 8px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            transition: all 0.15s;
+        }
+        .editable-cell:hover {
+            background: #f1f5f9;
+        }
+        .editable-cell:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background: white;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+        .data-table {
+            font-size: 12px;
+        }
+        .data-table th {
+            position: sticky;
+            top: 0;
+            background: #f8fafc;
+            z-index: 10;
+        }
+        .mapping-field {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            background: white;
+        }
+        .mapping-field:hover {
+            border-color: #cbd5e1;
+        }
+        .mapping-field.active {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+        .field-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .field-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800">
@@ -118,18 +169,21 @@
         <div class="w-1/2 flex flex-col bg-white">
             <!-- Tabs -->
             <div class="border-b border-slate-200 bg-slate-50">
-                <div class="flex">
-                    <button onclick="showTab('summary')" class="tab-btn px-5 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors tab-active" data-tab="summary">
+                <div class="flex flex-wrap">
+                    <button onclick="showTab('summary')" class="tab-btn px-4 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors tab-active" data-tab="summary">
                         Summary
                     </button>
-                    <button onclick="showTab('pages')" class="tab-btn px-5 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors" data-tab="pages">
+                    <button onclick="showTab('pages')" class="tab-btn px-4 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors" data-tab="pages">
                         Pages
                     </button>
-                    <button onclick="showTab('csv')" class="tab-btn px-5 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors" data-tab="csv">
-                        CSV Files
+                    <button onclick="showTab('mapping')" class="tab-btn px-4 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors" data-tab="mapping">
+                        Field Mapping
                     </button>
-                    <button onclick="showTab('json')" class="tab-btn px-5 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors" data-tab="json">
-                        Raw Data
+                    <button onclick="showTab('csv')" class="tab-btn px-4 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors" data-tab="csv">
+                        Data Tables
+                    </button>
+                    <button onclick="showTab('json')" class="tab-btn px-4 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors" data-tab="json">
+                        Raw JSON
                     </button>
                 </div>
             </div>
@@ -152,6 +206,11 @@
     let showPolygonsEnabled = true;
     let highlightedLineIndex = -1;
     let stepMappings = [];
+
+    // CSV data storage
+    let csvDataCache = {};
+    let csvModified = {};
+    let currentCsvFile = null;
 
     // Page type mappings for better display
     const PAGE_TYPE_LABELS = {
@@ -402,6 +461,9 @@
                 break;
             case 'pages':
                 renderPagesTab(container);
+                break;
+            case 'mapping':
+                renderMappingTab(container);
                 break;
             case 'csv':
                 renderCsvTab(container);
@@ -675,6 +737,34 @@
         });
     }
 
+    // Get step mapping info for a CSV file
+    function getStepForCsv(csvFilename) {
+        return stepMappings.find(step => step.output_csv && step.output_csv.includes(csvFilename.replace('.csv', '')));
+    }
+
+    // Get extracted lines from pages related to a step
+    function getExtractedLinesForStep(step) {
+        if (!step || !step.page_numbers) return [];
+        const data = resultsData?.matched_data || resultsData?.ocr_data;
+        if (!data?.pages) return [];
+
+        const lines = [];
+        step.page_numbers.forEach(pageNum => {
+            const page = data.pages[pageNum - 1];
+            if (page?.lines) {
+                page.lines.forEach((line, idx) => {
+                    lines.push({
+                        pageNum,
+                        lineIdx: idx,
+                        content: line.content,
+                        polygon: line.polygon
+                    });
+                });
+            }
+        });
+        return lines;
+    }
+
     function renderCsvTab(container) {
         const csvFiles = resultsData?.csv_files || [];
         if (csvFiles.length === 0) {
@@ -683,38 +773,487 @@
                     <svg class="w-12 h-12 mx-auto text-slate-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
-                    <p class="text-slate-500">No CSV files generated</p>
+                    <p class="text-slate-500">No data tables generated</p>
                     <p class="text-sm text-slate-400 mt-1">Data mapping may have been skipped</p>
                 </div>
             `;
             return;
         }
 
-        // Use job-specific CSV endpoint if job_id is available
-        const csvBaseUrl = JOB_ID ? `/api/jobs/${JOB_ID}/csv` : '/api/csv';
-
+        // Show file selector and table
         container.innerHTML = `
-            <div class="space-y-3">
-                <p class="text-sm text-slate-500 mb-4">${csvFiles.length} file(s) generated from extracted data</p>
-                ${csvFiles.map(file => `
-                    <a href="${csvBaseUrl}/${file}" download
-                       class="flex items-center gap-4 p-4 bg-white border border-slate-200 rounded-xl hover:border-emerald-300 hover:bg-emerald-50 transition-all group">
-                        <div class="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
-                            <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            <div class="space-y-4">
+                <!-- File selector -->
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <div class="flex items-center gap-3">
+                        <label class="text-sm font-medium text-slate-700">ตาราง:</label>
+                        <select id="csvFileSelect" onchange="loadCsvTable(this.value)" class="text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500">
+                            ${csvFiles.map((file, i) => `<option value="${file}" ${i === 0 ? 'selected' : ''}>${file.replace('.csv', '')}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span id="csvModifiedBadge" class="hidden text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded">แก้ไขแล้ว</span>
+                        <button onclick="saveCsvData()" class="text-sm px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                             </svg>
+                            บันทึก
+                        </button>
+                        <button onclick="downloadCurrentCsv()" class="text-sm px-3 py-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                            </svg>
+                            ดาวน์โหลด
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step info & related pages -->
+                <div id="csvStepInfo" class="bg-blue-50 border border-blue-100 rounded-lg p-3 hidden">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <div class="text-sm font-medium text-blue-900" id="csvStepDescription"></div>
+                            <div class="text-xs text-blue-600 mt-1">หน้าที่เกี่ยวข้อง: <span id="csvRelatedPages"></span></div>
                         </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="font-medium text-slate-900">${file}</p>
-                            <p class="text-sm text-slate-500">Click to download</p>
-                        </div>
-                        <svg class="w-5 h-5 text-slate-400 group-hover:text-emerald-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                        </svg>
-                    </a>
-                `).join('')}
+                        <button onclick="toggleExtractedText()" class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
+                            <span id="toggleExtractedBtn">แสดงข้อความที่ดึงมา</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Extracted text panel (collapsible) -->
+                <div id="extractedTextPanel" class="hidden border border-slate-200 rounded-lg">
+                    <div class="bg-slate-50 px-3 py-2 border-b border-slate-200 flex items-center justify-between">
+                        <span class="text-sm font-medium text-slate-700">ข้อความที่ดึงมาจาก PDF</span>
+                        <span class="text-xs text-slate-500">คลิกที่ข้อความเพื่อดูในเอกสาร</span>
+                    </div>
+                    <div id="extractedTextContent" class="max-h-48 overflow-auto p-2 space-y-1 text-xs"></div>
+                </div>
+
+                <!-- Table container -->
+                <div id="csvTableContainer" class="border border-slate-200 rounded-lg overflow-hidden">
+                    <div class="text-center py-8 text-slate-400">Loading...</div>
+                </div>
+
+                <!-- Row count -->
+                <div class="flex items-center justify-between text-xs text-slate-500">
+                    <span id="csvRowCount">-</span>
+                    <span>คลิกที่เซลล์เพื่อแก้ไข | คลิกที่ข้อความด้านบนเพื่อคัดลอก</span>
+                </div>
             </div>
         `;
+
+        // Load first file
+        if (csvFiles.length > 0) {
+            loadCsvTable(csvFiles[0]);
+        }
+    }
+
+    let extractedTextVisible = false;
+
+    function toggleExtractedText() {
+        extractedTextVisible = !extractedTextVisible;
+        document.getElementById('extractedTextPanel').classList.toggle('hidden', !extractedTextVisible);
+        document.getElementById('toggleExtractedBtn').textContent = extractedTextVisible ? 'ซ่อนข้อความ' : 'แสดงข้อความที่ดึงมา';
+    }
+
+    async function loadCsvTable(filename) {
+        currentCsvFile = filename;
+        const tableContainer = document.getElementById('csvTableContainer');
+        tableContainer.innerHTML = '<div class="text-center py-8 text-slate-400">Loading...</div>';
+
+        // Update step info
+        const step = getStepForCsv(filename);
+        const stepInfoEl = document.getElementById('csvStepInfo');
+        const extractedPanel = document.getElementById('extractedTextPanel');
+
+        if (step) {
+            stepInfoEl.classList.remove('hidden');
+            document.getElementById('csvStepDescription').textContent = step.step_description;
+            document.getElementById('csvRelatedPages').innerHTML = (step.page_numbers || []).map(p =>
+                `<button onclick="goToPage(${p})" class="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 mx-0.5">${p}</button>`
+            ).join('');
+
+            // Load extracted text for this step
+            const extractedLines = getExtractedLinesForStep(step);
+            const extractedContent = document.getElementById('extractedTextContent');
+            if (extractedLines.length > 0) {
+                extractedContent.innerHTML = extractedLines.map(line =>
+                    `<div class="px-2 py-1 hover:bg-blue-50 rounded cursor-pointer flex items-start gap-2 group"
+                          onclick="goToPageAndHighlight(${line.pageNum}, ${line.lineIdx})"
+                          ondblclick="copyToClipboard('${escapeHtml(line.content).replace(/'/g, "\\'")}')">
+                        <span class="text-slate-400 w-8 flex-shrink-0">p${line.pageNum}</span>
+                        <span class="text-slate-700 flex-1">${escapeHtml(line.content)}</span>
+                        <button onclick="event.stopPropagation(); copyToClipboard('${escapeHtml(line.content).replace(/'/g, "\\'")}')"
+                                class="opacity-0 group-hover:opacity-100 text-blue-500 hover:text-blue-700 text-xs">
+                            คัดลอก
+                        </button>
+                    </div>`
+                ).join('');
+            } else {
+                extractedContent.innerHTML = '<div class="text-center py-4 text-slate-400">ไม่พบข้อความ</div>';
+            }
+        } else {
+            stepInfoEl.classList.add('hidden');
+            extractedPanel.classList.add('hidden');
+            extractedTextVisible = false;
+        }
+
+        try {
+            // Check cache first
+            if (!csvDataCache[filename]) {
+                const dataUrl = JOB_ID ? `/api/jobs/${JOB_ID}/csv/${filename}/data` : `/api/csv/${filename}/data`;
+                const response = await fetch(dataUrl);
+                csvDataCache[filename] = await response.json();
+                csvModified[filename] = false;
+            }
+
+            renderCsvTable(csvDataCache[filename]);
+            updateModifiedBadge();
+        } catch (e) {
+            console.error('Error loading CSV:', e);
+            tableContainer.innerHTML = `<div class="text-center py-8 text-red-500">Error loading data</div>`;
+        }
+    }
+
+    function goToPageAndHighlight(pageNum, lineIdx) {
+        goToPage(pageNum);
+        setTimeout(() => highlightLine(lineIdx), 100);
+    }
+
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            // Brief visual feedback
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = 'คัดลอกแล้ว!';
+            setTimeout(() => btn.textContent = originalText, 1000);
+        });
+    }
+
+    function renderCsvTable(data) {
+        const tableContainer = document.getElementById('csvTableContainer');
+        const { headers, rows } = data;
+
+        if (!headers || headers.length === 0) {
+            tableContainer.innerHTML = '<div class="text-center py-8 text-slate-400">No data</div>';
+            return;
+        }
+
+        // Show empty state with guidance if no rows
+        const emptyMessage = rows.length === 0 ? `
+            <tr>
+                <td colspan="${headers.length + 2}" class="px-4 py-8 text-center">
+                    <div class="text-slate-400 mb-3">
+                        <svg class="w-10 h-10 mx-auto mb-2 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        <p class="text-sm">ยังไม่มีข้อมูล</p>
+                        <p class="text-xs mt-1">คลิก "แสดงข้อความที่ดึงมา" ด้านบนเพื่อดูข้อมูลจาก PDF</p>
+                        <p class="text-xs">แล้วคลิก "เพิ่มแถวใหม่" เพื่อกรอกข้อมูล</p>
+                    </div>
+                </td>
+            </tr>
+        ` : '';
+
+        tableContainer.innerHTML = `
+            <div class="overflow-auto max-h-[calc(100vh-400px)]">
+                <table class="data-table w-full">
+                    <thead>
+                        <tr class="border-b border-slate-200">
+                            <th class="px-2 py-2 text-left text-slate-500 font-medium w-10">#</th>
+                            ${headers.map(h => `<th class="px-2 py-2 text-left text-slate-700 font-medium whitespace-nowrap">${escapeHtml(h)}</th>`).join('')}
+                            <th class="px-2 py-2 w-10"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        ${rows.length === 0 ? emptyMessage : rows.map((row, rowIdx) => `
+                            <tr class="hover:bg-slate-50">
+                                <td class="px-2 py-1 text-slate-400">${rowIdx + 1}</td>
+                                ${headers.map(h => `
+                                    <td class="px-1 py-1">
+                                        <input type="text"
+                                               class="editable-cell w-full"
+                                               value="${escapeHtml(row[h] || '')}"
+                                               data-row="${rowIdx}"
+                                               data-col="${h}"
+                                               onchange="updateCsvCell(${rowIdx}, '${h}', this.value)"
+                                               onfocus="highlightPdfRegion(${rowIdx})"
+                                               onblur="clearPdfHighlight()">
+                                    </td>
+                                `).join('')}
+                                <td class="px-2 py-1">
+                                    <button onclick="deleteRow(${rowIdx})" class="text-red-400 hover:text-red-600 p-1">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                        </svg>
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+            <div class="border-t border-slate-200 p-2">
+                <button onclick="addNewRow()" class="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    เพิ่มแถวใหม่
+                </button>
+            </div>
+        `;
+
+        document.getElementById('csvRowCount').textContent = rows.length === 0 ? 'ไม่มีข้อมูล' : `${rows.length} แถว`;
+    }
+
+    function updateCsvCell(rowIdx, colName, value) {
+        if (!currentCsvFile || !csvDataCache[currentCsvFile]) return;
+        csvDataCache[currentCsvFile].rows[rowIdx][colName] = value;
+        csvModified[currentCsvFile] = true;
+        updateModifiedBadge();
+    }
+
+    function addNewRow() {
+        if (!currentCsvFile || !csvDataCache[currentCsvFile]) return;
+        const { headers, rows } = csvDataCache[currentCsvFile];
+        const newRow = {};
+        headers.forEach(h => newRow[h] = '');
+        rows.push(newRow);
+        csvModified[currentCsvFile] = true;
+        renderCsvTable(csvDataCache[currentCsvFile]);
+        updateModifiedBadge();
+    }
+
+    function deleteRow(rowIdx) {
+        if (!currentCsvFile || !csvDataCache[currentCsvFile]) return;
+        if (!confirm('ต้องการลบแถวนี้หรือไม่?')) return;
+        csvDataCache[currentCsvFile].rows.splice(rowIdx, 1);
+        csvModified[currentCsvFile] = true;
+        renderCsvTable(csvDataCache[currentCsvFile]);
+        updateModifiedBadge();
+    }
+
+    function updateModifiedBadge() {
+        const badge = document.getElementById('csvModifiedBadge');
+        if (badge) {
+            badge.classList.toggle('hidden', !csvModified[currentCsvFile]);
+        }
+    }
+
+    async function saveCsvData() {
+        if (!currentCsvFile || !csvDataCache[currentCsvFile]) return;
+
+        try {
+            const saveUrl = JOB_ID
+                ? `/api/jobs/${JOB_ID}/csv/${currentCsvFile}/save`
+                : `/api/csv/${currentCsvFile}/save`;
+
+            const response = await fetch(saveUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    headers: csvDataCache[currentCsvFile].headers,
+                    rows: csvDataCache[currentCsvFile].rows,
+                    job_id: JOB_ID
+                })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                csvModified[currentCsvFile] = false;
+                updateModifiedBadge();
+                alert('บันทึกสำเร็จ!');
+            } else {
+                alert('เกิดข้อผิดพลาด');
+            }
+        } catch (e) {
+            console.error('Error saving:', e);
+            alert('Error: ' + e.message);
+        }
+    }
+
+    function downloadCurrentCsv() {
+        if (!currentCsvFile) return;
+        const downloadUrl = JOB_ID
+            ? `/api/jobs/${JOB_ID}/csv/${currentCsvFile}`
+            : `/api/csv/${currentCsvFile}`;
+        window.open(downloadUrl, '_blank');
+    }
+
+    function highlightPdfRegion(rowIdx) {
+        // Could be enhanced to highlight specific region on PDF
+    }
+
+    function clearPdfHighlight() {
+        highlightedLineIndex = -1;
+        renderPolygons();
+    }
+
+    // Field Mapping Tab
+    function renderMappingTab(container) {
+        const metadata = resultsData?.metadata;
+        const data = resultsData?.matched_data || resultsData?.ocr_data;
+
+        if (!stepMappings || stepMappings.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-12">
+                    <svg class="w-12 h-12 mx-auto text-slate-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <p class="text-slate-500">No field mappings available</p>
+                    <p class="text-sm text-slate-400 mt-1">Metadata extraction may have been skipped</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-semibold text-slate-900">Field Mapping Editor</h3>
+                    <p class="text-sm text-slate-500">คลิกที่ฟิลด์เพื่อดูหน้าที่เกี่ยวข้อง</p>
+                </div>
+
+                <div class="space-y-3" id="mappingFields">
+                    ${stepMappings.map((step, idx) => `
+                        <div class="mapping-field cursor-pointer" onclick="selectMappingField(${idx})">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-sm font-semibold text-slate-900">${step.step_description}</span>
+                                        <span class="text-xs px-2 py-0.5 bg-slate-100 text-slate-500 rounded">${step.output_csv || '-'}</span>
+                                    </div>
+                                    <div class="flex flex-wrap gap-1 mt-2">
+                                        ${(step.page_numbers || []).map(p => `
+                                            <button onclick="event.stopPropagation(); goToPage(${p})"
+                                                    class="text-xs px-2 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded transition-colors">
+                                                หน้า ${p}
+                                            </button>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-xs text-slate-400">${(step.page_types || []).length} ประเภท</span>
+                                </div>
+                            </div>
+                            ${step.page_types && step.page_types.length > 0 ? `
+                                <div class="mt-2 pt-2 border-t border-slate-100">
+                                    <div class="flex flex-wrap gap-1">
+                                        ${step.page_types.map(t => `
+                                            <span class="text-xs px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded">${getPageTypeLabel(t)}</span>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+
+                <!-- Quick edit section -->
+                <div id="mappingQuickEdit" class="hidden border-t border-slate-200 pt-4 mt-4">
+                    <h4 class="text-sm font-medium text-slate-700 mb-3">Quick Edit</h4>
+                    <div id="mappingEditContent"></div>
+                </div>
+            </div>
+        `;
+    }
+
+    function selectMappingField(idx) {
+        const fields = document.querySelectorAll('.mapping-field');
+        fields.forEach((f, i) => f.classList.toggle('active', i === idx));
+
+        const step = stepMappings[idx];
+        if (step && step.page_numbers && step.page_numbers.length > 0) {
+            goToPage(step.page_numbers[0]);
+        }
+
+        // Show quick edit for related CSV if available
+        if (step.output_csv) {
+            const csvFile = resultsData?.csv_files?.find(f => f.includes(step.output_csv.replace('.csv', '').split(' ')[0]));
+            if (csvFile) {
+                showQuickEdit(csvFile, step.step_description);
+            }
+        }
+    }
+
+    async function showQuickEdit(csvFile, stepName) {
+        const editSection = document.getElementById('mappingQuickEdit');
+        const editContent = document.getElementById('mappingEditContent');
+
+        editSection.classList.remove('hidden');
+        editContent.innerHTML = '<div class="text-sm text-slate-400">Loading...</div>';
+
+        try {
+            if (!csvDataCache[csvFile]) {
+                const dataUrl = JOB_ID ? `/api/jobs/${JOB_ID}/csv/${csvFile}/data` : `/api/csv/${csvFile}/data`;
+                const response = await fetch(dataUrl);
+                csvDataCache[csvFile] = await response.json();
+                csvModified[csvFile] = false;
+            }
+
+            const { headers, rows } = csvDataCache[csvFile];
+            if (rows.length === 0) {
+                editContent.innerHTML = '<div class="text-sm text-slate-400">No data</div>';
+                return;
+            }
+
+            // Show first row as editable fields
+            editContent.innerHTML = `
+                <div class="text-xs text-slate-500 mb-2">${csvFile} - แถวที่ 1</div>
+                <div class="grid grid-cols-2 gap-2">
+                    ${headers.slice(0, 6).map(h => `
+                        <div>
+                            <label class="text-xs text-slate-500">${h}</label>
+                            <input type="text"
+                                   class="field-input text-sm"
+                                   value="${escapeHtml(rows[0][h] || '')}"
+                                   onchange="updateQuickEditCell('${csvFile}', 0, '${h}', this.value)">
+                        </div>
+                    `).join('')}
+                </div>
+                ${headers.length > 6 ? `<p class="text-xs text-slate-400 mt-2">+ ${headers.length - 6} more fields in Data Tables tab</p>` : ''}
+                <button onclick="saveCsvDataDirect('${csvFile}')" class="mt-3 text-sm px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                    บันทึก ${stepName}
+                </button>
+            `;
+        } catch (e) {
+            editContent.innerHTML = '<div class="text-sm text-red-500">Error loading data</div>';
+        }
+    }
+
+    function updateQuickEditCell(csvFile, rowIdx, colName, value) {
+        if (!csvDataCache[csvFile]) return;
+        csvDataCache[csvFile].rows[rowIdx][colName] = value;
+        csvModified[csvFile] = true;
+    }
+
+    async function saveCsvDataDirect(csvFile) {
+        if (!csvDataCache[csvFile]) return;
+
+        try {
+            const saveUrl = JOB_ID
+                ? `/api/jobs/${JOB_ID}/csv/${csvFile}/save`
+                : `/api/csv/${csvFile}/save`;
+
+            const response = await fetch(saveUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    headers: csvDataCache[csvFile].headers,
+                    rows: csvDataCache[csvFile].rows,
+                    job_id: JOB_ID
+                })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                csvModified[csvFile] = false;
+                alert('บันทึกสำเร็จ!');
+            }
+        } catch (e) {
+            alert('Error: ' + e.message);
+        }
     }
 
     function renderJsonTab(container) {

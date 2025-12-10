@@ -659,6 +659,88 @@ async def get_job_csv(job_id: str, filename: str):
     return FileResponse(csv_path, media_type="text/csv", filename=filename)
 
 
+@app.get("/api/csv/{filename}/data")
+async def get_csv_data(filename: str):
+    """Get CSV file content as JSON"""
+    import csv
+    csv_path = WORK_DIR / "mapping" / filename
+    if not csv_path.exists():
+        raise HTTPException(status_code=404, detail="CSV file not found")
+
+    with open(csv_path, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        rows = list(reader)
+        headers = reader.fieldnames or []
+
+    return {"filename": filename, "headers": headers, "rows": rows}
+
+
+@app.get("/api/jobs/{job_id}/csv/{filename}/data")
+async def get_job_csv_data(job_id: str, filename: str):
+    """Get CSV file content as JSON from a specific job"""
+    import csv
+    csv_path = JOBS_DIR / job_id / "mapping" / filename
+    if not csv_path.exists():
+        raise HTTPException(status_code=404, detail="CSV file not found")
+
+    with open(csv_path, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        rows = list(reader)
+        headers = reader.fieldnames or []
+
+    return {"filename": filename, "headers": headers, "rows": rows}
+
+
+@app.post("/api/csv/{filename}/save")
+async def save_csv_data(filename: str, request: Request):
+    """Save CSV file from JSON data"""
+    import csv
+    csv_path = WORK_DIR / "mapping" / filename
+    if not csv_path.parent.exists():
+        csv_path.parent.mkdir(parents=True, exist_ok=True)
+
+    data = await request.json()
+    headers = data.get('headers', [])
+    rows = data.get('rows', [])
+
+    with open(csv_path, 'w', encoding='utf-8', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=headers)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    # Also update job storage if job_id provided
+    job_id = data.get('job_id')
+    if job_id:
+        job_csv_path = JOBS_DIR / job_id / "mapping" / filename
+        if job_csv_path.parent.exists():
+            with open(job_csv_path, 'w', encoding='utf-8', newline='') as f:
+                writer = csv.DictWriter(f, fieldnames=headers)
+                writer.writeheader()
+                writer.writerows(rows)
+
+    return {"success": True, "filename": filename}
+
+
+@app.post("/api/jobs/{job_id}/csv/{filename}/save")
+async def save_job_csv_data(job_id: str, filename: str, request: Request):
+    """Save CSV file from JSON data for a specific job"""
+    import csv
+    csv_path = JOBS_DIR / job_id / "mapping" / filename
+    if not csv_path.parent.exists():
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    data = await request.json()
+    headers = data.get('headers', [])
+    rows = data.get('rows', [])
+
+    with open(csv_path, 'w', encoding='utf-8', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=headers)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    return {"success": True, "filename": filename, "job_id": job_id}
+
+
 def run():
     """Run the server"""
     import uvicorn
