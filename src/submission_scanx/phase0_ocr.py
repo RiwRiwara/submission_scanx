@@ -13,6 +13,7 @@ import time
 import argparse
 from pathlib import Path
 from typing import Optional, Dict, List, Any
+from datetime import datetime
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -56,6 +57,235 @@ def load_human_loop_config(is_final: bool = False) -> Dict[str, Any]:
 def is_human_loop_enabled() -> bool:
     """Check if human-in-the-loop mode is enabled."""
     return os.getenv("USE_HUNMAN_IN_LOOP", "FALSE").upper() == "TRUE"
+
+
+# Azure Document Intelligence pricing (per page)
+# S0 tier - Read model: $1.50 per 1,000 pages = $0.0015 per page
+# (1M+ pages: $0.60 per 1,000 = $0.0006 per page)
+COST_PER_PAGE = 0.0015
+
+
+def get_report_path(is_final: bool = False) -> Path:
+    """Get path to the OCR usage report file."""
+    src_dir = Path(__file__).parent.parent
+    if is_final:
+        return src_dir / "test final" / "human_loop" / "ocr_usage_report.json"
+    return src_dir / "training" / "human_loop" / "ocr_usage_report.json"
+
+
+def load_report(is_final: bool = False) -> Dict[str, Any]:
+    """Load existing report or create empty structure."""
+    report_path = get_report_path(is_final)
+    if report_path.exists():
+        try:
+            with open(report_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except:
+            pass
+    return {
+        "_description": "OCR usage report for cost tracking and analysis",
+        "summary": {
+            "total_runs": 0,
+            "total_pages_processed": 0,
+            "total_pages_ignored": 0,
+            "total_estimated_cost": 0.0,
+            "total_cost_saved": 0.0
+        },
+        "runs": []
+    }
+
+
+def save_report(report: Dict[str, Any], is_final: bool = False) -> Path:
+    """Save report to file."""
+    report_path = get_report_path(is_final)
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(report_path, 'w', encoding='utf-8') as f:
+        json.dump(report, f, ensure_ascii=False, indent=2)
+    return report_path
+
+
+def generate_run_report(
+    pdf_stats: List[Dict[str, Any]],
+    is_final: bool = False,
+    human_loop_enabled: bool = False
+) -> Dict[str, Any]:
+    """
+    Generate a run report with usage statistics.
+    
+    Args:
+        pdf_stats: List of per-PDF statistics
+        is_final: If True, for test final mode
+        human_loop_enabled: If human-in-the-loop was enabled
+    
+    Returns:
+        Run report dictionary
+    """
+    total_pages = sum(s.get("total_pages", 0) for s in pdf_stats)
+    pages_processed = sum(s.get("pages_processed", 0) for s in pdf_stats)
+    pages_ignored = sum(s.get("pages_ignored", 0) for s in pdf_stats)
+    pages_skipped_existing = sum(s.get("pages_skipped", 0) for s in pdf_stats)
+    
+    estimated_cost = pages_processed * COST_PER_PAGE
+    cost_saved = pages_ignored * COST_PER_PAGE
+    
+    return {
+        "timestamp": datetime.now().isoformat(),
+        "mode": "final" if is_final else "training",
+        "human_loop_enabled": human_loop_enabled,
+        "statistics": {
+            "pdfs_total": len(pdf_stats),
+            "pdfs_processed": sum(1 for s in pdf_stats if s.get("status") == "processed"),
+            "pdfs_skipped": sum(1 for s in pdf_stats if s.get("status") == "skipped"),
+            "pdfs_error": sum(1 for s in pdf_stats if s.get("status") == "error"),
+            "total_pages": total_pages,
+            "pages_processed": pages_processed,
+            "pages_ignored": pages_ignored,
+            "pages_skipped_existing": pages_skipped_existing
+        },
+        "cost": {
+            "estimated_cost_usd": round(estimated_cost, 4),
+            "cost_saved_usd": round(cost_saved, 4),
+            "cost_per_page_usd": COST_PER_PAGE
+        },
+        "pdf_details": pdf_stats
+    }
+
+
+def append_run_to_report(
+    run_report: Dict[str, Any],
+    is_final: bool = False
+) -> Dict[str, Any]:
+    """
+    Append a run report to the main report and update summary.
+    
+    Args:
+        run_report: The run report to append
+        is_final: If True, for test final mode
+    
+    Returns:
+        Updated main report
+    """
+    report = load_report(is_final)
+    
+    # Append run
+    report["runs"].append(run_report)
+    
+    # Update summary
+    report["summary"]["total_runs"] += 1
+    report["summary"]["total_pages_processed"] += run_report["statistics"]["pages_processed"]
+    report["summary"]["total_pages_ignored"] += run_report["statistics"]["pages_ignored"]
+    report["summary"]["total_estimated_cost"] = round(
+        report["summary"]["total_estimated_cost"] + run_report["cost"]["estimated_cost_usd"], 4
+    )
+    report["summary"]["total_cost_saved"] = round(
+        report["summary"]["total_cost_saved"] + run_report["cost"]["cost_saved_usd"], 4
+    )
+    report["summary"]["last_run"] = run_report["timestamp"]
+    
+    # Save and return
+    save_report(report, is_final)
+    return report
+
+
+def print_cost_report(run_report: Dict[str, Any], report: Dict[str, Any]):
+    """Print a formatted cost report."""
+    stats = run_report["statistics"]
+    cost = run_report["cost"]
+    summary = report["summary"]
+    
+    print(f"\n{'='*60}")
+    print("📊 OCR Usage Report")
+    print(f"{'='*60}")
+    print(f"Timestamp: {run_report['timestamp']}")
+    print(f"Mode: {run_report['mode'].upper()}")
+    print(f"Human-in-the-Loop: {'ENABLED' if run_report['human_loop_enabled'] else 'DISABLED'}")
+    
+    print(f"\n📄 This Run:")
+    print(f"   PDFs: {stats['pdfs_processed']} processed, {stats['pdfs_skipped']} skipped, {stats['pdfs_error']} errors")
+    print(f"   Pages: {stats['pages_processed']} processed, {stats['pages_ignored']} ignored")
+    print(f"   💰 Cost: ${cost['estimated_cost_usd']:.4f}")
+    if cost['cost_saved_usd'] > 0:
+        print(f"   💵 Saved: ${cost['cost_saved_usd']:.4f} (by ignoring pages)")
+    
+    print(f"\n📈 All-Time Summary (Run #{summary['total_runs']}):")
+    print(f"   Total pages processed: {summary['total_pages_processed']}")
+    print(f"   Total pages ignored: {summary['total_pages_ignored']}")
+    print(f"   💰 Total cost: ${summary['total_estimated_cost']:.4f}")
+    print(f"   💵 Total saved: ${summary['total_cost_saved']:.4f}")
+    print(f"{'='*60}")
+
+
+def show_usage_report(is_final: bool = False):
+    """Display the full usage report."""
+    report = load_report(is_final)
+    summary = report["summary"]
+    runs = report.get("runs", [])
+    
+    mode_str = "Test Final" if is_final else "Training"
+    
+    print(f"\n{'='*70}")
+    print(f"📊 OCR Usage Report - {mode_str}")
+    print(f"{'='*70}")
+    
+    if summary["total_runs"] == 0:
+        print("No OCR runs recorded yet.")
+        print(f"{'='*70}")
+        return
+    
+    print(f"\n📈 Summary:")
+    print(f"   Total runs: {summary['total_runs']}")
+    print(f"   Last run: {summary.get('last_run', 'N/A')}")
+    print(f"   Total pages processed: {summary['total_pages_processed']}")
+    print(f"   Total pages ignored: {summary['total_pages_ignored']}")
+    print(f"   💰 Total estimated cost: ${summary['total_estimated_cost']:.4f}")
+    print(f"   💵 Total cost saved: ${summary['total_cost_saved']:.4f}")
+    
+    if runs:
+        print(f"\n📋 Run History (last 10):")
+        print(f"{'─'*70}")
+        for run in runs[-10:]:
+            ts = run.get("timestamp", "?")[:19]
+            stats = run.get("statistics", {})
+            cost = run.get("cost", {})
+            hil = "✓" if run.get("human_loop_enabled") else "✗"
+            print(f"   {ts} | PDFs:{stats.get('pdfs_processed', 0):3d} | "
+                  f"Pages:{stats.get('pages_processed', 0):4d} | "
+                  f"Ignored:{stats.get('pages_ignored', 0):3d} | "
+                  f"${cost.get('estimated_cost_usd', 0):.2f} | HIL:{hil}")
+        print(f"{'─'*70}")
+    
+    report_path = get_report_path(is_final)
+    print(f"\n📁 Report file: {report_path}")
+    print(f"{'='*70}")
+
+
+def clear_usage_report(is_final: bool = False):
+    """Clear/reset the usage report."""
+    report_path = get_report_path(is_final)
+    mode_str = "Test Final" if is_final else "Training"
+    
+    if report_path.exists():
+        # Create backup
+        backup_path = report_path.with_suffix(".json.bak")
+        import shutil
+        shutil.copy(report_path, backup_path)
+        print(f"Backed up existing report to: {backup_path}")
+    
+    # Create fresh report
+    new_report = {
+        "_description": "OCR usage report for cost tracking and analysis",
+        "summary": {
+            "total_runs": 0,
+            "total_pages_processed": 0,
+            "total_pages_ignored": 0,
+            "total_estimated_cost": 0.0,
+            "total_cost_saved": 0.0
+        },
+        "runs": []
+    }
+    save_report(new_report, is_final)
+    print(f"✓ Cleared OCR usage report for {mode_str} mode")
+    print(f"  Report file: {report_path}")
 
 
 def get_azure_client():
@@ -298,6 +528,9 @@ def process_pdfs(
         "errors": [],
         "pages_ignored": 0
     }
+    
+    # Track per-PDF stats for reporting
+    pdf_stats = []
 
     print(f"{'='*60}")
     print(f"Phase 0: PDF to OCR Extraction")
@@ -322,12 +555,23 @@ def process_pdfs(
         if skip_existing and output_path.exists():
             print(f"[{i}/{len(pdf_list)}] SKIP (exists): {pdf_filename[:50]}...")
             stats["skipped"] += 1
+            # Track skipped PDF in stats
+            pdf_stats.append({
+                "pdf_name": Path(pdf_filename).stem,
+                "status": "skipped",
+                "pages_skipped": 0  # We don't know page count for skipped
+            })
             continue
 
         if not pdf_path.exists():
             error_msg = f"PDF not found: {pdf_path}"
             print(f"[{i}/{len(pdf_list)}] ERROR: {error_msg}")
             stats["errors"].append((pdf_filename, error_msg))
+            pdf_stats.append({
+                "pdf_name": Path(pdf_filename).stem,
+                "status": "error",
+                "error": error_msg
+            })
             continue
 
         try:
@@ -360,9 +604,20 @@ def process_pdfs(
             with open(output_path, 'w', encoding='utf-8') as f:
                 json.dump(result, f, ensure_ascii=False, indent=2)
 
-            print(f"OK ({len(result['pages'])} pages)")
+            actual_pages_processed = len([p for p in result['pages'] if not p.get('_ignored')])
+            print(f"OK ({len(result['pages'])} pages, {actual_pages_processed} OCR'd)")
             stats["processed"] += 1
             stats["pages_ignored"] += len(ignore_pages)
+            
+            # Track PDF stats for reporting
+            pdf_stats.append({
+                "pdf_name": pdf_stem,
+                "status": "processed",
+                "total_pages": len(result['pages']),
+                "pages_processed": actual_pages_processed,
+                "pages_ignored": len(ignore_pages),
+                "ignored_page_numbers": ignore_pages if ignore_pages else None
+            })
 
             # Rate limiting
             time.sleep(0.5)
@@ -371,6 +626,18 @@ def process_pdfs(
             error_msg = str(e)
             print(f"ERROR: {error_msg[:50]}")
             stats["errors"].append((pdf_filename, error_msg))
+            pdf_stats.append({
+                "pdf_name": Path(pdf_filename).stem,
+                "status": "error",
+                "error": error_msg[:100]
+            })
+
+    # Generate and save run report
+    run_report = generate_run_report(pdf_stats, is_final, human_loop_enabled)
+    main_report = append_run_to_report(run_report, is_final)
+    
+    # Print cost report
+    print_cost_report(run_report, main_report)
 
     print(f"\n{'='*60}")
     print("Summary")
@@ -595,8 +862,28 @@ def main():
         default=None,
         help="Override output directory"
     )
+    parser.add_argument(
+        "--report",
+        action="store_true",
+        help="Show OCR usage report without running processing"
+    )
+    parser.add_argument(
+        "--report-clear",
+        action="store_true",
+        help="Clear/reset the OCR usage report"
+    )
 
     args = parser.parse_args()
+    
+    # Report mode - show usage report
+    if args.report:
+        show_usage_report(args.final)
+        return
+    
+    # Clear report mode
+    if args.report_clear:
+        clear_usage_report(args.final)
+        return
 
     # Determine base paths
     src_dir = Path(__file__).parent.parent

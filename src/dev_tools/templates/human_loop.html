@@ -40,9 +40,9 @@
         </div>
     </div>
 
-    <!-- Main Content -->
-    <div class="grid grid-cols-3 gap-4" style="height: calc(100vh - 280px);">
-        <!-- PDF List -->
+    <!-- Main Content - 2 column layout -->
+    <div class="grid grid-cols-4 gap-4" style="height: calc(100vh - 280px);">
+        <!-- PDF List (narrower) -->
         <div class="bg-slate-800 rounded-xl border border-slate-700 flex flex-col">
             <div class="p-3 border-b border-slate-700">
                 <input type="text" id="searchPdf" placeholder="Search PDFs..." 
@@ -54,48 +54,66 @@
             </div>
         </div>
 
-        <!-- PDF Viewer -->
-        <div class="bg-slate-800 rounded-xl border border-slate-700 flex flex-col">
-            <div class="p-3 border-b border-slate-700 flex justify-between items-center">
-                <span class="font-medium" id="viewerTitle">Select a PDF</span>
-                <div class="flex gap-2">
-                    <button onclick="zoomOut()" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm">−</button>
-                    <span id="zoomLevel" class="text-sm text-slate-400">100%</span>
-                    <button onclick="zoomIn()" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm">+</button>
+        <!-- PDF Pages Viewer (wider - 3 columns) -->
+        <div class="col-span-3 bg-slate-800 rounded-xl border border-slate-700 flex flex-col">
+            <!-- Header with controls -->
+            <div class="p-3 border-b border-slate-700 flex justify-between items-center flex-wrap gap-2">
+                <div class="flex items-center gap-3">
+                    <span class="font-medium text-pink-400" id="viewerTitle">Select a PDF</span>
+                    <span class="text-sm text-slate-400" id="pageCountInfo"></span>
+                </div>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <div class="flex gap-1">
+                        <button onclick="selectAllPages()" class="px-2 py-1 bg-red-600 hover:bg-red-500 rounded text-xs">🚫 Ignore All</button>
+                        <button onclick="deselectAllPages()" class="px-2 py-1 bg-green-600 hover:bg-green-500 rounded text-xs">✅ Keep All</button>
+                        <button onclick="invertSelection()" class="px-2 py-1 bg-slate-600 hover:bg-slate-500 rounded text-xs">🔄 Invert</button>
+                    </div>
+                    <span class="text-slate-600">|</span>
+                    <!-- Column selector -->
+                    <div class="flex gap-1 items-center">
+                        <span class="text-xs text-slate-400">Cols:</span>
+                        <button onclick="setColumns(1)" id="col-1" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs">1</button>
+                        <button onclick="setColumns(2)" id="col-2" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs">2</button>
+                        <button onclick="setColumns(3)" id="col-3" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs">3</button>
+                        <button onclick="setColumns(4)" id="col-4" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs">4</button>
+                        <button onclick="setColumns(5)" id="col-5" class="px-2 py-1 bg-pink-600 rounded text-xs">5</button>
+                        <button onclick="setColumns(6)" id="col-6" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs">6</button>
+                    </div>
+                    <span class="text-slate-600">|</span>
+                    <!-- Zoom -->
+                    <div class="flex gap-1 items-center">
+                        <span class="text-xs text-slate-400">Size:</span>
+                        <button onclick="zoomOut()" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs">−</button>
+                        <span id="zoomLevel" class="text-xs text-slate-400 w-10 text-center">50%</span>
+                        <button onclick="zoomIn()" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs">+</button>
+                    </div>
                 </div>
             </div>
-            <div class="flex-1 overflow-auto p-2 bg-slate-900" id="pdfViewer">
+            
+            <!-- All Pages Grid - Scrollable -->
+            <div class="flex-1 overflow-y-auto p-4 bg-slate-900" id="pdfPagesContainer">
                 <div class="text-slate-500 text-center py-20">
-                    <div class="text-4xl mb-4">📄</div>
-                    <div>Select a PDF from the list to view</div>
+                    <div class="text-6xl mb-4">📄</div>
+                    <div class="text-lg">Select a PDF from the list</div>
+                    <div class="text-sm mt-2">Click on any page to toggle ignore/keep</div>
                 </div>
             </div>
-            <div class="p-2 border-t border-slate-700 flex gap-2">
-                <button onclick="prevPage()" class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm">◀ Prev</button>
-                <span class="flex-1 text-center text-sm text-slate-400">
-                    Page <span id="currentPage">-</span> / <span id="totalPages">-</span>
-                </span>
-                <button onclick="nextPage()" class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm">Next ▶</button>
-            </div>
-        </div>
-
-        <!-- Page Selection -->
-        <div class="bg-slate-800 rounded-xl border border-slate-700 flex flex-col">
-            <div class="p-3 border-b border-slate-700">
-                <span class="font-medium">Page Selection</span>
-                <span class="text-sm text-slate-400 ml-2" id="selectedPdfName"></span>
-            </div>
-            <div class="p-3 border-b border-slate-700 flex gap-2">
-                <button onclick="selectAllPages()" class="px-3 py-1 bg-red-600 hover:bg-red-500 rounded text-sm">Ignore All</button>
-                <button onclick="deselectAllPages()" class="px-3 py-1 bg-green-600 hover:bg-green-500 rounded text-sm">Keep All</button>
-                <button onclick="invertSelection()" class="px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded text-sm">Invert</button>
-            </div>
-            <div class="flex-1 overflow-y-auto p-3" id="pageGrid">
-                <div class="text-slate-500 text-center py-8">Select a PDF to configure pages</div>
-            </div>
-            <div class="p-3 border-t border-slate-700">
-                <textarea id="notesInput" placeholder="Notes (optional)..." 
-                          class="w-full px-3 py-2 bg-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 resize-none h-16"></textarea>
+            
+            <!-- Footer with legend and notes -->
+            <div class="p-3 border-t border-slate-700 flex items-center gap-4">
+                <div class="flex items-center gap-4 text-sm">
+                    <span class="flex items-center gap-1">
+                        <span class="w-4 h-4 bg-green-600 rounded border-2 border-green-400"></span> Keep (OCR)
+                    </span>
+                    <span class="flex items-center gap-1">
+                        <span class="w-4 h-4 bg-red-600 rounded border-2 border-red-400"></span> Ignore (Skip)
+                    </span>
+                    <span class="text-slate-500">| Click page to toggle</span>
+                </div>
+                <div class="flex-1">
+                    <input type="text" id="notesInput" placeholder="Notes (optional)..." 
+                           class="w-full px-3 py-1 bg-slate-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-pink-500">
+                </div>
             </div>
         </div>
     </div>
@@ -110,10 +128,11 @@
 // State
 let allPdfs = [];
 let selectedPdf = null;
-let currentPageNum = 1;
 let pdfDoc = null;
-let zoomScale = 1.0;
+let zoomScale = 0.5; // Balance between size and clarity
+let columnCount = 5; // Default columns
 let pendingChanges = {};
+let renderedCanvases = {}; // Cache rendered pages
 
 // Initialize PDF.js
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -146,13 +165,13 @@ function renderPdfList() {
         const isSelected = selectedPdf?.name === pdf.name;
         
         return `
-            <div class="p-3 rounded-lg cursor-pointer mb-2 ${isSelected ? 'bg-pink-600' : 'bg-slate-700 hover:bg-slate-600'} ${hasChanges ? 'ring-2 ring-yellow-500' : ''}"
-                 onclick="selectPdf('${pdf.name}')">
-                <div class="font-medium text-sm truncate">${pdf.name.substring(0, 35)}...</div>
-                <div class="flex gap-2 mt-2 text-xs">
-                    <span class="bg-slate-600 px-2 py-0.5 rounded">${pdf.total_pages || '?'} pages</span>
-                    ${ignoreCount > 0 ? `<span class="bg-red-600 px-2 py-0.5 rounded">${ignoreCount} ignored</span>` : ''}
-                    ${hasChanges ? '<span class="bg-yellow-600 px-2 py-0.5 rounded">Modified</span>' : ''}
+            <div class="p-2 rounded-lg cursor-pointer mb-1 ${isSelected ? 'bg-pink-600' : 'bg-slate-700 hover:bg-slate-600'} ${hasChanges ? 'ring-2 ring-yellow-500' : ''}"
+                 onclick="selectPdf('${pdf.name.replace(/'/g, "\\'")}')">
+                <div class="font-medium text-xs truncate" title="${pdf.name}">${pdf.name.substring(0, 30)}...</div>
+                <div class="flex gap-1 mt-1 text-xs">
+                    <span class="bg-slate-600 px-1 py-0.5 rounded text-[10px]">${pdf.total_pages || '?'}p</span>
+                    ${ignoreCount > 0 ? `<span class="bg-red-600 px-1 py-0.5 rounded text-[10px]">${ignoreCount} ign</span>` : ''}
+                    ${hasChanges ? '<span class="bg-yellow-600 px-1 py-0.5 rounded text-[10px]">*</span>' : ''}
                 </div>
             </div>
         `;
@@ -168,63 +187,68 @@ function updateStats() {
     document.getElementById('configuredPdfs').textContent = allPdfs.filter(p => p.has_config).length;
     
     let totalIgnored = 0;
-    let totalPages = 0;
     allPdfs.forEach(pdf => {
         const ignorePages = pendingChanges[pdf.name]?.ignore_pages || pdf.ignore_pages || [];
         totalIgnored += ignorePages.length;
-        totalPages += pdf.total_pages || 0;
     });
     
     document.getElementById('totalIgnoredPages').textContent = totalIgnored;
-    
-    // Estimate savings (assuming $0.01 per page)
-    const savings = (totalIgnored * 0.01).toFixed(2);
+    // Azure S0 Read: $1.50 per 1,000 pages = $0.0015 per page
+    const savings = (totalIgnored * 0.0015).toFixed(3);
     document.getElementById('estimatedSavings').textContent = `$${savings}`;
+}
+
+function updatePageCountInfo() {
+    if (!selectedPdf) {
+        document.getElementById('pageCountInfo').textContent = '';
+        return;
+    }
+    const ignorePages = pendingChanges[selectedPdf.name]?.ignore_pages || selectedPdf.ignore_pages || [];
+    const total = selectedPdf.total_pages || 0;
+    const kept = total - ignorePages.length;
+    document.getElementById('pageCountInfo').textContent = `${total} pages | ${kept} keep | ${ignorePages.length} ignore`;
 }
 
 async function selectPdf(name) {
     selectedPdf = allPdfs.find(p => p.name === name);
     if (!selectedPdf) return;
     
-    document.getElementById('viewerTitle').textContent = name.substring(0, 30) + '...';
-    document.getElementById('selectedPdfName').textContent = name.substring(0, 20) + '...';
+    document.getElementById('viewerTitle').textContent = name.substring(0, 40) + (name.length > 40 ? '...' : '');
     
     // Load notes
     const notes = pendingChanges[name]?.notes ?? selectedPdf.notes ?? '';
     document.getElementById('notesInput').value = notes;
     
-    // Get page count if not available
-    if (!selectedPdf.total_pages) {
-        try {
-            const data = await fetchApi(`/api/human-loop/pdf/${encodeURIComponent(name)}/pages?mode=${getMode()}`);
-            selectedPdf.total_pages = data.total_pages;
-        } catch (e) {
-            console.error('Error getting page count:', e);
-        }
-    }
+    // Show loading
+    document.getElementById('pdfPagesContainer').innerHTML = `
+        <div class="text-slate-400 text-center py-20">
+            <div class="text-4xl mb-4 animate-pulse">⏳</div>
+            <div>Loading PDF pages...</div>
+        </div>
+    `;
     
-    // Load PDF
-    await loadPdf(name);
+    // Load PDF and render all pages
+    await loadPdfAndRenderAllPages(name);
     
-    // Render page grid
-    renderPageGrid();
     renderPdfList();
+    updatePageCountInfo();
 }
 
-async function loadPdf(name) {
+async function loadPdfAndRenderAllPages(name) {
     const mode = getMode();
+    renderedCanvases = {}; // Clear cache
+    
     try {
         const url = `/api/pdf/${encodeURIComponent(name)}?mode=${mode}`;
         pdfDoc = await pdfjsLib.getDocument(url).promise;
-        
-        document.getElementById('totalPages').textContent = pdfDoc.numPages;
         selectedPdf.total_pages = pdfDoc.numPages;
         
-        currentPageNum = 1;
-        renderPage(currentPageNum);
+        // Render all pages
+        await renderAllPages();
+        
     } catch (e) {
         console.error('Error loading PDF:', e);
-        document.getElementById('pdfViewer').innerHTML = `
+        document.getElementById('pdfPagesContainer').innerHTML = `
             <div class="text-red-400 text-center py-20">
                 <div class="text-4xl mb-4">⚠️</div>
                 <div>Error loading PDF</div>
@@ -234,97 +258,99 @@ async function loadPdf(name) {
     }
 }
 
-async function renderPage(num) {
-    if (!pdfDoc) return;
+async function renderAllPages() {
+    if (!pdfDoc || !selectedPdf) return;
     
-    const page = await pdfDoc.getPage(num);
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    
-    const viewport = page.getViewport({ scale: zoomScale });
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    
-    await page.render({ canvasContext: ctx, viewport }).promise;
-    
-    // Check if page is ignored
+    const container = document.getElementById('pdfPagesContainer');
     const ignorePages = pendingChanges[selectedPdf.name]?.ignore_pages || selectedPdf.ignore_pages || [];
-    const isIgnored = ignorePages.includes(num);
     
-    const container = document.getElementById('pdfViewer');
-    container.innerHTML = '';
+    // Create grid container with dynamic columns
+    const gridClass = `grid gap-3 grid-cols-${columnCount}`;
+    container.innerHTML = `<div id="pagesGrid" class="${gridClass}"></div>`;
+    const grid = document.getElementById('pagesGrid');
     
-    const wrapper = document.createElement('div');
-    wrapper.className = 'relative inline-block';
-    wrapper.appendChild(canvas);
-    
-    if (isIgnored) {
-        const overlay = document.createElement('div');
-        overlay.className = 'absolute inset-0 bg-red-500 bg-opacity-30 flex items-center justify-center';
-        overlay.innerHTML = '<span class="text-4xl font-bold text-white bg-red-600 px-4 py-2 rounded">IGNORED</span>';
-        wrapper.appendChild(overlay);
+    // Render each page
+    for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+        const isIgnored = ignorePages.includes(pageNum);
+        
+        // Create page wrapper
+        const pageWrapper = document.createElement('div');
+        pageWrapper.id = `page-wrapper-${pageNum}`;
+        pageWrapper.className = `relative cursor-pointer rounded-lg overflow-hidden transition-all duration-200 ${isIgnored ? 'ring-4 ring-red-500' : 'ring-4 ring-green-500'} hover:ring-pink-400 hover:scale-105`;
+        pageWrapper.onclick = () => togglePage(pageNum);
+        pageWrapper.title = `Page ${pageNum} - Click to ${isIgnored ? 'KEEP' : 'IGNORE'}`;
+        
+        // Page number badge
+        const badge = document.createElement('div');
+        badge.className = `absolute top-1 left-1 px-2 py-1 rounded text-xs font-bold z-10 ${isIgnored ? 'bg-red-600' : 'bg-green-600'}`;
+        badge.textContent = pageNum;
+        pageWrapper.appendChild(badge);
+        
+        // Status label
+        const statusLabel = document.createElement('div');
+        statusLabel.className = `absolute top-1 right-1 px-2 py-1 rounded text-xs font-bold z-10 ${isIgnored ? 'bg-red-600' : 'bg-green-600'}`;
+        statusLabel.textContent = isIgnored ? '🚫' : '✅';
+        pageWrapper.appendChild(statusLabel);
+        
+        // Canvas placeholder
+        const canvasContainer = document.createElement('div');
+        canvasContainer.className = 'bg-white';
+        canvasContainer.id = `canvas-container-${pageNum}`;
+        pageWrapper.appendChild(canvasContainer);
+        
+        // Overlay for ignored pages
+        if (isIgnored) {
+            const overlay = document.createElement('div');
+            overlay.className = 'absolute inset-0 bg-red-500 bg-opacity-40 flex items-center justify-center';
+            overlay.innerHTML = '<span class="text-white font-bold text-lg bg-red-600 px-3 py-1 rounded">IGNORE</span>';
+            pageWrapper.appendChild(overlay);
+        }
+        
+        grid.appendChild(pageWrapper);
+        
+        // Render page asynchronously
+        renderSinglePage(pageNum, canvasContainer);
     }
     
-    container.appendChild(wrapper);
-    document.getElementById('currentPage').textContent = num;
+    updatePageCountInfo();
 }
 
-function prevPage() {
-    if (currentPageNum > 1) {
-        currentPageNum--;
-        renderPage(currentPageNum);
+async function renderSinglePage(pageNum, container) {
+    try {
+        const page = await pdfDoc.getPage(pageNum);
+        
+        // Use higher scale for better quality, then scale down with CSS
+        const renderScale = Math.max(zoomScale * 2, 1.0); // Minimum 1.0 for clarity
+        const viewport = page.getViewport({ scale: renderScale });
+        
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size to high resolution
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        
+        // Display size controlled by CSS (scaled down for layout)
+        const displayWidth = viewport.width * (zoomScale / renderScale);
+        canvas.style.width = displayWidth + 'px';
+        canvas.style.height = 'auto';
+        canvas.className = 'w-full h-auto';
+        
+        // Enable image smoothing for better quality
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        
+        container.innerHTML = '';
+        container.appendChild(canvas);
+        
+        // Cache it
+        renderedCanvases[pageNum] = canvas;
+        
+    } catch (e) {
+        container.innerHTML = `<div class="p-4 text-red-400 text-xs">Error</div>`;
     }
-}
-
-function nextPage() {
-    if (pdfDoc && currentPageNum < pdfDoc.numPages) {
-        currentPageNum++;
-        renderPage(currentPageNum);
-    }
-}
-
-function zoomIn() {
-    zoomScale = Math.min(zoomScale + 0.25, 3.0);
-    document.getElementById('zoomLevel').textContent = Math.round(zoomScale * 100) + '%';
-    if (pdfDoc) renderPage(currentPageNum);
-}
-
-function zoomOut() {
-    zoomScale = Math.max(zoomScale - 0.25, 0.5);
-    document.getElementById('zoomLevel').textContent = Math.round(zoomScale * 100) + '%';
-    if (pdfDoc) renderPage(currentPageNum);
-}
-
-function renderPageGrid() {
-    if (!selectedPdf || !selectedPdf.total_pages) {
-        document.getElementById('pageGrid').innerHTML = '<div class="text-slate-500 text-center py-8">Loading pages...</div>';
-        return;
-    }
-    
-    const ignorePages = pendingChanges[selectedPdf.name]?.ignore_pages || selectedPdf.ignore_pages || [];
-    const totalPages = selectedPdf.total_pages;
-    
-    let html = '<div class="grid grid-cols-5 gap-2">';
-    for (let i = 1; i <= totalPages; i++) {
-        const isIgnored = ignorePages.includes(i);
-        const bgColor = isIgnored ? 'bg-red-600 hover:bg-red-500' : 'bg-green-600 hover:bg-green-500';
-        html += `
-            <button onclick="togglePage(${i})" 
-                    class="p-2 rounded text-sm font-medium ${bgColor} transition-colors"
-                    title="Page ${i}: ${isIgnored ? 'Ignored' : 'Included'}">
-                ${i}
-            </button>
-        `;
-    }
-    html += '</div>';
-    html += `
-        <div class="mt-4 text-sm text-slate-400">
-            <span class="inline-block w-4 h-4 bg-green-600 rounded mr-1"></span> Include (OCR)
-            <span class="inline-block w-4 h-4 bg-red-600 rounded ml-4 mr-1"></span> Ignore (Skip)
-        </div>
-    `;
-    
-    document.getElementById('pageGrid').innerHTML = html;
 }
 
 function togglePage(pageNum) {
@@ -348,13 +374,88 @@ function togglePage(pageNum) {
         ignorePages.splice(idx, 1);
     }
     
-    renderPageGrid();
+    // Update just this page's visual state
+    updatePageVisual(pageNum);
     renderPdfList();
     updateStats();
+    updatePageCountInfo();
+}
+
+function updatePageVisual(pageNum) {
+    const ignorePages = pendingChanges[selectedPdf.name]?.ignore_pages || selectedPdf.ignore_pages || [];
+    const isIgnored = ignorePages.includes(pageNum);
     
-    // Re-render current page if it was toggled
-    if (currentPageNum === pageNum) {
-        renderPage(currentPageNum);
+    const wrapper = document.getElementById(`page-wrapper-${pageNum}`);
+    if (!wrapper) return;
+    
+    // Update ring color
+    wrapper.className = `relative cursor-pointer rounded-lg overflow-hidden transition-all duration-200 ${isIgnored ? 'ring-4 ring-red-500' : 'ring-4 ring-green-500'} hover:ring-pink-400 hover:scale-105`;
+    wrapper.title = `Page ${pageNum} - Click to ${isIgnored ? 'KEEP' : 'IGNORE'}`;
+    
+    // Update badge
+    const badge = wrapper.querySelector('div:first-child');
+    if (badge) {
+        badge.className = `absolute top-1 left-1 px-2 py-1 rounded text-xs font-bold z-10 ${isIgnored ? 'bg-red-600' : 'bg-green-600'}`;
+    }
+    
+    // Update status label
+    const statusLabel = wrapper.querySelectorAll('div')[1];
+    if (statusLabel) {
+        statusLabel.className = `absolute top-1 right-1 px-2 py-1 rounded text-xs font-bold z-10 ${isIgnored ? 'bg-red-600' : 'bg-green-600'}`;
+        statusLabel.textContent = isIgnored ? '🚫' : '✅';
+    }
+    
+    // Update or add/remove overlay
+    let overlay = wrapper.querySelector('.bg-red-500');
+    if (isIgnored && !overlay) {
+        overlay = document.createElement('div');
+        overlay.className = 'absolute inset-0 bg-red-500 bg-opacity-40 flex items-center justify-center';
+        overlay.innerHTML = '<span class="text-white font-bold text-lg bg-red-600 px-3 py-1 rounded">IGNORE</span>';
+        wrapper.appendChild(overlay);
+    } else if (!isIgnored && overlay) {
+        overlay.remove();
+    }
+}
+
+function zoomIn() {
+    zoomScale = Math.min(zoomScale + 0.05, 1.5);
+    document.getElementById('zoomLevel').textContent = Math.round(zoomScale * 100) + '%';
+    if (pdfDoc) renderAllPages();
+}
+
+function zoomOut() {
+    zoomScale = Math.max(zoomScale - 0.05, 0.1);
+    document.getElementById('zoomLevel').textContent = Math.round(zoomScale * 100) + '%';
+    if (pdfDoc) renderAllPages();
+}
+
+function setColumns(cols) {
+    columnCount = cols;
+    // Update button styles
+    for (let i = 1; i <= 6; i++) {
+        const btn = document.getElementById(`col-${i}`);
+        if (btn) {
+            if (i === cols) {
+                btn.className = 'px-2 py-1 bg-pink-600 rounded text-xs';
+            } else {
+                btn.className = 'px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs';
+            }
+        }
+    }
+    // Re-render if PDF is loaded
+    if (pdfDoc) renderAllPages();
+}
+
+function updateColumnButtons() {
+    for (let i = 1; i <= 6; i++) {
+        const btn = document.getElementById(`col-${i}`);
+        if (btn) {
+            if (i === columnCount) {
+                btn.className = 'px-2 py-1 bg-pink-600 rounded text-xs';
+            } else {
+                btn.className = 'px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs';
+            }
+        }
     }
 }
 
@@ -370,10 +471,14 @@ function selectAllPages() {
     }
     
     pendingChanges[selectedPdf.name].ignore_pages = Array.from({length: selectedPdf.total_pages}, (_, i) => i + 1);
-    renderPageGrid();
+    
+    // Update all visuals
+    for (let i = 1; i <= selectedPdf.total_pages; i++) {
+        updatePageVisual(i);
+    }
     renderPdfList();
     updateStats();
-    renderPage(currentPageNum);
+    updatePageCountInfo();
 }
 
 function deselectAllPages() {
@@ -388,10 +493,14 @@ function deselectAllPages() {
     }
     
     pendingChanges[selectedPdf.name].ignore_pages = [];
-    renderPageGrid();
+    
+    // Update all visuals
+    for (let i = 1; i <= selectedPdf.total_pages; i++) {
+        updatePageVisual(i);
+    }
     renderPdfList();
     updateStats();
-    renderPage(currentPageNum);
+    updatePageCountInfo();
 }
 
 function invertSelection() {
@@ -412,10 +521,14 @@ function invertSelection() {
     }
     
     pendingChanges[selectedPdf.name].ignore_pages = inverted;
-    renderPageGrid();
+    
+    // Update all visuals
+    for (let i = 1; i <= selectedPdf.total_pages; i++) {
+        updatePageVisual(i);
+    }
     renderPdfList();
     updateStats();
-    renderPage(currentPageNum);
+    updatePageCountInfo();
 }
 
 async function saveAllChanges() {
@@ -446,7 +559,6 @@ async function saveAllChanges() {
             }
         } else {
             pendingChanges[selectedPdf.name].notes = currentNotes;
-            // Update the entry in updates
             const entry = updates.find(u => u.pdf_name === selectedPdf.name);
             if (entry) entry.notes = currentNotes;
         }
@@ -469,6 +581,11 @@ async function saveAllChanges() {
             alert(`Saved ${result.updated_count} document(s) successfully!`);
             pendingChanges = {};
             await loadPdfList();
+            if (selectedPdf) {
+                // Refresh selected PDF data
+                selectedPdf = allPdfs.find(p => p.name === selectedPdf.name);
+                updatePageCountInfo();
+            }
         } else {
             alert('Error saving: ' + (result.error || 'Unknown error'));
         }
@@ -489,12 +606,22 @@ function onModeChange() {
     pendingChanges = {};
     selectedPdf = null;
     pdfDoc = null;
-    document.getElementById('pdfViewer').innerHTML = '<div class="text-slate-500 text-center py-20"><div class="text-4xl mb-4">📄</div><div>Select a PDF from the list to view</div></div>';
-    document.getElementById('pageGrid').innerHTML = '<div class="text-slate-500 text-center py-8">Select a PDF to configure pages</div>';
+    renderedCanvases = {};
+    document.getElementById('pdfPagesContainer').innerHTML = `
+        <div class="text-slate-500 text-center py-20">
+            <div class="text-6xl mb-4">📄</div>
+            <div class="text-lg">Select a PDF from the list</div>
+            <div class="text-sm mt-2">Click on any page to toggle ignore/keep</div>
+        </div>
+    `;
+    document.getElementById('viewerTitle').textContent = 'Select a PDF';
+    document.getElementById('pageCountInfo').textContent = '';
     loadPdfList();
 }
 
 // Initialize
 loadPdfList();
+document.getElementById('zoomLevel').textContent = Math.round(zoomScale * 100) + '%';
+updateColumnButtons();
 </script>
 {% endblock %}

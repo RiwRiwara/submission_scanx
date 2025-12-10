@@ -310,6 +310,31 @@ Ignored pages appear in output JSON with empty lines:
 }
 ```
 
+### OCR Usage Reports
+
+Phase 0 automatically tracks usage and costs per run:
+
+```bash
+# View usage report (training data)
+poetry run python -m submission_scanx.phase0_ocr --report
+
+# View usage report (test final data)
+poetry run python -m submission_scanx.phase0_ocr --report --final
+
+# Clear/reset report
+poetry run python -m submission_scanx.phase0_ocr --report-clear
+```
+
+Report includes:
+- **Per-run statistics**: PDFs processed, pages OCR'd, pages ignored
+- **Cost tracking**: Estimated cost based on Azure S0 Read pricing ($1.50/1000 pages)
+- **Run history**: Timestamps for each OCR run
+- **All-time summary**: Cumulative totals across all runs
+
+Reports are saved to:
+- Training: `src/training/human_loop/ocr_usage_report.json`
+- Test Final: `src/test final/human_loop/ocr_usage_report.json`
+
 ## Installation
 
 ```bash
