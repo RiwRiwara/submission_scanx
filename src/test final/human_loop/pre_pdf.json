@@ -1,0 +1,11 @@
+{
+  "_description": "Human-in-the-loop configuration for Phase 0 OCR (Test Final). Define pages to ignore for each PDF to reduce OCR cost.",
+  "_usage": "Set USE_HUNMAN_IN_LOOP=TRUE in .env to enable this configuration.",
+  "_format": {
+    "pdf_name": "PDF filename without extension (stem)",
+    "total_pages": "Total number of pages in the PDF (required if ignoring pages)",
+    "ignore_pages": "Array of page numbers (1-indexed) to skip during OCR",
+    "notes": "Optional notes about why pages are ignored"
+  },
+  "documents": []
+}

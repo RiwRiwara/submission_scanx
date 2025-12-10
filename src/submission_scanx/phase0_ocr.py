@@ -20,6 +20,44 @@ env_path = Path(__file__).parent / ".env"
 load_dotenv(env_path)
 
 
+def load_human_loop_config(is_final: bool = False) -> Dict[str, Any]:
+    """
+    Load human-in-the-loop configuration for ignore pages.
+    
+    Args:
+        is_final: If True, load from test final human_loop directory
+    
+    Returns:
+        Dict mapping pdf filename (stem) to ignore configuration
+    """
+    src_dir = Path(__file__).parent.parent
+    
+    if is_final:
+        config_path = src_dir / "test final" / "human_loop" / "pre_pdf.json"
+    else:
+        config_path = src_dir / "training" / "human_loop" / "pre_pdf.json"
+    
+    if not config_path.exists():
+        return {}
+    
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            content = f.read().strip()
+            if not content:
+                return {}
+            config = json.load(f)
+            # Convert list to dict for easy lookup by pdf name
+            return {item.get("pdf_name", ""): item for item in config.get("documents", [])}
+    except (json.JSONDecodeError, Exception) as e:
+        print(f"Warning: Failed to load human_loop config: {e}")
+        return {}
+
+
+def is_human_loop_enabled() -> bool:
+    """Check if human-in-the-loop mode is enabled."""
+    return os.getenv("USE_HUNMAN_IN_LOOP", "FALSE").upper() == "TRUE"
+
+
 def get_azure_client():
     """Initialize Azure Document Intelligence client."""
     from azure.ai.documentintelligence import DocumentIntelligenceClient
@@ -44,7 +82,9 @@ def get_azure_client():
 def extract_pdf_to_json(
     pdf_path: Path,
     client,
-    model_id: str = "prebuilt-read"
+    model_id: str = "prebuilt-read",
+    ignore_pages: Optional[List[int]] = None,
+    total_pages: Optional[int] = None
 ) -> Dict[str, Any]:
     """
     Extract text and layout from a PDF using Azure Document Intelligence.
@@ -53,19 +93,39 @@ def extract_pdf_to_json(
         pdf_path: Path to the PDF file
         client: Azure Document Intelligence client
         model_id: Model to use for analysis (default: prebuilt-read)
+        ignore_pages: List of page numbers to ignore (1-indexed). These pages
+                      will have empty lines in the output to reduce OCR cost.
+        total_pages: Total number of pages in the PDF (for creating placeholder entries)
 
     Returns:
         Dict containing extracted content with pages and lines
     """
+    if ignore_pages is None:
+        ignore_pages = []
+    
     # Read PDF as bytes
     with open(pdf_path, "rb") as f:
         pdf_bytes = f.read()
+    
+    # Determine which pages to analyze (all pages except ignored ones)
+    pages_param = None
+    if ignore_pages and total_pages:
+        pages_to_analyze = [p for p in range(1, total_pages + 1) if p not in ignore_pages]
+        if pages_to_analyze:
+            # Format as "1-3,5,7-10" style for Azure API
+            pages_param = ",".join(str(p) for p in pages_to_analyze)
 
     # Call Azure Document Intelligence API
+    analyze_kwargs = {
+        "body": pdf_bytes,
+        "content_type": "application/pdf"
+    }
+    if pages_param:
+        analyze_kwargs["pages"] = pages_param
+    
     poller = client.begin_analyze_document(
         model_id,
-        body=pdf_bytes,
-        content_type="application/pdf"
+        **analyze_kwargs
     )
 
     result = poller.result()
@@ -77,8 +137,24 @@ def extract_pdf_to_json(
         "pages": []
     }
 
-    if result.pages:
-        for page in result.pages:
+    # Build a set of OCR'd page numbers for quick lookup
+    ocr_pages = {page.page_number: page for page in (result.pages or [])}
+    
+    # Determine total pages to include in output
+    max_page = total_pages or max(ocr_pages.keys(), default=0)
+    
+    # Build output pages, including placeholder for ignored pages
+    for page_num in range(1, max_page + 1):
+        if page_num in ignore_pages:
+            # Ignored page: empty lines placeholder
+            page_data = {
+                "page_number": page_num,
+                "lines": [],
+                "_ignored": True
+            }
+        elif page_num in ocr_pages:
+            # OCR'd page: include full data
+            page = ocr_pages[page_num]
             page_data = {
                 "page_number": page.page_number,
                 "width": page.width,
@@ -86,7 +162,6 @@ def extract_pdf_to_json(
                 "unit": page.unit,
                 "lines": []
             }
-
             if page.lines:
                 for line in page.lines:
                     line_data = {
@@ -94,8 +169,15 @@ def extract_pdf_to_json(
                         "polygon": line.polygon if line.polygon else None
                     }
                     page_data["lines"].append(line_data)
-
-            output["pages"].append(page_data)
+        else:
+            # Page not in OCR result and not ignored (shouldn't happen normally)
+            page_data = {
+                "page_number": page_num,
+                "lines": [],
+                "_missing": True
+            }
+        
+        output["pages"].append(page_data)
 
     # Add paragraphs if available
     if result.paragraphs:
@@ -203,11 +285,18 @@ def process_pdfs(
     # Initialize Azure client
     client = get_azure_client()
 
+    # Load human-in-the-loop config if enabled
+    human_loop_enabled = is_human_loop_enabled()
+    human_loop_config = {}
+    if human_loop_enabled:
+        human_loop_config = load_human_loop_config(is_final)
+
     stats = {
         "total": len(pdf_list),
         "processed": 0,
         "skipped": 0,
-        "errors": []
+        "errors": [],
+        "pages_ignored": 0
     }
 
     print(f"{'='*60}")
@@ -217,6 +306,8 @@ def process_pdfs(
     print(f"Input: {pdf_dir}")
     print(f"Output: {output_dir}")
     print(f"Total PDFs: {len(pdf_list)}")
+    if human_loop_enabled:
+        print(f"Human-in-the-loop: ENABLED ({len(human_loop_config)} docs configured)")
     print(f"{'='*60}")
 
     for i, pdf_info in enumerate(pdf_list, 1):
@@ -240,17 +331,29 @@ def process_pdfs(
             continue
 
         try:
-            print(f"[{i}/{len(pdf_list)}] Processing: {pdf_filename[:50]}...", end=" ", flush=True)
+            # Get ignore pages from human_loop config
+            pdf_stem = Path(pdf_filename).stem
+            ignore_pages = []
+            total_pages = None
+            if human_loop_enabled and pdf_stem in human_loop_config:
+                doc_config = human_loop_config[pdf_stem]
+                ignore_pages = doc_config.get("ignore_pages", [])
+                total_pages = doc_config.get("total_pages")
+            
+            ignore_info = f" (ignoring {len(ignore_pages)} pages)" if ignore_pages else ""
+            print(f"[{i}/{len(pdf_list)}] Processing: {pdf_filename[:50]}...{ignore_info}", end=" ", flush=True)
 
-            # Extract content
-            result = extract_pdf_to_json(pdf_path, client)
+            # Extract content (with ignore pages support)
+            result = extract_pdf_to_json(pdf_path, client, ignore_pages=ignore_pages, total_pages=total_pages)
 
             # Add metadata
             result["_metadata"] = {
                 "doc_id": pdf_info["doc_id"],
                 "nacc_id": pdf_info["nacc_id"],
                 "source_pdf": str(pdf_path),
-                "phase": "phase0_ocr"
+                "phase": "phase0_ocr",
+                "human_loop_enabled": human_loop_enabled,
+                "ignored_pages": ignore_pages if ignore_pages else None
             }
 
             # Save JSON
@@ -259,6 +362,7 @@ def process_pdfs(
 
             print(f"OK ({len(result['pages'])} pages)")
             stats["processed"] += 1
+            stats["pages_ignored"] += len(ignore_pages)
 
             # Rate limiting
             time.sleep(0.5)
@@ -274,6 +378,8 @@ def process_pdfs(
     print(f"Processed: {stats['processed']}/{stats['total']}")
     print(f"Skipped: {stats['skipped']}")
     print(f"Errors: {len(stats['errors'])}")
+    if human_loop_enabled:
+        print(f"Pages ignored (cost saving): {stats['pages_ignored']}")
 
     if stats["errors"]:
         print("\nErrors:")

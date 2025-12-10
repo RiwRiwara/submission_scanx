@@ -32,6 +32,9 @@ submission_scanx/
 │   │   │   ├── Train_nacc_detail.csv
 │   │   │   ├── Train_submitter_info.csv
 │   │   │   └── Train_pdf/pdf/     # 69 PDF files
+│   │   ├── human_loop/            # Human-in-the-loop configuration
+│   │   │   ├── pre_pdf.json       # Page ignore config for training
+│   │   │   └── generate_template.py # Template generator script
 │   │   ├── train output/          # Ground truth extracted data (13 CSVs)
 │   │   └── train summary/         # Aggregated summary data
 │   ├── test final/                # Test dataset (23 documents)
@@ -40,6 +43,8 @@ submission_scanx/
 │   │   │   ├── Test final_nacc_detail.csv
 │   │   │   ├── Test final_submitter_info.csv
 │   │   │   └── Test final_pdf/    # 23 PDF files
+│   │   ├── human_loop/            # Human-in-the-loop configuration
+│   │   │   └── pre_pdf.json       # Page ignore config for test final
 │   │   └── test final output/     # Output directory for predictions
 │   ├── result/                    # Pipeline output
 │   │   ├── from_train/            # Training data results
@@ -247,6 +252,62 @@ AZURE_OPENAI_API_KEY="your-api-key"
 AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT="https://your-resource.cognitiveservices.azure.com/"
 DOC_INT_REGION="your-region"
 AZURE_DOCUMENT_INTELLIGENCE_API_KEY="your-api-key"
+
+# Human-in-the-loop (optional - for cost reduction)
+USE_HUNMAN_IN_LOOP="FALSE"
+```
+
+## Human-in-the-Loop (Page Ignore)
+
+To reduce OCR costs, you can configure specific pages to skip during Phase 0 OCR processing.
+
+### Setup
+
+1. Set `USE_HUNMAN_IN_LOOP="TRUE"` in `.env`
+2. Edit the configuration file:
+   - Training: `src/training/human_loop/pre_pdf.json`
+   - Test Final: `src/test final/human_loop/pre_pdf.json`
+
+### Configuration Format
+
+```json
+{
+  "documents": [
+    {
+      "pdf_name": "document_name_without_extension",
+      "total_pages": 30,
+      "ignore_pages": [2, 5, 10],
+      "notes": "Pages 2,5,10 are blank or irrelevant"
+    }
+  ]
+}
+```
+
+- **pdf_name**: PDF filename without `.pdf` extension
+- **total_pages**: Total number of pages in the PDF (required when ignoring pages)
+- **ignore_pages**: Array of page numbers (1-indexed) to skip OCR
+- **notes**: Optional notes explaining why pages are ignored
+
+### Generate Template
+
+```bash
+# Generate template with all documents from Train_doc_info.csv
+poetry run python src/training/human_loop/generate_template.py
+
+# Generate for test final data
+poetry run python src/training/human_loop/generate_template.py --final
+```
+
+### Output Format
+
+Ignored pages appear in output JSON with empty lines:
+
+```json
+{
+  "page_number": 2,
+  "lines": [],
+  "_ignored": true
+}
 ```
 
 ## Installation
@@ -277,6 +338,7 @@ poetry run scanx --phase 1 --all
 - `numpy` - Numerical computing
 - `scipy` - Scientific computing (Hungarian algorithm)
 - `pandas` - Data manipulation
+- `pypdf2` - PDF page counting (for human_loop template generator)
 
 ## Data Statistics
 
@@ -337,6 +399,7 @@ Server runs at http://localhost:8888
 - **Dashboard** (`/dashboard`) - Run pipeline and view accuracy metrics
 - **Search** (`/search`) - Search data by submitter_id
 - **Pages Viewer** (`/pages`) - View page metadata and step mappings
+- **Human Loop** (`/human-loop`) - Configure pages to ignore for OCR cost reduction
 
 See [dev_tools README](src/dev_tools/README.md) for full documentation.
 

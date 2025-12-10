@@ -881,6 +881,210 @@ async def list_submitters(mode: str = "training"):
         return {"error": str(e), "submitters": []}
 
 
+# ============================================================================
+# API Routes - Human-in-the-Loop (Page Ignore)
+# ============================================================================
+
+# Paths for human_loop config
+TRAIN_HUMAN_LOOP = SRC_DIR / "training" / "human_loop"
+FINAL_HUMAN_LOOP = SRC_DIR / "test final" / "human_loop"
+
+
+def get_human_loop_paths(mode: str):
+    """Get human_loop paths based on mode"""
+    if mode == "final":
+        return {
+            "config": FINAL_HUMAN_LOOP / "pre_pdf.json",
+            "pdf_dir": FINAL_INPUT_DIR / "Test final_pdf",
+            "doc_info": FINAL_INPUT_DIR / "Test final_doc_info.csv"
+        }
+    else:
+        return {
+            "config": TRAIN_HUMAN_LOOP / "pre_pdf.json",
+            "pdf_dir": TRAIN_INPUT_DIR / "Train_pdf" / "pdf",
+            "doc_info": TRAIN_INPUT_DIR / "Train_doc_info.csv"
+        }
+
+
+@app.get("/human-loop", response_class=HTMLResponse)
+async def human_loop_page(request: Request):
+    """Human-in-the-loop page ignore configuration"""
+    return templates.TemplateResponse("human_loop.html", {"request": request})
+
+
+@app.get("/api/human-loop/config")
+async def get_human_loop_config(mode: str = "training"):
+    """Get human loop configuration"""
+    paths = get_human_loop_paths(mode)
+    config_path = paths["config"]
+    
+    if not config_path.exists():
+        return {"documents": [], "error": "Config file not found"}
+    
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return data
+    except Exception as e:
+        return {"documents": [], "error": str(e)}
+
+
+@app.get("/api/human-loop/pdfs")
+async def list_pdfs_for_human_loop(mode: str = "training"):
+    """List all PDFs with their page counts and ignore status"""
+    paths = get_human_loop_paths(mode)
+    config_path = paths["config"]
+    pdf_dir = paths["pdf_dir"]
+    
+    # Load existing config
+    config = {}
+    if config_path.exists():
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                config = {doc.get("pdf_name", ""): doc for doc in data.get("documents", [])}
+        except:
+            pass
+    
+    # List PDFs
+    pdfs = []
+    if pdf_dir.exists():
+        for pdf_file in sorted(pdf_dir.glob("*.pdf")):
+            name = pdf_file.stem
+            doc_config = config.get(name, {})
+            pdfs.append({
+                "name": name,
+                "total_pages": doc_config.get("total_pages"),
+                "ignore_pages": doc_config.get("ignore_pages", []),
+                "notes": doc_config.get("notes", ""),
+                "doc_id": doc_config.get("doc_id", ""),
+                "has_config": name in config
+            })
+    
+    return {"pdfs": pdfs, "count": len(pdfs), "mode": mode}
+
+
+@app.get("/api/human-loop/pdf/{pdf_name}/pages")
+async def get_pdf_page_count(pdf_name: str, mode: str = "training"):
+    """Get page count for a specific PDF"""
+    paths = get_human_loop_paths(mode)
+    pdf_path = paths["pdf_dir"] / f"{pdf_name}.pdf"
+    
+    if not pdf_path.exists():
+        raise HTTPException(status_code=404, detail="PDF not found")
+    
+    try:
+        from PyPDF2 import PdfReader
+        reader = PdfReader(str(pdf_path))
+        total_pages = len(reader.pages)
+        return {"pdf_name": pdf_name, "total_pages": total_pages}
+    except ImportError:
+        return {"pdf_name": pdf_name, "total_pages": None, "error": "PyPDF2 not installed"}
+    except Exception as e:
+        return {"pdf_name": pdf_name, "total_pages": None, "error": str(e)}
+
+
+class UpdateIgnorePagesRequest(BaseModel):
+    pdf_name: str
+    ignore_pages: List[int]
+    total_pages: Optional[int] = None
+    notes: Optional[str] = None
+
+
+@app.post("/api/human-loop/update")
+async def update_ignore_pages(req: UpdateIgnorePagesRequest, mode: str = "training"):
+    """Update ignore pages for a specific PDF"""
+    paths = get_human_loop_paths(mode)
+    config_path = paths["config"]
+    
+    # Ensure directory exists
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Load existing config
+    if config_path.exists():
+        with open(config_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    else:
+        data = {
+            "_description": "Human-in-the-loop configuration for Phase 0 OCR.",
+            "_usage": "Set USE_HUNMAN_IN_LOOP=TRUE in .env to enable.",
+            "documents": []
+        }
+    
+    # Find or create document entry
+    documents = data.get("documents", [])
+    doc_found = False
+    for doc in documents:
+        if doc.get("pdf_name") == req.pdf_name:
+            doc["ignore_pages"] = sorted(req.ignore_pages)
+            if req.total_pages:
+                doc["total_pages"] = req.total_pages
+            if req.notes is not None:
+                doc["notes"] = req.notes
+            doc_found = True
+            break
+    
+    if not doc_found:
+        documents.append({
+            "pdf_name": req.pdf_name,
+            "total_pages": req.total_pages,
+            "ignore_pages": sorted(req.ignore_pages),
+            "notes": req.notes or ""
+        })
+    
+    data["documents"] = documents
+    
+    # Save config
+    with open(config_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    
+    return {"success": True, "pdf_name": req.pdf_name, "ignore_pages": sorted(req.ignore_pages)}
+
+
+@app.post("/api/human-loop/batch-update")
+async def batch_update_ignore_pages(updates: List[UpdateIgnorePagesRequest], mode: str = "training"):
+    """Batch update ignore pages for multiple PDFs"""
+    paths = get_human_loop_paths(mode)
+    config_path = paths["config"]
+    
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    if config_path.exists():
+        with open(config_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    else:
+        data = {
+            "_description": "Human-in-the-loop configuration for Phase 0 OCR.",
+            "_usage": "Set USE_HUNMAN_IN_LOOP=TRUE in .env to enable.",
+            "documents": []
+        }
+    
+    # Convert to dict for easier updates
+    doc_dict = {doc.get("pdf_name", ""): doc for doc in data.get("documents", [])}
+    
+    for req in updates:
+        if req.pdf_name in doc_dict:
+            doc_dict[req.pdf_name]["ignore_pages"] = sorted(req.ignore_pages)
+            if req.total_pages:
+                doc_dict[req.pdf_name]["total_pages"] = req.total_pages
+            if req.notes is not None:
+                doc_dict[req.pdf_name]["notes"] = req.notes
+        else:
+            doc_dict[req.pdf_name] = {
+                "pdf_name": req.pdf_name,
+                "total_pages": req.total_pages,
+                "ignore_pages": sorted(req.ignore_pages),
+                "notes": req.notes or ""
+            }
+    
+    data["documents"] = list(doc_dict.values())
+    
+    with open(config_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    
+    return {"success": True, "updated_count": len(updates)}
+
+
 def run():
     """Run the server"""
     import uvicorn
