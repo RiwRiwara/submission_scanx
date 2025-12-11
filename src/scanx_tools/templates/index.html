@@ -67,8 +67,9 @@
                             <h2 class="font-semibold text-slate-900">Processing</h2>
                             <p class="text-sm text-slate-500 mt-0.5" id="fileName">-</p>
                         </div>
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-3">
                             <span class="text-sm text-slate-500"><span id="pageCount">0</span> pages</span>
+                            <span class="text-sm text-slate-500" id="elapsedTime"></span>
                             <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700" id="statusBadge">Processing</span>
                         </div>
                     </div>
@@ -132,6 +133,8 @@
     <script>
     let pollingInterval = null;
     let logsVisible = true;
+    let elapsedInterval = null;
+    let processingStartTime = null;
 
     const phases = [
         { id: 'phase0', name: 'OCR Extraction', desc: 'Extract text from PDF pages' },
@@ -140,6 +143,53 @@
         { id: 'phase1d', name: 'AI Enhancement', desc: 'Enrich data with AI' },
         { id: 'phase1e', name: 'Data Mapping', desc: 'Generate output CSV files' }
     ];
+
+    function formatDuration(seconds) {
+        if (!seconds && seconds !== 0) return '';
+        seconds = Math.floor(seconds);
+        if (seconds < 60) return `${seconds} วินาที`;
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        if (minutes < 60) return `${minutes} นาที ${remainingSeconds} วินาที`;
+        const hours = Math.floor(minutes / 60);
+        const remainingMinutes = minutes % 60;
+        return `${hours} ชั่วโมง ${remainingMinutes} นาที ${remainingSeconds} วินาที`;
+    }
+
+    function formatDurationShort(seconds) {
+        if (!seconds && seconds !== 0) return '';
+        seconds = Math.floor(seconds);
+        if (seconds < 60) return `${seconds}s`;
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        if (minutes < 60) return `${minutes}m ${remainingSeconds}s`;
+        const hours = Math.floor(minutes / 60);
+        const remainingMinutes = minutes % 60;
+        return `${hours}h ${remainingMinutes}m ${remainingSeconds}s`;
+    }
+
+    function startElapsedTimer(startTime) {
+        if (elapsedInterval) clearInterval(elapsedInterval);
+        processingStartTime = new Date(startTime);
+        updateElapsedDisplay();
+        elapsedInterval = setInterval(updateElapsedDisplay, 1000);
+    }
+
+    function stopElapsedTimer() {
+        if (elapsedInterval) {
+            clearInterval(elapsedInterval);
+            elapsedInterval = null;
+        }
+    }
+
+    function updateElapsedDisplay() {
+        if (!processingStartTime) return;
+        const elapsed = Math.floor((Date.now() - processingStartTime.getTime()) / 1000);
+        const elapsedEl = document.getElementById('elapsedTime');
+        if (elapsedEl) {
+            elapsedEl.innerHTML = `<span class="inline-flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>${formatDurationShort(elapsed)}</span>`;
+        }
+    }
 
     document.addEventListener('DOMContentLoaded', () => {
         checkStatus();
@@ -174,6 +224,7 @@
             const date = new Date(item.completed_at || item.started_at);
             const timeStr = date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
             const dateStr = date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+            const durationStr = item.duration_seconds ? formatDurationShort(item.duration_seconds) : '';
 
             return `
                 <div class="p-4 hover:bg-slate-50 transition-colors group">
@@ -186,8 +237,15 @@
                         </div>
                         <div class="flex-1 min-w-0">
                             <p class="text-sm font-medium text-slate-900 truncate" title="${item.filename || 'Unknown'}">${item.filename || 'Unknown'}</p>
-                            <div class="flex items-center gap-2 mt-1">
+                            <div class="flex items-center gap-2 mt-1 flex-wrap">
                                 <span class="text-xs text-slate-400">${item.pages || 0} หน้า</span>
+                                ${durationStr ? `
+                                    <span class="text-xs text-slate-300">•</span>
+                                    <span class="text-xs ${isSuccess ? 'text-emerald-600' : 'text-red-500'} inline-flex items-center gap-0.5">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        ${durationStr}
+                                    </span>
+                                ` : ''}
                                 <span class="text-xs text-slate-300">•</span>
                                 <span class="text-xs text-slate-400">${dateStr} ${timeStr}</span>
                             </div>
@@ -257,11 +315,13 @@
         const uploadCard = document.getElementById('uploadCard');
         const processingCard = document.getElementById('processingCard');
         const logsCard = document.getElementById('logsCard');
+        const elapsedEl = document.getElementById('elapsedTime');
 
         if (state.status === 'idle') {
             uploadCard.classList.remove('hidden');
             processingCard.classList.add('hidden');
             logsCard.classList.add('hidden');
+            stopElapsedTimer();
             return;
         }
 
@@ -272,6 +332,16 @@
         // Update file info
         document.getElementById('fileName').textContent = state.filename || '-';
         document.getElementById('pageCount').textContent = state.pages || 0;
+
+        // Handle elapsed time / duration display
+        if (state.status === 'processing' && state.started_at) {
+            startElapsedTimer(state.started_at);
+        } else if (state.status === 'completed' || state.status === 'error') {
+            stopElapsedTimer();
+            if (state.duration_seconds) {
+                elapsedEl.innerHTML = `<span class="inline-flex items-center gap-1 ${state.status === 'completed' ? 'text-emerald-600' : 'text-red-600'}"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>${formatDurationShort(state.duration_seconds)}</span>`;
+            }
+        }
 
         // Update status badge
         const badge = document.getElementById('statusBadge');

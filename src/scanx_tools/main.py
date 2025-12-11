@@ -47,7 +47,8 @@ current_state: Dict = {
     "logs": [],
     "error": None,
     "started_at": None,
-    "completed_at": None
+    "completed_at": None,
+    "duration_seconds": None  # Processing duration in seconds
 }
 
 # Processing history
@@ -106,6 +107,7 @@ def save_job_results(job_id: str, state: Dict):
         "status": state['status'],
         "started_at": state['started_at'],
         "completed_at": state['completed_at'],
+        "duration_seconds": state.get('duration_seconds'),
         "error": state.get('error'),
         "phase_status": state.get('phase_status', {}),
         "logs": state.get('logs', [])
@@ -132,6 +134,7 @@ def add_to_history(state: Dict):
         "status": state['status'],
         "started_at": state['started_at'],
         "completed_at": state['completed_at'],
+        "duration_seconds": state.get('duration_seconds'),
         "error": state.get('error')
     })
     save_history()
@@ -152,7 +155,8 @@ def reset_state():
         "logs": [],
         "error": None,
         "started_at": None,
-        "completed_at": None
+        "completed_at": None,
+        "duration_seconds": None
     }
 
 
@@ -179,6 +183,22 @@ def get_pdf_page_count(pdf_path: Path) -> int:
 def log_message(msg: str):
     """Add a log message"""
     current_state['logs'].append(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
+
+
+def format_duration(seconds: Optional[float]) -> str:
+    """Format duration in seconds to human readable string"""
+    if seconds is None:
+        return "-"
+    seconds = int(seconds)
+    if seconds < 60:
+        return f"{seconds} วินาที"
+    minutes = seconds // 60
+    remaining_seconds = seconds % 60
+    if minutes < 60:
+        return f"{minutes} นาที {remaining_seconds} วินาที"
+    hours = minutes // 60
+    remaining_minutes = minutes % 60
+    return f"{hours} ชั่วโมง {remaining_minutes} นาที {remaining_seconds} วินาที"
 
 
 async def run_pipeline():
@@ -318,7 +338,14 @@ async def run_pipeline():
         current_state['status'] = 'completed'
         current_state['completed_at'] = datetime.now().isoformat()
         current_state['current_phase'] = None
-        log_message("Processing completed!")
+
+        # Calculate duration
+        if current_state['started_at']:
+            start_time = datetime.fromisoformat(current_state['started_at'])
+            end_time = datetime.fromisoformat(current_state['completed_at'])
+            current_state['duration_seconds'] = (end_time - start_time).total_seconds()
+
+        log_message(f"Processing completed! Duration: {format_duration(current_state.get('duration_seconds', 0))}")
 
         # Save job results to permanent storage
         if current_state.get('job_id'):
@@ -332,11 +359,18 @@ async def run_pipeline():
         current_state['status'] = 'error'
         current_state['error'] = str(e)
         current_state['current_phase'] = None
+        current_state['completed_at'] = datetime.now().isoformat()
+
+        # Calculate duration even on error
+        if current_state['started_at']:
+            start_time = datetime.fromisoformat(current_state['started_at'])
+            end_time = datetime.fromisoformat(current_state['completed_at'])
+            current_state['duration_seconds'] = (end_time - start_time).total_seconds()
+
         log_message(f"ERROR: {str(e)}")
         print(f"Pipeline error: {e}")
 
         # Add to history even on error
-        current_state['completed_at'] = datetime.now().isoformat()
         add_to_history(current_state)
 
 
@@ -488,18 +522,20 @@ async def get_results():
                 results['matched_data'] = json.load(f)
             break
 
-    # Load text data
+    # Load text data (skip index.json)
     text_dir = WORK_DIR / "text"
     if text_dir.exists():
         for json_file in text_dir.glob("*.json"):
+            if json_file.name == "index.json":
+                continue
             with open(json_file, 'r', encoding='utf-8') as f:
                 results['text_data'] = json.load(f)
             break
 
-    # Load metadata
+    # Load metadata (skip index.json)
     metadata_dir = WORK_DIR / "metadata"
     if metadata_dir.exists():
-        for json_file in metadata_dir.glob("*.json"):
+        for json_file in metadata_dir.glob("*_metadata.json"):
             with open(json_file, 'r', encoding='utf-8') as f:
                 results['metadata'] = json.load(f)
             break
@@ -610,18 +646,20 @@ async def get_job_results(job_id: str):
                 results['matched_data'] = json.load(f)
             break
 
-    # Load text data
+    # Load text data (skip index.json)
     text_dir = job_dir / "text"
     if text_dir.exists():
         for json_file in text_dir.glob("*.json"):
+            if json_file.name == "index.json":
+                continue
             with open(json_file, 'r', encoding='utf-8') as f:
                 results['text_data'] = json.load(f)
             break
 
-    # Load metadata
+    # Load metadata (skip index.json)
     metadata_dir = job_dir / "metadata"
     if metadata_dir.exists():
-        for json_file in metadata_dir.glob("*.json"):
+        for json_file in metadata_dir.glob("*_metadata.json"):
             with open(json_file, 'r', encoding='utf-8') as f:
                 results['metadata'] = json.load(f)
             break

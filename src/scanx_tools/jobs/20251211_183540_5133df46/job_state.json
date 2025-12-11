@@ -1,0 +1,30 @@
+{
+  "job_id": "20251211_183540_5133df46",
+  "filename": "เสถียร_สายสูง_นายกเทศมนตรีตำบล_กรณีพ้นจากตำแหน่ง_20_มี.ค._2567.pdf",
+  "pages": 24,
+  "status": "completed",
+  "started_at": "2025-12-11T18:35:40.381660",
+  "completed_at": "2025-12-11T18:35:47.236192",
+  "duration_seconds": 6.854532,
+  "error": null,
+  "phase_status": {
+    "phase0": "completed",
+    "phase1ab": "completed",
+    "phase1c": "completed",
+    "phase1d": "completed",
+    "phase1e": "completed"
+  },
+  "logs": [
+    "[18:35:40] Starting OCR for เสถียร_สายสูง_นายกเทศมนตรีตำบล_กรณีพ้นจากตำแหน่ง_20_มี.ค._2567.pdf",
+    "[18:35:47] OCR completed: 24 pages extracted",
+    "[18:35:47] Starting page type identification...",
+    "[18:35:47] Page matching completed",
+    "[18:35:47] Extracting text from pages...",
+    "[18:35:47] Text extraction completed",
+    "[18:35:47] Extracting metadata with AI...",
+    "[18:35:47] AI metadata extraction completed",
+    "[18:35:47] Mapping extracted data to CSV...",
+    "[18:35:47] Data mapping completed",
+    "[18:35:47] Processing completed! Duration: 6 วินาที"
+  ]
+}

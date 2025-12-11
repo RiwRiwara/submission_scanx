@@ -102,7 +102,13 @@
                         </div>
                         <div>
                             <h1 class="text-sm font-semibold text-slate-900 truncate max-w-md">{{ state.filename }}</h1>
-                            <p class="text-xs text-slate-500">{{ state.pages }} pages</p>
+                            <p class="text-xs text-slate-500">
+                                {{ state.pages }} pages
+                                {% if state.duration_seconds %}
+                                <span class="mx-1">•</span>
+                                <span class="text-emerald-600">{{ "%.0f"|format(state.duration_seconds // 60) }}m {{ "%.0f"|format(state.duration_seconds % 60) }}s</span>
+                                {% endif %}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -180,7 +186,7 @@
                         Field Mapping
                     </button>
                     <button onclick="showTab('csv')" class="tab-btn px-4 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors" data-tab="csv">
-                        Data Tables
+                        Content Extract
                     </button>
                     <button onclick="showTab('json')" class="tab-btn px-4 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors" data-tab="json">
                         Raw JSON
@@ -263,6 +269,18 @@
     };
 
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    function formatDuration(seconds) {
+        if (!seconds && seconds !== 0) return '-';
+        seconds = Math.floor(seconds);
+        if (seconds < 60) return `${seconds} วินาที`;
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        if (minutes < 60) return `${minutes} นาที ${remainingSeconds} วินาที`;
+        const hours = Math.floor(minutes / 60);
+        const remainingMinutes = minutes % 60;
+        return `${hours} ชั่วโมง ${remainingMinutes} นาที ${remainingSeconds} วินาที`;
+    }
 
     document.addEventListener('DOMContentLoaded', async () => {
         await loadPdf();
@@ -567,6 +585,31 @@
                                 <td class="py-2 text-slate-500">Total Lines Extracted</td>
                                 <td class="py-2 font-medium text-slate-900">${totalLines.toLocaleString()}</td>
                             </tr>
+                            ${resultsData?.state?.duration_seconds ? `
+                            <tr>
+                                <td class="py-2 text-slate-500">Processing Time</td>
+                                <td class="py-2 font-medium text-emerald-600">
+                                    <span class="inline-flex items-center gap-1">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                        </svg>
+                                        ${formatDuration(resultsData.state.duration_seconds)}
+                                    </span>
+                                </td>
+                            </tr>
+                            ` : ''}
+                            ${resultsData?.state?.started_at ? `
+                            <tr>
+                                <td class="py-2 text-slate-500">Started At</td>
+                                <td class="py-2 font-medium text-slate-900">${new Date(resultsData.state.started_at).toLocaleString('th-TH')}</td>
+                            </tr>
+                            ` : ''}
+                            ${resultsData?.state?.completed_at ? `
+                            <tr>
+                                <td class="py-2 text-slate-500">Completed At</td>
+                                <td class="py-2 font-medium text-slate-900">${new Date(resultsData.state.completed_at).toLocaleString('th-TH')}</td>
+                            </tr>
+                            ` : ''}
                             ${metadata?.doc_name ? `
                             <tr>
                                 <td class="py-2 text-slate-500">Document Name</td>
@@ -766,87 +809,181 @@
     }
 
     function renderCsvTab(container) {
-        const csvFiles = resultsData?.csv_files || [];
-        if (csvFiles.length === 0) {
+        const textData = resultsData?.text_data;
+        const metadata = resultsData?.metadata;
+
+        if (!textData?.pages || textData.pages.length === 0) {
             container.innerHTML = `
                 <div class="text-center py-12">
                     <svg class="w-12 h-12 mx-auto text-slate-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
-                    <p class="text-slate-500">No data tables generated</p>
-                    <p class="text-sm text-slate-400 mt-1">Data mapping may have been skipped</p>
+                    <p class="text-slate-500">ไม่พบข้อมูลที่ดึงมา</p>
+                    <p class="text-sm text-slate-400 mt-1">Text extraction may have been skipped</p>
                 </div>
             `;
             return;
         }
 
-        // Show file selector and table
+        // Group pages by step mapping
+        const pagesByStep = {};
+        const unmappedPages = [];
+
+        textData.pages.forEach(page => {
+            const pageNum = page.page_number;
+            const relatedSteps = getStepsForPage(pageNum);
+
+            if (relatedSteps.length > 0) {
+                relatedSteps.forEach(step => {
+                    if (!pagesByStep[step.step_name]) {
+                        pagesByStep[step.step_name] = {
+                            step: step,
+                            pages: []
+                        };
+                    }
+                    // Avoid duplicates
+                    if (!pagesByStep[step.step_name].pages.find(p => p.page_number === pageNum)) {
+                        pagesByStep[step.step_name].pages.push(page);
+                    }
+                });
+            } else {
+                unmappedPages.push(page);
+            }
+        });
+
+        // Build step selector options
+        const stepOptions = Object.entries(pagesByStep).map(([stepName, data]) => ({
+            value: stepName,
+            label: data.step.step_description,
+            pageCount: data.pages.length
+        }));
+
+        if (unmappedPages.length > 0) {
+            stepOptions.push({
+                value: 'unmapped',
+                label: 'หน้าอื่นๆ (Unmapped)',
+                pageCount: unmappedPages.length
+            });
+        }
+
         container.innerHTML = `
             <div class="space-y-4">
-                <!-- File selector -->
+                <!-- Step selector -->
                 <div class="flex items-center justify-between flex-wrap gap-2">
                     <div class="flex items-center gap-3">
-                        <label class="text-sm font-medium text-slate-700">ตาราง:</label>
-                        <select id="csvFileSelect" onchange="loadCsvTable(this.value)" class="text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500">
-                            ${csvFiles.map((file, i) => `<option value="${file}" ${i === 0 ? 'selected' : ''}>${file.replace('.csv', '')}</option>`).join('')}
+                        <label class="text-sm font-medium text-slate-700">ประเภทข้อมูล:</label>
+                        <select id="stepSelect" onchange="loadStepData(this.value)" class="text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500">
+                            ${stepOptions.map((opt, i) => `<option value="${opt.value}" ${i === 0 ? 'selected' : ''}>${opt.label} (${opt.pageCount} หน้า)</option>`).join('')}
                         </select>
                     </div>
                     <div class="flex items-center gap-2">
-                        <span id="csvModifiedBadge" class="hidden text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded">แก้ไขแล้ว</span>
-                        <button onclick="saveCsvData()" class="text-sm px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                            </svg>
-                            บันทึก
-                        </button>
-                        <button onclick="downloadCurrentCsv()" class="text-sm px-3 py-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-1">
+                        <button onclick="exportExtractedText()" class="text-sm px-3 py-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-1">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                             </svg>
-                            ดาวน์โหลด
+                            ส่งออก JSON
                         </button>
                     </div>
                 </div>
 
-                <!-- Step info & related pages -->
-                <div id="csvStepInfo" class="bg-blue-50 border border-blue-100 rounded-lg p-3 hidden">
-                    <div class="flex items-start justify-between">
-                        <div>
-                            <div class="text-sm font-medium text-blue-900" id="csvStepDescription"></div>
-                            <div class="text-xs text-blue-600 mt-1">หน้าที่เกี่ยวข้อง: <span id="csvRelatedPages"></span></div>
-                        </div>
-                        <button onclick="toggleExtractedText()" class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
-                            <span id="toggleExtractedBtn">แสดงข้อความที่ดึงมา</span>
-                        </button>
-                    </div>
+                <!-- Step info -->
+                <div id="stepInfoPanel" class="bg-blue-50 border border-blue-100 rounded-lg p-3">
+                    <div class="text-sm font-medium text-blue-900" id="stepTitle"></div>
+                    <div class="text-xs text-blue-600 mt-1">หน้าที่เกี่ยวข้อง: <span id="stepPages"></span></div>
                 </div>
 
-                <!-- Extracted text panel (collapsible) -->
-                <div id="extractedTextPanel" class="hidden border border-slate-200 rounded-lg">
-                    <div class="bg-slate-50 px-3 py-2 border-b border-slate-200 flex items-center justify-between">
-                        <span class="text-sm font-medium text-slate-700">ข้อความที่ดึงมาจาก PDF</span>
-                        <span class="text-xs text-slate-500">คลิกที่ข้อความเพื่อดูในเอกสาร</span>
-                    </div>
-                    <div id="extractedTextContent" class="max-h-48 overflow-auto p-2 space-y-1 text-xs"></div>
-                </div>
-
-                <!-- Table container -->
-                <div id="csvTableContainer" class="border border-slate-200 rounded-lg overflow-hidden">
+                <!-- Extracted data container -->
+                <div id="extractedDataContainer" class="border border-slate-200 rounded-lg overflow-hidden">
                     <div class="text-center py-8 text-slate-400">Loading...</div>
                 </div>
 
-                <!-- Row count -->
+                <!-- Stats -->
                 <div class="flex items-center justify-between text-xs text-slate-500">
-                    <span id="csvRowCount">-</span>
-                    <span>คลิกที่เซลล์เพื่อแก้ไข | คลิกที่ข้อความด้านบนเพื่อคัดลอก</span>
+                    <span id="extractedStats">-</span>
+                    <span>คลิกที่หน้าเพื่อดูในเอกสาร</span>
                 </div>
             </div>
         `;
 
-        // Load first file
-        if (csvFiles.length > 0) {
-            loadCsvTable(csvFiles[0]);
+        // Store data for access by functions
+        window.extractedPagesByStep = pagesByStep;
+        window.extractedUnmappedPages = unmappedPages;
+
+        // Load first step
+        if (stepOptions.length > 0) {
+            loadStepData(stepOptions[0].value);
         }
+    }
+
+    function loadStepData(stepName) {
+        const container = document.getElementById('extractedDataContainer');
+        const stepTitle = document.getElementById('stepTitle');
+        const stepPages = document.getElementById('stepPages');
+        const stats = document.getElementById('extractedStats');
+
+        let pages = [];
+        let title = '';
+
+        if (stepName === 'unmapped') {
+            pages = window.extractedUnmappedPages || [];
+            title = 'หน้าที่ยังไม่ได้จัดประเภท';
+        } else {
+            const stepData = window.extractedPagesByStep?.[stepName];
+            if (stepData) {
+                pages = stepData.pages;
+                title = stepData.step.step_description;
+            }
+        }
+
+        // Update info
+        stepTitle.textContent = title;
+        stepPages.innerHTML = pages.map(p =>
+            `<button onclick="goToPage(${p.page_number})" class="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 mx-0.5">${p.page_number}</button>`
+        ).join('');
+
+        // Calculate stats
+        const totalLines = pages.reduce((sum, p) => sum + (p.lines_count || 0), 0);
+        stats.textContent = `${pages.length} หน้า, ${totalLines} บรรทัด`;
+
+        // Render extracted content
+        if (pages.length === 0) {
+            container.innerHTML = '<div class="text-center py-8 text-slate-400">ไม่พบข้อมูล</div>';
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="max-h-[calc(100vh-400px)] overflow-auto">
+                ${pages.map(page => `
+                    <div class="border-b border-slate-100 last:border-b-0">
+                        <div class="bg-slate-50 px-4 py-2 flex items-center justify-between sticky top-0 z-10">
+                            <div class="flex items-center gap-2">
+                                <button onclick="goToPage(${page.page_number})" class="px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600">
+                                    หน้า ${page.page_number}
+                                </button>
+                                <span class="text-xs text-slate-500">${getPageTypeLabel(page.page_type)}</span>
+                            </div>
+                            <span class="text-xs text-slate-400">${page.lines_count || 0} บรรทัด</span>
+                        </div>
+                        <div class="p-4 bg-white">
+                            <pre class="text-sm text-slate-700 whitespace-pre-wrap font-sans leading-relaxed">${escapeHtml(page.content || '')}</pre>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    function exportExtractedText() {
+        const textData = resultsData?.text_data;
+        if (!textData) return;
+
+        const blob = new Blob([JSON.stringify(textData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${FILENAME.replace('.pdf', '')}_extracted_text.json`;
+        a.click();
+        URL.revokeObjectURL(url);
     }
 
     let extractedTextVisible = false;
