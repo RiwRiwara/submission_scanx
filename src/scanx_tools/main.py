@@ -201,6 +201,94 @@ def format_duration(seconds: Optional[float]) -> str:
     return f"{hours} ชั่วโมง {remaining_minutes} นาที {remaining_seconds} วินาที"
 
 
+def generate_input_csvs(pdf_filename: str, matched_output: Path, mapping_output: Path) -> Path:
+    """
+    Generate the required input CSV files (doc_info, nacc_detail, submitter_info)
+    from the PDF filename for phase1e processing.
+    
+    Returns the directory containing the generated CSVs.
+    """
+    import csv
+    import re
+    
+    # Create input CSV directory
+    csv_input_dir = mapping_output / "input"
+    csv_input_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Parse filename to extract information
+    # Format: {first_name}_{last_name}_{position}_{case}_{date}.pdf
+    name = pdf_filename.replace('.pdf', '')
+    parts = name.split('_')
+    
+    first_name = parts[0] if len(parts) > 0 else ""
+    last_name = parts[1] if len(parts) > 1 else ""
+    position = parts[2] if len(parts) > 2 else ""
+    
+    # Extract case type
+    submitted_case = ""
+    for part in parts:
+        if 'กรณีเข้ารับตำแหน่ง' in part:
+            submitted_case = 'กรณีเข้ารับตำแหน่ง'
+            break
+        elif 'กรณีพ้นจากตำแหน่ง' in part:
+            submitted_case = 'กรณีพ้นจากตำแหน่ง'
+            break
+    
+    # Generate unique IDs
+    nacc_id = f"WEB_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    submitter_id = f"SUB_{nacc_id}"
+    
+    # Create doc_info.csv
+    doc_info_path = csv_input_dir / "Train_doc_info.csv"
+    with open(doc_info_path, 'w', encoding='utf-8', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=['nacc_id', 'doc_location_url'])
+        writer.writeheader()
+        writer.writerow({
+            'nacc_id': nacc_id,
+            'doc_location_url': pdf_filename
+        })
+    
+    # Create nacc_detail.csv
+    nacc_detail_path = csv_input_dir / "Train_nacc_detail.csv"
+    with open(nacc_detail_path, 'w', encoding='utf-8', newline='') as f:
+        fieldnames = ['nacc_id', 'submitter_id', 'title', 'first_name', 'last_name', 
+                      'position', 'agency', 'submitted_case', 'submitted_date']
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerow({
+            'nacc_id': nacc_id,
+            'submitter_id': submitter_id,
+            'title': '',
+            'first_name': first_name,
+            'last_name': last_name,
+            'position': position,
+            'agency': '',
+            'submitted_case': submitted_case,
+            'submitted_date': ''
+        })
+    
+    # Create submitter_info.csv
+    submitter_info_path = csv_input_dir / "Train_submitter_info.csv"
+    with open(submitter_info_path, 'w', encoding='utf-8', newline='') as f:
+        fieldnames = ['submitter_id', 'title', 'first_name', 'last_name', 'national_id',
+                      'birth_date', 'address', 'phone', 'email']
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerow({
+            'submitter_id': submitter_id,
+            'title': '',
+            'first_name': first_name,
+            'last_name': last_name,
+            'national_id': '',
+            'birth_date': '',
+            'address': '',
+            'phone': '',
+            'email': ''
+        })
+    
+    return csv_input_dir
+
+
 async def run_pipeline():
     """Run the full pipeline for the current file"""
     global current_state
@@ -320,9 +408,9 @@ async def run_pipeline():
         try:
             from submission_scanx.phase1e_mapping import run_phase1e
 
-            csv_dir = SRC_DIR / "training" / "train input"
-            if not csv_dir.exists():
-                csv_dir = matched_output
+            # Generate input CSVs from PDF filename for web processing
+            csv_dir = generate_input_csvs(pdf_path.name, matched_output, mapping_output)
+            log_message(f"Generated input CSVs in {csv_dir}")
 
             await loop.run_in_executor(
                 executor,
@@ -333,6 +421,8 @@ async def run_pipeline():
         except Exception as e:
             log_message(f"Data mapping error: {str(e)}")
             current_state['phase_status']['phase1e'] = 'error'
+            import traceback
+            log_message(f"Traceback: {traceback.format_exc()}")
 
         current_state['progress'] = 100
         current_state['status'] = 'completed'

@@ -45,10 +45,6 @@
         </div>
     </div>
 
-    <!-- Results Summary -->
-    <div id="resultsSummary" class="hidden grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-    </div>
-
     <!-- Results Tabs -->
     <div id="resultsContainer" class="hidden">
         <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
@@ -125,9 +121,6 @@ async function doSearch() {
         // Update submitter info
         updateSubmitterInfo(submitterId);
         
-        // Build results summary
-        buildResultsSummary(response.results);
-        
         // Build tabs
         buildTabs(response.results);
         
@@ -158,32 +151,6 @@ function updateSubmitterInfo(submitterId) {
     }
 }
 
-function buildResultsSummary(results) {
-    const container = document.getElementById('resultsSummary');
-    container.classList.remove('hidden');
-    
-    const categories = [
-        { key: 'summary', label: 'Summary', color: 'cyan' },
-        { key: 'statement', label: 'Statement', color: 'blue' },
-        { key: 'statement_detail', label: 'Details', color: 'indigo' },
-        { key: 'relative_info', label: 'Relatives', color: 'purple' },
-        { key: 'spouse_info', label: 'Spouse', color: 'pink' },
-        { key: 'asset', label: 'Assets', color: 'green' },
-        { key: 'submitter_position', label: 'Positions', color: 'yellow' },
-    ];
-    
-    container.innerHTML = categories.map(cat => {
-        const data = results[cat.key];
-        const count = data?.count || 0;
-        return `
-            <div class="bg-slate-800 rounded-lg p-4 border border-slate-700 cursor-pointer hover:border-${cat.color}-500 transition-colors"
-                 onclick="showTab('${cat.key}')">
-                <div class="text-2xl font-bold text-${cat.color}-400">${count}</div>
-                <div class="text-sm text-slate-400">${cat.label}</div>
-            </div>
-        `;
-    }).join('');
-}
 
 function buildTabs(results) {
     const container = document.getElementById('tabsContainer');
