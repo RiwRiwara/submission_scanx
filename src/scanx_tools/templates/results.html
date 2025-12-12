@@ -392,11 +392,17 @@
     }
 
     function prevPage() {
-        if (currentPage > 1) renderPage(currentPage - 1);
+        if (currentPage > 1) {
+            renderPage(currentPage - 1);
+            updateDataTablePageDisplay();
+        }
     }
 
     function nextPage() {
-        if (pdfDoc && currentPage < pdfDoc.numPages) renderPage(currentPage + 1);
+        if (pdfDoc && currentPage < pdfDoc.numPages) {
+            renderPage(currentPage + 1);
+            updateDataTablePageDisplay();
+        }
     }
 
     function zoomIn() {
@@ -1283,16 +1289,33 @@
                     </div>
                 </div>
 
-                <!-- Source pages info -->
+                <!-- Source pages info with PDF navigation -->
                 <div id="dataTableSourceInfo" class="bg-blue-50 border border-blue-100 rounded-lg p-3">
-                    <div class="flex items-center justify-between">
+                    <div class="flex items-center justify-between flex-wrap gap-2">
                         <div>
                             <span class="text-sm font-medium text-blue-900" id="dataTableTitle">-</span>
                             <span class="text-xs text-blue-600 ml-2" id="dataTableStats">-</span>
                         </div>
-                        <div class="flex items-center gap-1">
-                            <span class="text-xs text-blue-600">หน้าที่มา:</span>
-                            <div id="dataTableSourcePages" class="flex flex-wrap gap-1"></div>
+                        <div class="flex items-center gap-3">
+                            <!-- PDF Page Navigation -->
+                            <div class="flex items-center gap-1 border-r border-blue-200 pr-3">
+                                <button onclick="prevPage()" class="p-1 text-blue-600 hover:bg-blue-100 rounded" title="หน้าก่อน">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                                    </svg>
+                                </button>
+                                <span class="text-xs text-blue-700">หน้า <span id="dataTableCurrentPage">1</span>/<span id="dataTableTotalPages">1</span></span>
+                                <button onclick="nextPage()" class="p-1 text-blue-600 hover:bg-blue-100 rounded" title="หน้าถัดไป">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            <!-- Source pages -->
+                            <div class="flex items-center gap-1">
+                                <span class="text-xs text-blue-600">หน้าที่มา:</span>
+                                <div id="dataTableSourcePages" class="flex flex-wrap gap-1"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1351,6 +1374,7 @@
 
             renderDataTable(csvDataCache[filename], step);
             updateDataTableModifiedBadge();
+            updateDataTablePageDisplay();
         } catch (e) {
             console.error('Error loading CSV:', e);
             tableContainer.innerHTML = `<div class="text-center py-8 text-red-500">ไม่สามารถโหลดข้อมูลได้</div>`;
@@ -1400,17 +1424,17 @@
         const getColDesc = (col) => colDescriptions[col] || col.replace(/_/g, ' ');
 
         tableContainer.innerHTML = `
-            <div class="overflow-x-auto max-h-[calc(100vh-400px)]">
-                <table class="w-full text-xs border-collapse">
-                    <thead class="sticky top-0 z-10">
-                        <tr class="bg-slate-100">
-                            <th class="px-2 py-2 text-left text-slate-500 font-medium border-b border-slate-200 w-8">#</th>
+            <div class="overflow-auto" style="max-height: 350px;">
+                <table class="w-full text-xs border-collapse min-w-max">
+                    <thead class="sticky top-0 z-10 bg-slate-100">
+                        <tr>
+                            <th class="px-2 py-2 text-left text-slate-500 font-medium border-b border-slate-200 w-8 bg-slate-100">#</th>
                             ${headers.map(h => `
-                                <th class="px-2 py-2 text-left text-slate-700 font-medium border-b border-slate-200 whitespace-nowrap" title="${h}">
+                                <th class="px-2 py-2 text-left text-slate-700 font-medium border-b border-slate-200 whitespace-nowrap bg-slate-100" title="${h}">
                                     ${getColDesc(h)}
                                 </th>
                             `).join('')}
-                            <th class="px-2 py-2 border-b border-slate-200 w-8"></th>
+                            <th class="px-2 py-2 border-b border-slate-200 w-8 bg-slate-100"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1432,6 +1456,7 @@
                                                data-row="${rowIdx}"
                                                data-col="${h}"
                                                onchange="updateDataTableCell(${rowIdx}, '${h}', this.value)"
+                                               onfocus="searchAndHighlightInPdf('${escapeHtml(row[h] || '')}')"
                                                placeholder="-">
                                     </td>
                                 `).join('')}
@@ -1540,6 +1565,47 @@
             ? `/api/jobs/${JOB_ID}/csv/${currentCsvFile}`
             : `/api/csv/${currentCsvFile}`;
         window.open(downloadUrl, '_blank');
+    }
+
+    // Search for value in PDF text and highlight matching polygon
+    function searchAndHighlightInPdf(value) {
+        if (!value || value.trim() === '' || value === '-') return;
+        
+        const searchValue = value.trim();
+        const data = resultsData?.matched_data || resultsData?.ocr_data;
+        if (!data?.pages) return;
+
+        // Search through all pages for the value
+        for (let pageIdx = 0; pageIdx < data.pages.length; pageIdx++) {
+            const page = data.pages[pageIdx];
+            if (!page.lines) continue;
+
+            for (let lineIdx = 0; lineIdx < page.lines.length; lineIdx++) {
+                const line = page.lines[lineIdx];
+                const content = line.content || '';
+                
+                // Check if line contains the search value
+                if (content.includes(searchValue)) {
+                    const pageNum = pageIdx + 1;
+                    // Navigate to page and highlight the line
+                    if (currentPage !== pageNum) {
+                        goToPage(pageNum);
+                    }
+                    // Highlight the specific line
+                    setTimeout(() => highlightLine(lineIdx), 100);
+                    updateDataTablePageDisplay();
+                    return;
+                }
+            }
+        }
+    }
+
+    // Update page display in datatables tab
+    function updateDataTablePageDisplay() {
+        const currentPageEl = document.getElementById('dataTableCurrentPage');
+        const totalPagesEl = document.getElementById('dataTableTotalPages');
+        if (currentPageEl) currentPageEl.textContent = currentPage;
+        if (totalPagesEl && pdfDoc) totalPagesEl.textContent = pdfDoc.numPages;
     }
 
     // Field Mapping Tab
