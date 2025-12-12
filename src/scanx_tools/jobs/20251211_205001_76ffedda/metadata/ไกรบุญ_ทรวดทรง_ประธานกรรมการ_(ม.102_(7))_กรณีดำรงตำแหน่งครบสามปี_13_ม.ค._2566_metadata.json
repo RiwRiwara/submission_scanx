@@ -1,0 +1,205 @@
+{
+  "doc_name": "ไกรบุญ_ทรวดทรง_ประธานกรรมการ_(ม.102_(7))_กรณีดำรงตำแหน่งครบสามปี_13_ม.ค._2566",
+  "total_pages": 37,
+  "step_mappings": [
+    {
+      "step_name": "step_1",
+      "step_description": "ตำแหน่งผู้ยื่นบัญชี",
+      "output_csv": "submitter_position.csv",
+      "page_numbers": [
+        3,
+        4
+      ],
+      "page_types": [
+        "personal_info"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_10",
+      "step_description": "รายละเอียดทรัพย์สินอื่น",
+      "output_csv": "asset_other_asset_info.csv",
+      "page_numbers": [
+        28,
+        29
+      ],
+      "page_types": [
+        "other_assets"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_2",
+      "step_description": "ชื่อเดิมผู้ยื่นบัญชี",
+      "output_csv": "submitter_old_name.csv",
+      "page_numbers": [
+        3,
+        4
+      ],
+      "page_types": [
+        "personal_info"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_3_1",
+      "step_description": "ข้อมูลคู่สมรส",
+      "output_csv": "spouse_info.csv",
+      "page_numbers": [
+        5
+      ],
+      "page_types": [
+        "spouse_info"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_3_2",
+      "step_description": "ชื่อเดิมคู่สมรส",
+      "output_csv": "spouse_old_name.csv",
+      "page_numbers": [
+        5
+      ],
+      "page_types": [
+        "spouse_info"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_3_3",
+      "step_description": "ตำแหน่งคู่สมรส",
+      "output_csv": "spouse_position.csv",
+      "page_numbers": [
+        5
+      ],
+      "page_types": [
+        "spouse_info"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_4",
+      "step_description": "ข้อมูลญาติ (บิดา มารดา บุตร พี่น้อง)",
+      "output_csv": "relative_info.csv",
+      "page_numbers": [
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "page_types": [
+        "siblings",
+        "spouse_info",
+        "personal_info",
+        "children"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_5",
+      "step_description": "รายได้/รายจ่าย/ภาษี/สรุป",
+      "output_csv": "statement.csv + statement_detail.csv",
+      "page_numbers": [
+        1,
+        3,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        36
+      ],
+      "page_types": [
+        "tax_info",
+        "income_expense",
+        "assets_summary"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_6",
+      "step_description": "รายการทรัพย์สินและหนี้สิน",
+      "output_csv": "asset.csv",
+      "page_numbers": [
+        10,
+        12,
+        13,
+        15,
+        16,
+        17,
+        19,
+        20,
+        21,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36
+      ],
+      "page_types": [
+        "concessions",
+        "overdraft",
+        "other_assets",
+        "written_debts",
+        "buildings",
+        "vehicles",
+        "cash",
+        "bank_loans",
+        "deposits",
+        "loans_given",
+        "investments",
+        "land"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_7",
+      "step_description": "รายละเอียดที่ดิน",
+      "output_csv": "asset_land_info.csv",
+      "page_numbers": [
+        20,
+        21
+      ],
+      "page_types": [
+        "land"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_8",
+      "step_description": "รายละเอียดโรงเรือน/สิ่งปลูกสร้าง",
+      "output_csv": "asset_building_info.csv",
+      "page_numbers": [
+        23
+      ],
+      "page_types": [
+        "buildings"
+      ],
+      "confidence": 1.0
+    },
+    {
+      "step_name": "step_9",
+      "step_description": "รายละเอียดยานพาหนะ",
+      "output_csv": "asset_vehicle_info.csv",
+      "page_numbers": [
+        24,
+        25
+      ],
+      "page_types": [
+        "vehicles"
+      ],
+      "confidence": 1.0
+    }
+  ],
+  "unmapped_pages": []
+}

@@ -1,0 +1,30 @@
+{
+  "job_id": "20251211_205001_76ffedda",
+  "filename": "ไกรบุญ_ทรวดทรง_ประธานกรรมการ_(ม.102_(7))_กรณีดำรงตำแหน่งครบสามปี_13_ม.ค._2566.pdf",
+  "pages": 37,
+  "status": "completed",
+  "started_at": "2025-12-11T20:50:01.339631",
+  "completed_at": "2025-12-11T20:50:09.294483",
+  "duration_seconds": 7.954852,
+  "error": null,
+  "phase_status": {
+    "phase0": "completed",
+    "phase1ab": "completed",
+    "phase1c": "completed",
+    "phase1d": "completed",
+    "phase1e": "completed"
+  },
+  "logs": [
+    "[20:50:01] Starting OCR for ไกรบุญ_ทรวดทรง_ประธานกรรมการ_(ม.102_(7))_กรณีดำรงตำแหน่งครบสามปี_13_ม.ค._2566.pdf",
+    "[20:50:09] OCR completed: 37 pages extracted",
+    "[20:50:09] Starting page type identification...",
+    "[20:50:09] Page matching completed",
+    "[20:50:09] Extracting text from pages...",
+    "[20:50:09] Text extraction completed",
+    "[20:50:09] Extracting metadata with AI...",
+    "[20:50:09] AI metadata extraction completed",
+    "[20:50:09] Mapping extracted data to CSV...",
+    "[20:50:09] Data mapping completed",
+    "[20:50:09] Processing completed! Duration: 7 วินาที"
+  ]
+}
