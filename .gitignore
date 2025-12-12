@@ -9,3 +9,7 @@ src/result/from_train/processing_input/page_metadata
 src/result/from_train/processing_input/text_each_page
 src/scanx_tools/workspace
 src/submission_scanx_js
+src/scanx_tools/workspace/text
+src/scanx_tools/workspace/metadata
+src/scanx_tools/workspace/ocr
+src/scanx_tools/workspace/jobs

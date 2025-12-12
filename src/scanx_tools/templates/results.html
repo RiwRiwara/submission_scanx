@@ -182,8 +182,13 @@
                     <button onclick="showTab('pages')" class="tab-btn px-4 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors" data-tab="pages">
                         Pages
                     </button>
-                    <button onclick="showTab('mapping')" class="tab-btn px-4 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors" data-tab="mapping">
-                        Field Mapping
+                    <button onclick="showTab('datatables')" class="tab-btn px-4 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors" data-tab="datatables">
+                        <span class="flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                            </svg>
+                            ตรวจสอบข้อมูล
+                        </span>
                     </button>
                     <button onclick="showTab('csv')" class="tab-btn px-4 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors" data-tab="csv">
                         Content Extract
@@ -480,8 +485,8 @@
             case 'pages':
                 renderPagesTab(container);
                 break;
-            case 'mapping':
-                renderMappingTab(container);
+            case 'datatables':
+                renderDataTablesTab(container);
                 break;
             case 'csv':
                 renderCsvTab(container);
@@ -691,7 +696,7 @@
                     return `
                         <div class="border border-slate-200 rounded-lg overflow-hidden" id="page-item-${pageNum}">
                             <div class="p-3 cursor-pointer transition-all ${isActive ? 'bg-blue-50 border-blue-200' : 'hover:bg-slate-50'}"
-                                 onclick="goToPage(${pageNum}); togglePageExpand(${pageNum})">
+                                 onclick="goToPage(${pageNum})">
                                 <div class="flex items-center gap-3">
                                     <span class="w-9 h-9 rounded-lg ${isActive ? 'bg-blue-500 text-white' : isUnknown ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'} flex items-center justify-center text-sm font-semibold flex-shrink-0">
                                         ${pageNum}
@@ -1225,6 +1230,316 @@
     function clearPdfHighlight() {
         highlightedLineIndex = -1;
         renderPolygons();
+    }
+
+    // Data Tables Tab - View and edit CSV data with PDF source tracking
+    function renderDataTablesTab(container) {
+        const csvFiles = resultsData?.csv_files || [];
+        
+        if (csvFiles.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-12">
+                    <svg class="w-12 h-12 mx-auto text-slate-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <p class="text-slate-500">ไม่พบไฟล์ CSV</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Build file selector with step info
+        const fileOptions = csvFiles.map(file => {
+            const step = getStepForCsv(file);
+            const stepDesc = step ? step.step_description : file.replace('.csv', '').replace(/_/g, ' ');
+            const pageNums = step?.page_numbers || [];
+            return { file, stepDesc, pageNums };
+        });
+
+        container.innerHTML = `
+            <div class="space-y-4">
+                <!-- Header with file selector and actions -->
+                <div class="flex items-center justify-between flex-wrap gap-3">
+                    <div class="flex items-center gap-3">
+                        <label class="text-sm font-medium text-slate-700">เลือกข้อมูล:</label>
+                        <select id="dataTableFileSelect" onchange="loadDataTableFile(this.value)" class="text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500 min-w-[200px]">
+                            ${fileOptions.map((opt, i) => `<option value="${opt.file}" ${i === 0 ? 'selected' : ''}>${opt.stepDesc}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span id="dataTableModifiedBadge" class="hidden text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">มีการแก้ไข</span>
+                        <button onclick="saveDataTableChanges()" id="saveDataTableBtn" class="text-sm px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 flex items-center gap-1" disabled>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+                            </svg>
+                            บันทึก
+                        </button>
+                        <button onclick="downloadDataTableCsv()" class="text-sm px-3 py-1.5 text-slate-600 hover:bg-slate-100 rounded-lg flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                            </svg>
+                            ดาวน์โหลด
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Source pages info -->
+                <div id="dataTableSourceInfo" class="bg-blue-50 border border-blue-100 rounded-lg p-3">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="text-sm font-medium text-blue-900" id="dataTableTitle">-</span>
+                            <span class="text-xs text-blue-600 ml-2" id="dataTableStats">-</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <span class="text-xs text-blue-600">หน้าที่มา:</span>
+                            <div id="dataTableSourcePages" class="flex flex-wrap gap-1"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data table container -->
+                <div id="dataTableContainer" class="border border-slate-200 rounded-lg overflow-hidden">
+                    <div class="text-center py-8 text-slate-400">กำลังโหลด...</div>
+                </div>
+
+                <!-- Add row button -->
+                <div class="flex items-center justify-between">
+                    <button onclick="addDataTableRow()" class="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        เพิ่มแถวใหม่
+                    </button>
+                    <span class="text-xs text-slate-400">คลิกที่เซลล์เพื่อแก้ไข • คลิกหมายเลขหน้าเพื่อดูใน PDF</span>
+                </div>
+            </div>
+        `;
+
+        // Load first file
+        if (fileOptions.length > 0) {
+            loadDataTableFile(fileOptions[0].file);
+        }
+    }
+
+    async function loadDataTableFile(filename) {
+        currentCsvFile = filename;
+        const tableContainer = document.getElementById('dataTableContainer');
+        tableContainer.innerHTML = '<div class="text-center py-8 text-slate-400"><div class="animate-spin inline-block w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full"></div></div>';
+
+        // Update source info
+        const step = getStepForCsv(filename);
+        document.getElementById('dataTableTitle').textContent = step ? step.step_description : filename;
+        
+        const sourcePages = document.getElementById('dataTableSourcePages');
+        if (step?.page_numbers?.length > 0) {
+            sourcePages.innerHTML = step.page_numbers.map(p => 
+                `<button onclick="goToPage(${p})" class="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200">${p}</button>`
+            ).join('');
+            // Auto navigate to first related page
+            goToPage(step.page_numbers[0]);
+        } else {
+            sourcePages.innerHTML = '<span class="text-xs text-slate-400">-</span>';
+        }
+
+        try {
+            if (!csvDataCache[filename]) {
+                const dataUrl = JOB_ID ? `/api/jobs/${JOB_ID}/csv/${filename}/data` : `/api/csv/${filename}/data`;
+                const response = await fetch(dataUrl);
+                csvDataCache[filename] = await response.json();
+                csvModified[filename] = false;
+            }
+
+            renderDataTable(csvDataCache[filename], step);
+            updateDataTableModifiedBadge();
+        } catch (e) {
+            console.error('Error loading CSV:', e);
+            tableContainer.innerHTML = `<div class="text-center py-8 text-red-500">ไม่สามารถโหลดข้อมูลได้</div>`;
+        }
+    }
+
+    function renderDataTable(data, step) {
+        const tableContainer = document.getElementById('dataTableContainer');
+        const { headers, rows } = data;
+
+        document.getElementById('dataTableStats').textContent = `${rows.length} แถว, ${headers.length} คอลัมน์`;
+
+        if (!headers || headers.length === 0) {
+            tableContainer.innerHTML = '<div class="text-center py-8 text-slate-400">ไฟล์ไม่มีข้อมูล</div>';
+            return;
+        }
+
+        // Column descriptions
+        const colDescriptions = {
+            'nacc_id': 'รหัส ปปช.',
+            'submitter_id': 'รหัสผู้ยื่น',
+            'statement_detail_type_id': 'ประเภท',
+            'index': 'ลำดับ',
+            'detail': 'รายละเอียด',
+            'valuation_submitter': 'มูลค่า (ผู้ยื่น)',
+            'valuation_spouse': 'มูลค่า (คู่สมรส)',
+            'valuation_child': 'มูลค่า (บุตร)',
+            'note': 'หมายเหตุ',
+            'latest_submitted_date': 'วันที่ยื่น',
+            'asset_id': 'รหัสทรัพย์สิน',
+            'asset_type': 'ประเภททรัพย์สิน',
+            'owner_type': 'เจ้าของ',
+            'valuation': 'มูลค่า',
+            'acquisition_type': 'วิธีได้มา',
+            'acquisition_date': 'วันที่ได้มา',
+            'first_name': 'ชื่อ',
+            'last_name': 'นามสกุล',
+            'position': 'ตำแหน่ง',
+            'agency': 'หน่วยงาน',
+            'start_date': 'วันที่เริ่ม',
+            'end_date': 'วันที่สิ้นสุด',
+            'relationship': 'ความสัมพันธ์',
+            'birth_date': 'วันเกิด',
+            'death_date': 'วันเสียชีวิต'
+        };
+
+        const getColDesc = (col) => colDescriptions[col] || col.replace(/_/g, ' ');
+
+        tableContainer.innerHTML = `
+            <div class="overflow-x-auto max-h-[calc(100vh-400px)]">
+                <table class="w-full text-xs border-collapse">
+                    <thead class="sticky top-0 z-10">
+                        <tr class="bg-slate-100">
+                            <th class="px-2 py-2 text-left text-slate-500 font-medium border-b border-slate-200 w-8">#</th>
+                            ${headers.map(h => `
+                                <th class="px-2 py-2 text-left text-slate-700 font-medium border-b border-slate-200 whitespace-nowrap" title="${h}">
+                                    ${getColDesc(h)}
+                                </th>
+                            `).join('')}
+                            <th class="px-2 py-2 border-b border-slate-200 w-8"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.length === 0 ? `
+                            <tr>
+                                <td colspan="${headers.length + 2}" class="px-4 py-8 text-center text-slate-400">
+                                    <p class="font-medium">ยังไม่มีข้อมูล</p>
+                                    <p class="text-xs mt-1">คลิก "เพิ่มแถวใหม่" และดู PDF ด้านซ้ายเพื่อกรอกข้อมูล</p>
+                                </td>
+                            </tr>
+                        ` : rows.map((row, rowIdx) => `
+                            <tr class="hover:bg-blue-50 border-b border-slate-100 group">
+                                <td class="px-2 py-1 text-slate-400">${rowIdx + 1}</td>
+                                ${headers.map(h => `
+                                    <td class="px-1 py-1">
+                                        <input type="text"
+                                               class="editable-cell w-full text-xs"
+                                               value="${escapeHtml(row[h] || '')}"
+                                               data-row="${rowIdx}"
+                                               data-col="${h}"
+                                               onchange="updateDataTableCell(${rowIdx}, '${h}', this.value)"
+                                               placeholder="-">
+                                    </td>
+                                `).join('')}
+                                <td class="px-1 py-1">
+                                    <button onclick="deleteDataTableRow(${rowIdx})" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="ลบแถว">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                        </svg>
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    function updateDataTableCell(rowIdx, colName, value) {
+        if (!currentCsvFile || !csvDataCache[currentCsvFile]) return;
+        csvDataCache[currentCsvFile].rows[rowIdx][colName] = value;
+        csvModified[currentCsvFile] = true;
+        updateDataTableModifiedBadge();
+    }
+
+    function addDataTableRow() {
+        if (!currentCsvFile || !csvDataCache[currentCsvFile]) return;
+        const { headers, rows } = csvDataCache[currentCsvFile];
+        const newRow = {};
+        headers.forEach(h => newRow[h] = '');
+        rows.push(newRow);
+        csvModified[currentCsvFile] = true;
+        
+        const step = getStepForCsv(currentCsvFile);
+        renderDataTable(csvDataCache[currentCsvFile], step);
+        updateDataTableModifiedBadge();
+    }
+
+    function deleteDataTableRow(rowIdx) {
+        if (!currentCsvFile || !csvDataCache[currentCsvFile]) return;
+        if (!confirm('ต้องการลบแถวนี้หรือไม่?')) return;
+        
+        csvDataCache[currentCsvFile].rows.splice(rowIdx, 1);
+        csvModified[currentCsvFile] = true;
+        
+        const step = getStepForCsv(currentCsvFile);
+        renderDataTable(csvDataCache[currentCsvFile], step);
+        updateDataTableModifiedBadge();
+    }
+
+    function updateDataTableModifiedBadge() {
+        const badge = document.getElementById('dataTableModifiedBadge');
+        const saveBtn = document.getElementById('saveDataTableBtn');
+        const isModified = csvModified[currentCsvFile];
+        
+        if (badge) badge.classList.toggle('hidden', !isModified);
+        if (saveBtn) saveBtn.disabled = !isModified;
+    }
+
+    async function saveDataTableChanges() {
+        if (!currentCsvFile || !csvDataCache[currentCsvFile]) return;
+
+        const saveBtn = document.getElementById('saveDataTableBtn');
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<div class="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>';
+
+        try {
+            const saveUrl = JOB_ID
+                ? `/api/jobs/${JOB_ID}/csv/${currentCsvFile}/save`
+                : `/api/csv/${currentCsvFile}/save`;
+
+            const response = await fetch(saveUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    headers: csvDataCache[currentCsvFile].headers,
+                    rows: csvDataCache[currentCsvFile].rows,
+                    job_id: JOB_ID
+                })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                csvModified[currentCsvFile] = false;
+                updateDataTableModifiedBadge();
+                
+                // Show success briefly
+                saveBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> บันทึกแล้ว';
+                setTimeout(() => {
+                    saveBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg> บันทึก';
+                }, 1500);
+            } else {
+                alert('เกิดข้อผิดพลาดในการบันทึก');
+            }
+        } catch (e) {
+            console.error('Error saving:', e);
+            alert('Error: ' + e.message);
+        } finally {
+            saveBtn.disabled = false;
+        }
+    }
+
+    function downloadDataTableCsv() {
+        if (!currentCsvFile) return;
+        const downloadUrl = JOB_ID
+            ? `/api/jobs/${JOB_ID}/csv/${currentCsvFile}`
+            : `/api/csv/${currentCsvFile}`;
+        window.open(downloadUrl, '_blank');
     }
 
     // Field Mapping Tab

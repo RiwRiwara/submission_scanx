@@ -234,17 +234,19 @@ def generate_input_csvs(pdf_filename: str, matched_output: Path, mapping_output:
             submitted_case = 'กรณีพ้นจากตำแหน่ง'
             break
     
-    # Generate unique IDs
-    nacc_id = f"WEB_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-    submitter_id = f"SUB_{nacc_id}"
+    # Generate numeric IDs (required by step functions that parse as int)
+    # Use a fixed high number that won't conflict with training data
+    nacc_id = "99999"
+    submitter_id = "99999"
     
     # Create doc_info.csv
     doc_info_path = csv_input_dir / "Train_doc_info.csv"
     with open(doc_info_path, 'w', encoding='utf-8', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=['nacc_id', 'doc_location_url'])
+        writer = csv.DictWriter(f, fieldnames=['nacc_id', 'doc_id', 'doc_location_url'])
         writer.writeheader()
         writer.writerow({
             'nacc_id': nacc_id,
+            'doc_id': '1',  # Simple doc_id for single file processing
             'doc_location_url': pdf_filename
         })
     

@@ -1,0 +1,31 @@
+{
+  "job_id": "20251213_020926_d19a9bdc",
+  "filename": "ไพลิน_เทียนสุวรรณ_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_15_พ.ค._2566.pdf",
+  "pages": 24,
+  "status": "completed",
+  "started_at": "2025-12-13T02:09:26.597507",
+  "completed_at": "2025-12-13T02:09:33.199854",
+  "duration_seconds": 6.602347,
+  "error": null,
+  "phase_status": {
+    "phase0": "completed",
+    "phase1ab": "completed",
+    "phase1c": "completed",
+    "phase1d": "completed",
+    "phase1e": "completed"
+  },
+  "logs": [
+    "[02:09:26] Starting OCR for ไพลิน_เทียนสุวรรณ_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_15_พ.ค._2566.pdf",
+    "[02:09:33] OCR completed: 24 pages extracted",
+    "[02:09:33] Starting page type identification...",
+    "[02:09:33] Page matching completed",
+    "[02:09:33] Extracting text from pages...",
+    "[02:09:33] Text extraction completed",
+    "[02:09:33] Extracting metadata with AI...",
+    "[02:09:33] AI metadata extraction completed",
+    "[02:09:33] Mapping extracted data to CSV...",
+    "[02:09:33] Generated input CSVs in /Users/riwara/work/hackaton/submission_scanx/src/scanx_tools/workspace/mapping/input",
+    "[02:09:33] Data mapping completed",
+    "[02:09:33] Processing completed! Duration: 6 วินาที"
+  ]
+}
