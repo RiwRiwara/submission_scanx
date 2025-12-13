@@ -1,0 +1,31 @@
+{
+  "job_id": "20251213_022937_7dbd4ded",
+  "filename": "วทันยา_วงษ์โอภาสี_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีเข้ารับตำแหน่ง_15_ต.ค._2562.pdf",
+  "pages": 30,
+  "status": "completed",
+  "started_at": "2025-12-13T02:29:37.478641",
+  "completed_at": "2025-12-13T02:29:44.508282",
+  "duration_seconds": 7.029641,
+  "error": null,
+  "phase_status": {
+    "phase0": "completed",
+    "phase1ab": "completed",
+    "phase1c": "completed",
+    "phase1d": "completed",
+    "phase1e": "completed"
+  },
+  "logs": [
+    "[02:29:37] Starting OCR for วทันยา_วงษ์โอภาสี_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีเข้ารับตำแหน่ง_15_ต.ค._2562.pdf",
+    "[02:29:44] OCR completed: 30 pages extracted",
+    "[02:29:44] Starting page type identification...",
+    "[02:29:44] Page matching completed",
+    "[02:29:44] Extracting text from pages...",
+    "[02:29:44] Text extraction completed",
+    "[02:29:44] Extracting metadata with AI...",
+    "[02:29:44] AI metadata extraction completed",
+    "[02:29:44] Mapping extracted data to CSV...",
+    "[02:29:44] Generated input CSVs in /Users/riwara/work/hackaton/submission_scanx/src/scanx_tools/workspace/mapping/input",
+    "[02:29:44] Data mapping completed",
+    "[02:29:44] Processing completed! Duration: 7 วินาที"
+  ]
+}

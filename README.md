@@ -243,11 +243,6 @@ poetry run scanx-mapping --final
 Create `.env` file in `src/submission_scanx/`:
 
 ```env
-# Azure OpenAI (for Phase 1d AI-assisted metadata)
-AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/"
-AZURE_OPENAI_DEPLOYMENT_NAME="gpt-4o"
-AZURE_OPENAI_API_KEY="your-api-key"
-
 # Azure Document Intelligence (for Phase 0 OCR)
 AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT="https://your-resource.cognitiveservices.azure.com/"
 DOC_INT_REGION="your-region"
@@ -255,6 +250,11 @@ AZURE_DOCUMENT_INTELLIGENCE_API_KEY="your-api-key"
 
 # Human-in-the-loop (optional - for cost reduction)
 USE_HUNMAN_IN_LOOP="FALSE"
+
+# Azure OpenAI (Optionall)
+AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/"
+AZURE_OPENAI_DEPLOYMENT_NAME="gpt-4o"
+AZURE_OPENAI_API_KEY="your-api-key"
 ```
 
 ## Human-in-the-Loop (Page Ignore)

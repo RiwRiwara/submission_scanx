@@ -1,0 +1,5 @@
+asset_id,submitter_id,nacc_id,index,asset_type_id,asset_type_other,asset_name,date_acquiring_type_id,acquiring_date,acquiring_month,acquiring_year,date_ending_type_id,ending_date,ending_month,ending_year,asset_acquisition_type_id,valuation,owner_by_submitter,owner_by_spouse,owner_by_child,latest_submitted_date
+2616,99999,99999,1,36,,โฉนด,1,,,2002,4,,,,6,165000,TRUE,FALSE,FALSE,
+2617,99999,99999,1,38,,ยานพาหนะ,1,26,3,2019,4,,,,6,200000,TRUE,FALSE,FALSE,
+2618,99999,99999,2,38,,ยานพาหนะ,1,,,2019,4,,,,6,30000,TRUE,FALSE,FALSE,
+2619,99999,99999,1,29,,จำนวนหน่วย 2 กระบอก อาวุธปืน - เดี๋ยวลูกซอง 5 นัด ขนาด 12,1,28,6,2010,4,,,,6,50000,TRUE,FALSE,FALSE,

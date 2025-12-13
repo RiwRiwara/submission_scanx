@@ -1,0 +1,31 @@
+{
+  "job_id": "20251213_102142_f9b4778a",
+  "filename": "จรัส_คุ้มไข่น้ำ_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_24_ก.ค._2566.pdf",
+  "pages": 25,
+  "status": "completed",
+  "started_at": "2025-12-13T10:21:42.024695",
+  "completed_at": "2025-12-13T10:21:49.391954",
+  "duration_seconds": 7.367259,
+  "error": null,
+  "phase_status": {
+    "phase0": "completed",
+    "phase1ab": "completed",
+    "phase1c": "completed",
+    "phase1d": "completed",
+    "phase1e": "completed"
+  },
+  "logs": [
+    "[10:21:42] Starting OCR for จรัส_คุ้มไข่น้ำ_สมาชิกสภาผู้แทนราษฎร_(ส.ส.)_กรณีพ้นจากตำแหน่ง_24_ก.ค._2566.pdf",
+    "[10:21:49] OCR completed: 25 pages extracted",
+    "[10:21:49] Starting page type identification...",
+    "[10:21:49] Page matching completed",
+    "[10:21:49] Extracting text from pages...",
+    "[10:21:49] Text extraction completed",
+    "[10:21:49] Extracting metadata with AI...",
+    "[10:21:49] AI metadata extraction completed",
+    "[10:21:49] Mapping extracted data to CSV...",
+    "[10:21:49] Generated input CSVs in /Users/riwara/work/hackaton/submission_scanx/src/scanx_tools/workspace/mapping/input",
+    "[10:21:49] Data mapping completed",
+    "[10:21:49] Processing completed! Duration: 7 วินาที"
+  ]
+}

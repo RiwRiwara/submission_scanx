@@ -1,0 +1,4 @@
+asset_id,submitter_id,nacc_id,index,asset_type_id,asset_type_other,asset_name,date_acquiring_type_id,acquiring_date,acquiring_month,acquiring_year,date_ending_type_id,ending_date,ending_month,ending_year,asset_acquisition_type_id,valuation,owner_by_submitter,owner_by_spouse,owner_by_child,latest_submitted_date
+2616,99999,99999,1,36,,โฉนด,1,,,,4,,,,6,8118.53,TRUE,FALSE,FALSE,
+2617,99999,99999,1,37,,สิ่งปลูกสร้าง,1,,,,4,,,,6,6000000,TRUE,FALSE,FALSE,
+2618,99999,99999,1,38,,ยานพาหนะ,1,,,,4,,,,6,700,TRUE,FALSE,FALSE,

@@ -1,0 +1,31 @@
+{
+  "job_id": "20251213_084059_51cd5bba",
+  "filename": "กิตติ_บรรณโศภิษฐ์_ผู้อำนวยการ_(ม.102(7))_กรณีดำรงตำแหน่งครบสามปี_15_ม.ค._2567.pdf",
+  "pages": 23,
+  "status": "completed",
+  "started_at": "2025-12-13T08:40:59.352228",
+  "completed_at": "2025-12-13T08:41:08.094791",
+  "duration_seconds": 8.742563,
+  "error": null,
+  "phase_status": {
+    "phase0": "completed",
+    "phase1ab": "completed",
+    "phase1c": "completed",
+    "phase1d": "completed",
+    "phase1e": "completed"
+  },
+  "logs": [
+    "[08:40:59] Starting OCR for กิตติ_บรรณโศภิษฐ์_ผู้อำนวยการ_(ม.102(7))_กรณีดำรงตำแหน่งครบสามปี_15_ม.ค._2567.pdf",
+    "[08:41:08] OCR completed: 23 pages extracted",
+    "[08:41:08] Starting page type identification...",
+    "[08:41:08] Page matching completed",
+    "[08:41:08] Extracting text from pages...",
+    "[08:41:08] Text extraction completed",
+    "[08:41:08] Extracting metadata with AI...",
+    "[08:41:08] AI metadata extraction completed",
+    "[08:41:08] Mapping extracted data to CSV...",
+    "[08:41:08] Generated input CSVs in /Users/riwara/work/hackaton/submission_scanx/src/scanx_tools/workspace/mapping/input",
+    "[08:41:08] Data mapping completed",
+    "[08:41:08] Processing completed! Duration: 8 วินาที"
+  ]
+}
