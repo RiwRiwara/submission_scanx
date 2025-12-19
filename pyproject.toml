@@ -2,6 +2,7 @@
 name = "submission-scanx"
 version = "0.1.0"
 description = "Thai Government Financial Disclosure Document Extraction System"
+license = "MIT"
 authors = [
     {name = "Riwara",email = "awirut2629@gmail.com"}
 ]
